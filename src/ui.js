@@ -48,11 +48,12 @@ const state = {
   possible: [],
   manualMode: false,
   gongOrder: [],
-  chatHistory: [],      // 当前牌阵的 AI 对话历史
+  chatHistory: [],      
   selectedProvider: 'deepseek',
   uid: 0,
   editCount: 0,
   currentOnboardStep: 0,
+  isMobile: window.innerWidth < 768, // 检测移动端
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -96,7 +97,7 @@ function updateStep(n) {
   }
 }
 
-// ===== 面板切换（仅操作 static-panel，不触动动态面板） =====
+// ===== 面板切换 =====
 function togglePanel(panelId) {
   const panel = $('#panel' + panelId.charAt(0).toUpperCase() + panelId.slice(1));
   if (!panel) return;
@@ -133,28 +134,52 @@ function renderTeachingPanel() {
   container.innerHTML = html;
 }
 
-// ===== 牌组渲染 =====
+// ===== 牌组渲染 (核心改动：增加移动端横向滑动支持) =====
 function renderDeck() {
   const el = $('#deckContainer');
   if (!el) return;
   if (!state.deck.length) { el.innerHTML = '<span style="color:#444">牌库空</span>'; return; }
+
+  // 移动端改为横向布局（类似桌游摊开）
+  if (state.isMobile) {
+    el.style.display = 'flex';
+    el.style.flexWrap = 'nowrap';
+    el.style.overflowX = 'auto';
+    el.style.overflowY = 'hidden';
+    el.style.gap = '12px';
+    el.style.padding = '10px 10px 20px 10px'; // 底部留白给滚动条提示
+    el.style.scrollSnapType = 'x mandatory';
+    el.style.webkitOverflowScrolling = 'touch';
+  } else {
+    el.style.display = '';
+    el.style.flexWrap = '';
+    el.style.overflowX = '';
+    el.style.overflowY = '';
+    el.style.gap = '';
+    el.style.padding = '';
+    el.style.scrollSnapType = '';
+    el.style.webkitOverflowScrolling = '';
+  }
 
   if (state.manualMode) {
     el.innerHTML = state.deck.map(c => {
       const id = getCardId(c); const placed = isCardPlaced(c); const sel = state.sel === id;
       const colorCls = getCardColor(c); const rank = c.isJoker ? c.type : c.rank;
       const suit = c.isJoker ? '' : c.suit; const wx = getWuxing(c);
+      // 移动端加入 flex-shrink: 0 防止卡片被压缩
+      const flexStyle = state.isMobile ? 'flex-shrink:0;' : '';
       return `<div class="card-face-small ${colorCls}${sel ? ' selected' : ''}${placed ? ' used' : ''}"
         data-cardid="${id}" draggable="false"
-        style="${placed ? 'opacity:0.3;cursor:default' : ''}">
+        style="${flexStyle}${placed ? 'opacity:0.3;cursor:default' : ''}">
         <span class="rank">${rank}</span><span class="suit">${suit}</span><span class="wx-tag">${wx}</span></div>`;
     }).join('');
   } else {
     el.innerHTML = state.deck.map(c => {
       const id = getCardId(c); const placed = isCardPlaced(c); const sel = state.sel === id;
+      const flexStyle = state.isMobile ? 'flex-shrink:0;' : '';
       return `<div class="card-back${sel ? ' selected' : ''}${placed ? ' used' : ''}"
         data-cardid="${id}" draggable="false"
-        style="${placed ? 'opacity:0.3;cursor:default' : ''}"></div>`;
+        style="${flexStyle}${placed ? 'opacity:0.3;cursor:default' : ''}"></div>`;
     }).join('');
   }
 }
@@ -887,23 +912,29 @@ function startPress(clientX, clientY, cardEl) {
   }, LONG_PRESS_DURATION);
 }
 
+// 核心改进：优化拖拽与原生横向滑动的冲突
 function moveDrag(clientX, clientY, e) {
   if (!dragData) return;
 
+  // 未触发长按，并且手指已经滑出一定距离
+  if (!dragData.longPressTriggered) {
+    const dx = clientX - dragData.startX;
+    const dy = clientY - dragData.startY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance > 10) {
+      clearPressTimer(); // 取消长按
+      // 注意：这里不重置 dragData = null
+      // 让它继续检查是否是拖拽克隆，如果不是，`dragData.clone`为null，不会执行 e.preventDefault()
+    }
+  }
+
   if (dragData.clone) {
-    // 已经在拖拽
+    // 如果已经生成克隆，阻止页面原生滚动（此时是真正的长按拖拽）
     if (e && e.preventDefault) e.preventDefault();
     dragData.clone.style.left = (clientX - dragData.offsetX) + 'px';
     dragData.clone.style.top = (clientY - dragData.offsetY) + 'px';
-  } else {
-    // 还未触发长按，检查移动距离，超过阈值则取消长按（转为滚动意图）
-    const dx = clientX - dragData.startX;
-    const dy = clientY - dragData.startY;
-    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
-      clearPressTimer();
-      dragData = null; // 放弃拖拽，让页面自然滚动
-    }
   }
+  // 如果没有克隆（意味着手指只是划动，没有长按），则不给 e.preventDefault()，让浏览器原生处理横向滚动
 }
 
 function endDrag(clientX, clientY) {
@@ -952,9 +983,9 @@ function endDrag(clientX, clientY) {
 document.addEventListener('touchstart', function(e) {
   const cardEl = e.target.closest('.card-back, .card-face-small');
   if (!cardEl) return;
-  // 不阻止默认，让页面可以滚动；长按定时器会触发拖拽
+  // 移动端在触摸牌时，不要阻止默认，保证横向滑动触发原生的弹性滚动
   startPress(e.touches[0].clientX, e.touches[0].clientY, cardEl);
-}, { passive: false });
+}, { passive: true });
 
 document.addEventListener('touchmove', function(e) {
   moveDrag(e.touches[0].clientX, e.touches[0].clientY, e);
@@ -1014,7 +1045,6 @@ document.addEventListener('mouseup', function(e) {
     const dx = e.clientX - dragData.startX;
     const dy = e.clientY - dragData.startY;
     if (Math.abs(dx) < 3 && Math.abs(dy) < 3) {
-      // 【已修复】Bug修复：先保存 cardId，再销毁 dragData
       const cardId = dragData.cardId;
       dragData.clone.remove();
       dragData = null;
@@ -1075,6 +1105,13 @@ document.addEventListener('click', function(e) {
 
 // ===== 模态框背景点击关闭 =====
 document.addEventListener('click', function(e) { if (e.target === domModal) domModal.setAttribute('hidden', ''); });
+
+// ===== 窗口调整时刷新移动端状态 =====
+window.addEventListener('resize', () => {
+  state.isMobile = window.innerWidth < 768;
+  // 如果牌库容器存在，重绘以适应布局
+  if ($('#deckContainer')) renderDeck();
+});
 
 // ===== 应用启动 =====
 function init() {
