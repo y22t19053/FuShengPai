@@ -296,26 +296,28 @@ button.small {
   user-select: none;
 }
 
-/* ----- 牌堆容器 ----- */
+/* ----- 牌堆容器（左右滑动版） ----- */
 .deck-grid {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 1.5vw;
   padding: 2vh 2vw;
-  max-height: 40vh;
-  overflow-y: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
   border: 2px dashed var(--border);
   border-radius: 14px;
   background: rgba(0, 0, 0, 0.15);
   margin-bottom: 1.5vh;
-  justify-content: center;
+  justify-content: flex-start;
+  align-content: center;
   transition: border-color 0.3s;
-  align-content: flex-start;
-  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
 }
 
 .deck-grid::-webkit-scrollbar {
-  width: 4px;
+  height: 4px;
 }
 
 .deck-grid::-webkit-scrollbar-thumb {
@@ -376,6 +378,7 @@ button.small {
   transform: translateY(-6px);
 }
 
+/* 明牌小卡（手动模式用） */
 .card-face-small {
   background: #f8f4ea;
   border: 2px solid #c8b8a0;
@@ -419,6 +422,7 @@ button.small {
   border-radius: 6px;
 }
 
+/* 已被使用的牌变淡 */
 .card-back.used,
 .card-face-small.used {
   opacity: 0.3;
