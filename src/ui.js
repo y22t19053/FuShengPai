@@ -1014,10 +1014,11 @@ document.addEventListener('mouseup', function(e) {
     const dx = e.clientX - dragData.startX;
     const dy = e.clientY - dragData.startY;
     if (Math.abs(dx) < 3 && Math.abs(dy) < 3) {
-      // 取消拖拽，销毁克隆，触发点击
+      // 【已修复】Bug修复：先保存 cardId，再销毁 dragData
+      const cardId = dragData.cardId;
       dragData.clone.remove();
       dragData = null;
-      selectCard(findCardById(dragData?.cardId) ? dragData.cardId : null);
+      selectCard(cardId);
       return;
     }
     endDrag(e.clientX, e.clientY);
