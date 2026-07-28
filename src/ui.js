@@ -134,7 +134,7 @@ function renderTeachingPanel() {
   container.innerHTML = html;
 }
 
-// ===== 牌组渲染（隐藏滚动条，去除高亮残留） =====
+// ===== 牌组渲染（隐藏滚动条，添加左右辅助按钮） =====
 function renderDeck() {
   const el = $('#deckContainer');
   if (!el) return;
@@ -146,7 +146,7 @@ function renderDeck() {
     return; 
   }
 
-  // 【关键改动】隐藏滚动条，避免干扰手机浏览器边缘手势
+  // 1. 设置横向滑动的 CSS（隐藏原生滚动条，仅保留滚动能力）
   el.style.cssText = `
     display: flex; flex-wrap: nowrap; gap: 12px; overflow-x: auto; overflow-y: hidden;
     scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
@@ -155,6 +155,7 @@ function renderDeck() {
   `;
   el.style.setProperty('::-webkit-scrollbar', 'display', 'none');
 
+  // 2. 生成卡片列表
   let html = '';
   state.deck.forEach(c => {
     const id = getCardId(c);
@@ -185,6 +186,84 @@ function renderDeck() {
     });
   }
 
+  // 3. 处理左右箭头按钮（保证只生成一次，不干扰原有布局）
+  let wrapper = document.querySelector('#deckWrapper');
+  if (!wrapper) {
+    wrapper = document.createElement('div');
+    wrapper.id = 'deckWrapper';
+    wrapper.style.cssText = 'position:relative;width:100%;';
+    const parent = el.parentNode;
+    parent.insertBefore(wrapper, el);
+    wrapper.appendChild(el);
+  }
+
+  let leftBtn = wrapper.querySelector('#scrollLeftBtn');
+  let rightBtn = wrapper.querySelector('#scrollRightBtn');
+  if (!leftBtn) {
+    leftBtn = document.createElement('button');
+    leftBtn.id = 'scrollLeftBtn';
+    leftBtn.textContent = '‹';
+    leftBtn.style.cssText = `
+      position:absolute; left:4px; top:50%; transform:translateY(-50%); z-index:10;
+      width:28px; height:48px; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.2);
+      border-radius:6px; color:#aaa; font-size:24px; cursor:pointer; display:flex;
+      align-items:center; justify-content:center; transition:0.2s; user-select:none;
+    `;
+    leftBtn.addEventListener('mouseenter', () => { leftBtn.style.color = '#fff'; leftBtn.style.background = 'rgba(0,0,0,0.6)'; });
+    leftBtn.addEventListener('mouseleave', () => { leftBtn.style.color = '#aaa'; leftBtn.style.background = 'rgba(0,0,0,0.25)'; });
+    wrapper.appendChild(leftBtn);
+  }
+  if (!rightBtn) {
+    rightBtn = document.createElement('button');
+    rightBtn.id = 'scrollRightBtn';
+    rightBtn.textContent = '›';
+    rightBtn.style.cssText = `
+      position:absolute; right:4px; top:50%; transform:translateY(-50%); z-index:10;
+      width:28px; height:48px; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.2);
+      border-radius:6px; color:#aaa; font-size:24px; cursor:pointer; display:flex;
+      align-items:center; justify-content:center; transition:0.2s; user-select:none;
+    `;
+    rightBtn.addEventListener('mouseenter', () => { rightBtn.style.color = '#fff'; rightBtn.style.background = 'rgba(0,0,0,0.6)'; });
+    rightBtn.addEventListener('mouseleave', () => { rightBtn.style.color = '#aaa'; rightBtn.style.background = 'rgba(0,0,0,0.25)'; });
+    wrapper.appendChild(rightBtn);
+  }
+
+  // 4. 绑定左右箭头的滚动逻辑（短按步进，长按连续滚动）
+  const step = 90; // 单次滚动的像素长度
+  let scrollInterval = null;
+
+  const startScroll = (direction) => {
+    const doScroll = () => {
+      const dir = direction === 'left' ? -step : step;
+      el.scrollBy({ left: dir, behavior: 'smooth' });
+    };
+    doScroll(); // 短按触发一次
+    if (scrollInterval) clearInterval(scrollInterval);
+    scrollInterval = setInterval(doScroll, 120); // 长按连续循环触发
+  };
+
+  const stopScroll = () => {
+    if (scrollInterval) {
+      clearInterval(scrollInterval);
+      scrollInterval = null;
+    }
+  };
+
+  const attachScrollEvents = (btn, dir) => {
+    // 鼠标事件
+    btn.addEventListener('mousedown', (e) => { e.preventDefault(); startScroll(dir); });
+    btn.addEventListener('mouseup', stopScroll);
+    btn.addEventListener('mouseleave', stopScroll);
+    // 触屏事件
+    btn.addEventListener('touchstart', (e) => { e.preventDefault(); startScroll(dir); });
+    btn.addEventListener('touchend', stopScroll);
+    btn.addEventListener('touchcancel', stopScroll);
+  };
+
+  attachScrollEvents(leftBtn, 'left');
+  attachScrollEvents(rightBtn, 'right');
+
+  // 5. 绑定滑动吸附选牌逻辑
   setupCardSwipeSelection(el);
 }
 
@@ -215,7 +294,7 @@ function setupCardSwipeSelection(container) {
 
       if (closestCard) {
         const newId = closestCard.dataset.cardid;
-        // 【关键改动】取消了 `state.sel = newId` 的自动高亮逻辑
+        // 【改动点】取消了自动高亮 state.sel = newId 的自动设定
         try { if (navigator.vibrate) navigator.vibrate(4); } catch (e) {}
       }
     }, 50);
@@ -223,7 +302,7 @@ function setupCardSwipeSelection(container) {
 
   container.addEventListener('scroll', handleScroll, { passive: true });
   container._scrollListener = handleScroll;
-  requestAnimationFrame(() => handleScroll());
+  // 移除初次渲染自动选中逻辑
 }
 
 // ===== 体用栏 =====
@@ -857,6 +936,11 @@ function escapeHtml(str) { const div = document.createElement('div'); div.textCo
 document.addEventListener('click', function(e) {
   const btn = e.target.closest('button');
   if (btn) {
+    // 【防御性检查】如果点的是我们加的左右滚动按钮，直接不触发任何 data-action
+    if (btn.id === 'scrollLeftBtn' || btn.id === 'scrollRightBtn') {
+      return;
+    }
+
     const action = btn.dataset.action;
     if (!action) return;
     switch (action) {
@@ -1106,12 +1190,11 @@ function copyLocalResult() {
   navigator.clipboard.writeText(el.innerText).then(() => toast(UI_TEXTS.toastCopied), () => toast(UI_TEXTS.toastCopyFailed));
 }
 
-// ===== 【重要修复】保存 API 设置时自动清除尾部斜杠 =====
+// ===== 保存 API 设置时自动清除尾部斜杠 =====
 function saveApiSettingsFromForm() {
   const p = state.selectedProvider || 'deepseek'; 
   const info = API_PROVIDERS[p] || API_PROVIDERS.deepseek;
   
-  // 获取并处理 endpoint，去掉可能存在的尾部斜杠
   let endpoint = $('#apiEndpoint')?.value?.trim() || info.endpoint || '';
   if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
 
