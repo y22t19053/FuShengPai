@@ -234,7 +234,6 @@ function renderDeck() {
       currentSpeed = 45;
     };
 
-    // 绑定 PC 端鼠标
     finalLeft.addEventListener('mousedown', (e) => { e.preventDefault(); startScroll('left'); });
     finalLeft.addEventListener('mouseup', stopScroll);
     finalLeft.addEventListener('mouseleave', stopScroll);
@@ -243,7 +242,6 @@ function renderDeck() {
     finalRight.addEventListener('mouseup', stopScroll);
     finalRight.addEventListener('mouseleave', stopScroll);
 
-    // 绑定移动端触摸
     finalLeft.addEventListener('touchstart', (e) => { e.preventDefault(); startScroll('left'); });
     finalLeft.addEventListener('touchend', stopScroll);
     finalLeft.addEventListener('touchcancel', stopScroll);
@@ -256,7 +254,7 @@ function renderDeck() {
   setupCardSwipeSelection(el);
 }
 
-// ===== 横向滑动吸附选牌（仅做吸附计算，去除自动高亮） =====
+// ===== 横向滑动吸附选牌 =====
 function setupCardSwipeSelection(container) {
   const oldListener = container._scrollListener;
   if (oldListener) container.removeEventListener('scroll', oldListener);
@@ -573,27 +571,23 @@ function getBaziFromProfile() {
   } catch (e) { return null; }
 }
 
-// ===== 核心解读生成引擎（完美接入 `texts.js` 的新语法引擎） =====
+// ===== 核心解读生成引擎 =====
 function localInterpretation() {
   const tiWx = getWuxing(state.ti); const yongWx = getWuxing(state.yong);
   const rel = getShengKe(tiWx, yongWx); const label = rel ? getShengKeLabel(rel) : '变数';
   let t = '';
   
-  // 1. 类别引导（完全移除硬编码，保持空白，交给 AI 引擎或核心规则处理）
   if (state.category) {
     t += `【领域：${state.category}】\n\n`;
   }
   
-  // 2. 命盘/时间轴
   const bazi = getBaziFromProfile();
   if (bazi) t += `【四柱】${bazi.fullText}\n\n`;
   else { try { const yp = calcYearPillar(new Date().getFullYear()); t += `【年柱】${yp.full}年\n\n`; } catch(e) {} }
 
-  // 3. 体用概述
   t += `体牌是${tiWx}，是问卦人。用牌是${yongWx}，是所问之事。\n`;
   t += `（${label}）\n\n`;
 
-  // 4. 九宫动态解析（完全基于 generateFullReading 引擎）
   if (state.line) {
     t += `天机线：${state.line.map(g => GONG_NAMES[g] + '宫').join(' → ')}\n\n`;
     const order = ['起因', '经过', '结果'];
@@ -880,10 +874,29 @@ function showHistoryDetail(index) {
 // ===== AI 解读 =====
 async function triggerAI() {
   const btn = $('#aiReadBtn'); if (!btn) return; btn.disabled = true; btn.textContent = '思考中...';
-  const settings = getApiSettings(); if (!settings || !settings.apiKey) { toast('请先在 AI 设置中填入 API Key'); btn.disabled = false; btn.textContent = UI_TEXTS.btnAIDeepRead; return; }
+  const settings = getApiSettings(); 
+  if (!settings || !settings.apiKey) { 
+    toast('请先在 AI 设置中填入 API Key'); 
+    btn.disabled = false; btn.textContent = UI_TEXTS.btnAIDeepRead; 
+    return; 
+  }
+  
+  // 确保设置了 model 和 endpoint
+  const provider = settings.provider || 'deepseek';
+  let endpoint = settings.endpoint || API_PROVIDERS[provider]?.endpoint || '';
+  if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
+  const model = settings.model || API_PROVIDERS[provider]?.model || '';
+
   const prompt = buildAIPrompt();
   try {
-    const result = await requestReading({ provider: settings.provider || 'deepseek', apiKey: settings.apiKey, endpoint: settings.endpoint, model: settings.model, style: settings.aiStyle || 'guide', prompt });
+    const result = await requestReading({ 
+      provider, 
+      apiKey: settings.apiKey, 
+      endpoint, 
+      model, 
+      style: settings.aiStyle || 'guide', 
+      prompt 
+    });
     const container = $('#aiResultContainer'); const content = $('#aiResultContent');
     if (container) container.style.display = 'block'; if (content) content.innerHTML = '<strong>AI解读：</strong><br>' + result.replace(/\n/g, '<br>');
     state.chatHistory = [{ role: 'user', content: prompt }, { role: 'assistant', content: result }];
@@ -902,8 +915,20 @@ async function sendFollowUp() {
   const history = state.chatHistory; if (!history || history.length < 2) { toast('请先进行一次 AI 解读'); return; }
   history.push({ role: 'user', content: q });
   const chatBlock = $('#chatHistoryBlock'); if (chatBlock) chatBlock.innerHTML += `<div class="chat-msg user">${q}</div>`;
+  
+  const provider = settings.provider || 'deepseek';
+  let endpoint = settings.endpoint || API_PROVIDERS[provider]?.endpoint || '';
+  if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
+  const model = settings.model || API_PROVIDERS[provider]?.model || '';
+
   try {
-    const result = await requestFollowUp({ history, provider: settings.provider || 'deepseek', apiKey: settings.apiKey, endpoint: settings.endpoint, model: settings.model });
+    const result = await requestFollowUp({ 
+      history, 
+      provider, 
+      apiKey: settings.apiKey, 
+      endpoint, 
+      model 
+    });
     history.push({ role: 'assistant', content: result });
     if (chatBlock) { chatBlock.innerHTML += `<div class="chat-msg ai">${result.replace(/\n/g, '<br>')}</div>`; chatBlock.scrollTop = chatBlock.scrollHeight; }
   } catch (e) { if (chatBlock) chatBlock.innerHTML += `<div class="chat-msg" style="color:#d45050">失败：${e.message}</div>`; }
@@ -922,16 +947,24 @@ async function handleTestApiConnection() {
   }
   try {
     const provider = state.selectedProvider || 'deepseek';
+    let endpoint = $('#apiEndpoint')?.value?.trim() || '';
     const apiKey = $('#apiKey')?.value?.trim() || '';
-    const endpoint = $('#apiEndpoint')?.value?.trim() || '';
-    const model = API_PROVIDERS[provider]?.model || '';
+    
     if (!apiKey && provider !== 'custom') {
       throw new Error('请先填写 API Key');
     }
+    // 默认端点兜底
+    if (!endpoint && API_PROVIDERS[provider]) {
+      endpoint = API_PROVIDERS[provider].endpoint;
+    }
+    if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
+    
+    const model = API_PROVIDERS[provider]?.model || '';
+
     const msg = await testApiConnection({ provider, apiKey, endpoint, model });
     toast(msg, 3000);
   } catch (e) {
-    toast(UI_TEXTS.toastApiTestFail, 4000);
+    toast(`测试失败: ${e.message}`, 4000);
   } finally {
     if (btn) {
       btn.disabled = false;
@@ -1016,7 +1049,7 @@ document.addEventListener('click', function(e) {
   if (gong && state.sel) { const g = parseInt(gong.dataset.gong); const card = findCardById(state.sel); if (card && !isCardPlaced(card)) placeCardOnGong(card, g); }
 });
 
-// ===== 长按拖拽系统 =====
+// ===== 【极度丝滑】长按拖拽系统（使用 transform 替代 left/top） =====
 const LONG_PRESS_DURATION = 200;
 let dragData = null;
 let pressTimer = null;
@@ -1048,18 +1081,21 @@ function startPress(clientX, clientY, cardEl) {
     if (dragData) {
       dragData.longPressTriggered = true;
       const clone = dragData.cardEl.cloneNode(true);
+      // 使用 GPU 加速
       clone.style.position = 'fixed';
       clone.style.zIndex = '10000';
-      clone.style.opacity = '0.9';
       clone.style.pointerEvents = 'none';
-      clone.style.left = dragData.origRect.left + 'px';
-      clone.style.top = dragData.origRect.top + 'px';
+      clone.style.willChange = 'transform';
       clone.style.width = dragData.origRect.width + 'px';
       clone.style.height = dragData.origRect.height + 'px';
-      clone.style.transition = 'none';
+      clone.style.margin = '0';
       document.body.appendChild(clone);
       dragData.clone = clone;
       dragData.moved = true;
+      // 初始位置，使用 translate3d
+      const x = dragData.startX - dragData.offsetX;
+      const y = dragData.startY - dragData.offsetY;
+      clone.style.transform = `translate3d(${x}px, ${y}px, 0)`;
       try { if (navigator.vibrate) navigator.vibrate(10); } catch (e) {}
     }
   }, LONG_PRESS_DURATION);
@@ -1070,14 +1106,33 @@ function moveDrag(clientX, clientY, e) {
 
   if (dragData.clone) {
     if (e && e.preventDefault) e.preventDefault();
-    dragData.clone.style.left = (clientX - dragData.offsetX) + 'px';
-    dragData.clone.style.top = (clientY - dragData.offsetY) + 'px';
+    // 使用 transform translate3d 代替 left/top，彻底消除重排卡顿
+    const x = clientX - dragData.offsetX;
+    const y = clientY - dragData.offsetY;
+    dragData.clone.style.transform = `translate3d(${x}px, ${y}px, 0)`;
   } else {
     const dx = clientX - dragData.startX;
     const dy = clientY - dragData.startY;
-    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
+    if (Math.sqrt(dx*dx + dy*dy) > 8) { // 超过8px的移动，立即触发拖拽
       clearPressTimer();
-      dragData = null;
+      // 立即触发拖拽
+      const rect = dragData.cardEl.getBoundingClientRect();
+      dragData.origRect = rect;
+      const clone = dragData.cardEl.cloneNode(true);
+      clone.style.position = 'fixed';
+      clone.style.zIndex = '10000';
+      clone.style.pointerEvents = 'none';
+      clone.style.willChange = 'transform';
+      clone.style.width = rect.width + 'px';
+      clone.style.height = rect.height + 'px';
+      clone.style.margin = '0';
+      document.body.appendChild(clone);
+      dragData.clone = clone;
+      dragData.moved = true;
+      dragData.longPressTriggered = true;
+      const x = clientX - dragData.offsetX;
+      const y = clientY - dragData.offsetY;
+      clone.style.transform = `translate3d(${x}px, ${y}px, 0)`;
     }
   }
 }
@@ -1108,9 +1163,11 @@ function endDrag(clientX, clientY) {
     if (placed) {
       clone.remove();
     } else {
-      clone.style.transition = 'left 0.2s ease, top 0.2s ease';
-      clone.style.left = dragData.origRect.left + 'px';
-      clone.style.top = dragData.origRect.top + 'px';
+      // 弹回原位（使用 translate3d 动画返回）
+      clone.style.transition = 'transform 0.2s ease';
+      const x = dragData.origRect.left;
+      const y = dragData.origRect.top;
+      clone.style.transform = `translate3d(${x}px, ${y}px, 0)`;
       const onEnd = () => { clone.remove(); clone.removeEventListener('transitionend', onEnd); };
       clone.addEventListener('transitionend', onEnd);
       setTimeout(() => { if (clone.parentNode) clone.remove(); }, 300);
@@ -1147,14 +1204,15 @@ document.addEventListener('mousedown', function(e) {
   const clone = cardEl.cloneNode(true);
   clone.style.position = 'fixed';
   clone.style.zIndex = '10000';
-  clone.style.opacity = '0.9';
   clone.style.pointerEvents = 'none';
-  clone.style.left = rect.left + 'px';
-  clone.style.top = rect.top + 'px';
+  clone.style.willChange = 'transform';
   clone.style.width = rect.width + 'px';
   clone.style.height = rect.height + 'px';
-  clone.style.transition = 'none';
+  clone.style.margin = '0';
   document.body.appendChild(clone);
+  const x = e.clientX - (e.clientX - rect.left);
+  const y = e.clientY - (e.clientY - rect.top);
+  clone.style.transform = `translate3d(${x}px, ${y}px, 0)`;
   dragData = {
     cardId: id,
     cardEl,
@@ -1173,8 +1231,9 @@ document.addEventListener('mousedown', function(e) {
 document.addEventListener('mousemove', function(e) {
   if (!dragData || !dragData.clone) return;
   e.preventDefault();
-  dragData.clone.style.left = (e.clientX - dragData.offsetX) + 'px';
-  dragData.clone.style.top = (e.clientY - dragData.offsetY) + 'px';
+  const x = e.clientX - dragData.offsetX;
+  const y = e.clientY - dragData.offsetY;
+  dragData.clone.style.transform = `translate3d(${x}px, ${y}px, 0)`;
 });
 
 document.addEventListener('mouseup', function(e) {
