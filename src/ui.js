@@ -134,7 +134,7 @@ function renderTeachingPanel() {
   container.innerHTML = html;
 }
 
-// ===== 牌组渲染（隐藏滚动条，按钮位置改为上方控制栏） =====
+// ===== 牌组渲染（隐藏滚动条，长按加速滑动） =====
 function renderDeck() {
   const el = $('#deckContainer');
   if (!el) return;
@@ -184,7 +184,7 @@ function renderDeck() {
     });
   }
 
-  // 绑定上方控制栏的左右按钮
+  // 绑定上方控制栏的左右按钮，支持长按加速
   const leftBtn = document.getElementById('scrollLeftBtn');
   const rightBtn = document.getElementById('scrollRightBtn');
   
@@ -197,17 +197,29 @@ function renderDeck() {
     const finalLeft = document.getElementById('scrollLeftBtn');
     const finalRight = document.getElementById('scrollRightBtn');
     
-    const step = 45;
     let scrollInterval = null;
+    let speedUpInterval = null;
+    let currentSpeed = 45;
+    const MAX_SPEED = 150;
+    const STEP_INCREMENT = 25;
 
     const startScroll = (direction) => {
+      currentSpeed = 45; // 初始速度
+      if (scrollInterval) clearInterval(scrollInterval);
+      if (speedUpInterval) clearInterval(speedUpInterval);
+
       const doScroll = () => {
-        const dir = direction === 'left' ? -step : step;
+        const dir = direction === 'left' ? -currentSpeed : currentSpeed;
         el.scrollLeft += dir;
       };
       doScroll();
-      if (scrollInterval) clearInterval(scrollInterval);
-      scrollInterval = setInterval(doScroll, 16);
+
+      scrollInterval = setInterval(doScroll, 16); // 约 60fps
+      speedUpInterval = setInterval(() => {
+        if (currentSpeed < MAX_SPEED) {
+          currentSpeed += STEP_INCREMENT; // 越按越快
+        }
+      }, 350);
     };
 
     const stopScroll = () => {
@@ -215,8 +227,14 @@ function renderDeck() {
         clearInterval(scrollInterval);
         scrollInterval = null;
       }
+      if (speedUpInterval) {
+        clearInterval(speedUpInterval);
+        speedUpInterval = null;
+      }
+      currentSpeed = 45;
     };
 
+    // 绑定 PC 端鼠标
     finalLeft.addEventListener('mousedown', (e) => { e.preventDefault(); startScroll('left'); });
     finalLeft.addEventListener('mouseup', stopScroll);
     finalLeft.addEventListener('mouseleave', stopScroll);
@@ -225,6 +243,7 @@ function renderDeck() {
     finalRight.addEventListener('mouseup', stopScroll);
     finalRight.addEventListener('mouseleave', stopScroll);
 
+    // 绑定移动端触摸
     finalLeft.addEventListener('touchstart', (e) => { e.preventDefault(); startScroll('left'); });
     finalLeft.addEventListener('touchend', stopScroll);
     finalLeft.addEventListener('touchcancel', stopScroll);
@@ -560,10 +579,9 @@ function localInterpretation() {
   const rel = getShengKe(tiWx, yongWx); const label = rel ? getShengKeLabel(rel) : '变数';
   let t = '';
   
-  // 1. 类别引导
+  // 1. 类别引导（完全移除硬编码，保持空白，交给 AI 引擎或核心规则处理）
   if (state.category) {
-    const catIntros = { '财运': '钱的事儿，有时候不是你挣不到，是你没看到。\n', '感情': '感情这种事，谁也说不好。\n', '事业': '工作嘛，有时候不是你不行，是这个坑不太对。\n', '健康': '身体是诚实的，不舒服了就是在跟你说话。\n', '学业': '有时候不是脑子不够用，是心里太乱了。\n', '决策': '选择困难是因为你知道每个选项背后都有代价。\n' };
-    t += (catIntros[state.category] || '') + '\n';
+    t += `【领域：${state.category}】\n\n`;
   }
   
   // 2. 命盘/时间轴
@@ -575,7 +593,7 @@ function localInterpretation() {
   t += `体牌是${tiWx}，是问卦人。用牌是${yongWx}，是所问之事。\n`;
   t += `（${label}）\n\n`;
 
-  // 4. 九宫动态解析（调用 texts.js 中的 generateFullReading 引擎）
+  // 4. 九宫动态解析（完全基于 generateFullReading 引擎）
   if (state.line) {
     t += `天机线：${state.line.map(g => GONG_NAMES[g] + '宫').join(' → ')}\n\n`;
     const order = ['起因', '经过', '结果'];
@@ -587,27 +605,20 @@ function localInterpretation() {
         const wang = getWangState(getWuxing(card), GONG_WUXING[g]);
         const relToTi = getShengKe(tiWx, getWuxing(card));
         
-        // 构建语境对象，传入新文案引擎
         const context = {
           gong: { id: g, name: GONG_NAMES[g], element: GONG_WUXING[g] },
           card: { element: getWuxing(card), value: getCardValue(card), suit: card.suit },
           tiYongRelation: relToTi || '同我',
           wangState: wang,
           linePosition: i === 0 ? 'start' : i === 1 ? 'middle' : 'end',
-          diff: diff,
-          hasVoid: false,
-          hasOpposition: false,
-          hasHe: false,
-          hasMa: false
+          diff: diff
         };
         
-        // 调用动态引擎
         t += `【${order[i]} · ${GONG_NAMES[g]}宫】\n`;
         t += generateFullReading(context) + '\n\n';
       });
     });
     
-    // 非天机线宫位解析
     t += '\n【其他位置·远景映射】\n';
     for (let g = 1; g <= 9; g++) { 
       if (state.line.includes(g)) continue; 
@@ -621,16 +632,14 @@ function localInterpretation() {
           card: { element: getWuxing(card), value: getCardValue(card), suit: card.suit },
           tiYongRelation: relToTi || '同我',
           wangState: wang,
-          linePosition: 'offline', // 未在线内
-          diff: diff,
-          hasVoid: false
+          linePosition: 'offline',
+          diff: diff
         };
         t += `【${state.lineOrder[g] || '远位'} · ${GONG_NAMES[g]}宫】\n`;
         t += generateFullReading(context) + '\n\n';
       });
     }
   } else { 
-    // 无天机线时遍历
     for (let g = 1; g <= 9; g++) { 
       const cards = state.grid[g] || [];
       cards.forEach(card => { 
@@ -1211,7 +1220,6 @@ function copyLocalResult() {
   navigator.clipboard.writeText(el.innerText).then(() => toast(UI_TEXTS.toastCopied), () => toast(UI_TEXTS.toastCopyFailed));
 }
 
-// ===== 保存 API 设置 =====
 function saveApiSettingsFromForm() {
   const p = state.selectedProvider || 'deepseek'; 
   const info = API_PROVIDERS[p] || API_PROVIDERS.deepseek;
@@ -1236,7 +1244,6 @@ function saveProfileFromForm() {
   saveProfile({ birthDate: bd, birthTime: bt }); toast(UI_TEXTS.toastProfileSaved);
 }
 
-// ===== 提供商切换 =====
 document.addEventListener('click', function(e) {
   const b = e.target.closest('#providerGrid button');
   if (!b || !b.dataset.value) return;
@@ -1246,10 +1253,8 @@ document.addEventListener('click', function(e) {
   if (info) { const ep = $('#apiEndpoint'); if (ep) ep.value = info.endpoint || ''; }
 });
 
-// ===== 模态框背景点击关闭 =====
 document.addEventListener('click', function(e) { if (e.target === domModal) domModal.setAttribute('hidden', ''); });
 
-// ===== 应用启动 =====
 function init() {
   try {
     cacheDom();
