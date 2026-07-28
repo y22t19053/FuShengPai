@@ -27,10 +27,10 @@ import { requestReading, requestFollowUp, testApiConnection } from './ai.js';
 
 import {
   UI_TEXTS, RULES_TEXTS, TUTORIAL_TEXTS, PHYSICAL_GUIDE,
-  READING_TEXTS, REFUSAL_TEXTS, USAGE_REMINDERS,
+  REFUSAL_TEXTS, USAGE_REMINDERS,
   SHARE_TEXTS, SHARE_QUOTES, TIME_RESTRICTION,
   HISTORY_EMPTY, PRIVACY_NOTICE, AI_STYLES, AI_GUIDE_TEXT,
-  ONBOARDING_STEPS,
+  ONBOARDING_STEPS, generateFullReading,
 } from './texts.js';
 
 // ===== 应用全局状态 =====
@@ -146,7 +146,6 @@ function renderDeck() {
     return; 
   }
 
-  // 1. 设置横向滑动的 CSS（隐藏原生滚动条，仅保留滚动能力）
   el.style.cssText = `
     display: flex; flex-wrap: nowrap; gap: 12px; overflow-x: auto; overflow-y: hidden;
     scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
@@ -155,7 +154,6 @@ function renderDeck() {
   `;
   el.style.setProperty('::-webkit-scrollbar', 'display', 'none');
 
-  // 2. 生成卡片列表
   let html = '';
   state.deck.forEach(c => {
     const id = getCardId(c);
@@ -186,12 +184,11 @@ function renderDeck() {
     });
   }
 
-  // 3. 【重要改动】绑定上方控制栏的左右按钮（丝滑帧循环滚动）
+  // 绑定上方控制栏的左右按钮
   const leftBtn = document.getElementById('scrollLeftBtn');
   const rightBtn = document.getElementById('scrollRightBtn');
   
   if (leftBtn && rightBtn) {
-    // 因为每次渲染都会重新创建按钮，这里用替换节点的方式清空旧的监听器
     const lClone = leftBtn.cloneNode(true);
     const rClone = rightBtn.cloneNode(true);
     leftBtn.parentNode.replaceChild(lClone, leftBtn);
@@ -200,17 +197,17 @@ function renderDeck() {
     const finalLeft = document.getElementById('scrollLeftBtn');
     const finalRight = document.getElementById('scrollRightBtn');
     
-    const step = 45; // 每帧移动45px
+    const step = 45;
     let scrollInterval = null;
 
     const startScroll = (direction) => {
       const doScroll = () => {
         const dir = direction === 'left' ? -step : step;
-        el.scrollLeft += dir; // 直接修改scrollLeft，绝对丝滑
+        el.scrollLeft += dir;
       };
-      doScroll(); // 短按触发一次单步
+      doScroll();
       if (scrollInterval) clearInterval(scrollInterval);
-      scrollInterval = setInterval(doScroll, 16); // 16ms = 约60fps 极致帧循环
+      scrollInterval = setInterval(doScroll, 16);
     };
 
     const stopScroll = () => {
@@ -220,7 +217,6 @@ function renderDeck() {
       }
     };
 
-    // 绑定PC端鼠标
     finalLeft.addEventListener('mousedown', (e) => { e.preventDefault(); startScroll('left'); });
     finalLeft.addEventListener('mouseup', stopScroll);
     finalLeft.addEventListener('mouseleave', stopScroll);
@@ -229,7 +225,6 @@ function renderDeck() {
     finalRight.addEventListener('mouseup', stopScroll);
     finalRight.addEventListener('mouseleave', stopScroll);
 
-    // 绑定移动端触摸
     finalLeft.addEventListener('touchstart', (e) => { e.preventDefault(); startScroll('left'); });
     finalLeft.addEventListener('touchend', stopScroll);
     finalLeft.addEventListener('touchcancel', stopScroll);
@@ -239,11 +234,10 @@ function renderDeck() {
     finalRight.addEventListener('touchcancel', stopScroll);
   }
 
-  // 4. 滑动吸附计算（但取消自动高亮）
   setupCardSwipeSelection(el);
 }
 
-// ===== 横向滑动吸附选牌的核心逻辑（去除自动高亮） =====
+// ===== 横向滑动吸附选牌（仅做吸附计算，去除自动高亮） =====
 function setupCardSwipeSelection(container) {
   const oldListener = container._scrollListener;
   if (oldListener) container.removeEventListener('scroll', oldListener);
@@ -270,7 +264,6 @@ function setupCardSwipeSelection(container) {
 
       if (closestCard) {
         const newId = closestCard.dataset.cardid;
-        // 【改动点】取消了自动高亮 state.sel = newId 的自动设定
         try { if (navigator.vibrate) navigator.vibrate(4); } catch (e) {}
       }
     }, 50);
@@ -278,7 +271,6 @@ function setupCardSwipeSelection(container) {
 
   container.addEventListener('scroll', handleScroll, { passive: true });
   container._scrollListener = handleScroll;
-  // 移除初次渲染自动选中逻辑
 }
 
 // ===== 体用栏 =====
@@ -320,7 +312,7 @@ function renderGrid() {
 
 function refreshAll() { renderDeck(); renderTiYong(); renderGrid(); }
 
-// ===== 选牌 =====
+// ===== 选牌与放牌 =====
 function selectCard(cardId) {
   if (state.sel === cardId) { state.sel = null; refreshAll(); return; }
   const card = findCardById(cardId);
@@ -341,7 +333,6 @@ function isCardPlaced(card) {
 
 function findCardById(id) { return state.deck.find(c => getCardId(c) === id); }
 
-// ===== 放牌 =====
 function placeCardOnGong(card, gong) {
   if (!card) return false;
   if (!state.grid[gong]) state.grid[gong] = [];
@@ -365,7 +356,6 @@ function placeCardOnTiYong(card, role) {
   return true;
 }
 
-// ===== 移除牌 =====
 function removeCardFromGong(gong) {
   const cards = state.grid[gong] || [];
   if (!cards.length) return;
@@ -483,7 +473,7 @@ function renderStep1() {
     </div>`;
 }
 
-// ===== 立极（上方加入左右选牌按钮） =====
+// ===== 立极 =====
 function renderStep2() {
   domDynamic.innerHTML = `
     <div class="panel"><h3>${state.manualMode ? '手动录入 · 明牌选阵' : '立极·布阵'}</h3>
@@ -491,7 +481,6 @@ function renderStep2() {
       <div class="tiyong-bar" id="tiyongBar"></div>
       <div class="deck-grid" id="deckContainer"></div>
       
-      <!-- 【核心改动】将左右滑动按钮直接放在了按钮行中 -->
       <div class="btn-row" style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center; align-items:center;">
         <button id="scrollLeftBtn" class="outline small">‹ 选牌</button>
         <button data-action="resetStep2" class="outline small">重抽</button>
@@ -565,51 +554,103 @@ function getBaziFromProfile() {
   } catch (e) { return null; }
 }
 
-// ===== 解读生成 =====
+// ===== 核心解读生成引擎（完美接入 `texts.js` 的新语法引擎） =====
 function localInterpretation() {
   const tiWx = getWuxing(state.ti); const yongWx = getWuxing(state.yong);
   const rel = getShengKe(tiWx, yongWx); const label = rel ? getShengKeLabel(rel) : '变数';
   let t = '';
+  
+  // 1. 类别引导
   if (state.category) {
     const catIntros = { '财运': '钱的事儿，有时候不是你挣不到，是你没看到。\n', '感情': '感情这种事，谁也说不好。\n', '事业': '工作嘛，有时候不是你不行，是这个坑不太对。\n', '健康': '身体是诚实的，不舒服了就是在跟你说话。\n', '学业': '有时候不是脑子不够用，是心里太乱了。\n', '决策': '选择困难是因为你知道每个选项背后都有代价。\n' };
     t += (catIntros[state.category] || '') + '\n';
   }
+  
+  // 2. 命盘/时间轴
   const bazi = getBaziFromProfile();
   if (bazi) t += `【四柱】${bazi.fullText}\n\n`;
   else { try { const yp = calcYearPillar(new Date().getFullYear()); t += `【年柱】${yp.full}年\n\n`; } catch(e) {} }
 
+  // 3. 体用概述
   t += `体牌是${tiWx}，是问卦人。用牌是${yongWx}，是所问之事。\n`;
-  const tyDesc = READING_TEXTS.tiYongDescriptions[rel];
-  if (tyDesc) t += tyDesc + '\n'; else t += '大小王搅局，常规判断不适用。\n';
   t += `（${label}）\n\n`;
 
+  // 4. 九宫动态解析（调用 texts.js 中的 generateFullReading 引擎）
   if (state.line) {
-    t += `天机线：${state.line.map(g => GONG_NAMES[g] + '宫').join(' → ')}\n`;
+    t += `天机线：${state.line.map(g => GONG_NAMES[g] + '宫').join(' → ')}\n\n`;
     const order = ['起因', '经过', '结果'];
     state.line.forEach((g, i) => {
-      const cards = state.grid[g] || []; if (!cards.length) return;
+      const cards = state.grid[g] || []; 
+      if (!cards.length) return;
       cards.forEach(card => {
-        const diff = calcDiff(g, card); const wang = getWangState(getWuxing(card), GONG_WUXING[g]);
-        const cardWx = getWuxing(card); const yinYang = card.isJoker ? (card.type === '大王' ? '阳' : '阴') : (['♥', '♦'].includes(card.suit) ? '阳' : '阴');
-        const cardLabel = card.isJoker ? card.type : card.suit + card.rank;
-        t += `${order[i]}宫 ${GONG_NAMES[g]}（${GONG_DIRECTION[g]}方，属${GONG_WUXING[g]}）：${cardLabel}（${cardWx}，${yinYang}） 差${diff} ${wang}\n  ${describeDiff(diff, card, g)}\n`;
-        const relToTi = getShengKe(tiWx, cardWx);
-        if (relToTi) { const rp = { '生我': '这个位置在给你加油。', '克我': '这个位置在给你添堵。', '同我': '它跟你差不多。', '我生': '你在消耗自己。', '我克': '你能拿住，但要费劲。' }; t += `  ${rp[relToTi] || ''}\n`; }
+        const diff = calcDiff(g, card); 
+        const wang = getWangState(getWuxing(card), GONG_WUXING[g]);
+        const relToTi = getShengKe(tiWx, getWuxing(card));
+        
+        // 构建语境对象，传入新文案引擎
+        const context = {
+          gong: { id: g, name: GONG_NAMES[g], element: GONG_WUXING[g] },
+          card: { element: getWuxing(card), value: getCardValue(card), suit: card.suit },
+          tiYongRelation: relToTi || '同我',
+          wangState: wang,
+          linePosition: i === 0 ? 'start' : i === 1 ? 'middle' : 'end',
+          diff: diff,
+          hasVoid: false,
+          hasOpposition: false,
+          hasHe: false,
+          hasMa: false
+        };
+        
+        // 调用动态引擎
+        t += `【${order[i]} · ${GONG_NAMES[g]}宫】\n`;
+        t += generateFullReading(context) + '\n\n';
       });
     });
-    t += '\n其他位置：\n';
-    for (let g = 1; g <= 9; g++) { if (state.line.includes(g)) continue; (state.grid[g] || []).forEach(card => { const diff = calcDiff(g, card); const cardLabel = card.isJoker ? card.type : card.suit + card.rank; t += `${state.lineOrder[g] || '远位'} ${GONG_NAMES[g]}宫：${cardLabel} 差${diff} ${describeDiff(diff, card, g)}\n`; }); }
-  } else { for (let g = 1; g <= 9; g++) { (state.grid[g] || []).forEach(card => { const diff = calcDiff(g, card); const cardLabel = card.isJoker ? card.type : card.suit + card.rank; t += `${GONG_NAMES[g]}宫：${cardLabel} 差${diff} ${describeDiff(diff, card, g)}\n`; }); } }
-  t += '\n' + READING_TEXTS.closingStatement;
-  return t;
-}
-
-function describeDiff(diff, card, g) {
-  if (!card) return '这个位置还是空的。'; if (card.isJoker) return card.type === '大王' ? '大王直接插手了。' : '小王来了，得动脑子。';
-  if (diff === 0) return '牌与宫位严丝合缝，天人合一。在这个位置上你不需要额外做功。';
-  if (diff <= 3) return `偏了一点，差值${diff}。差了一口气，自己稍作调整就能补上。`;
-  if (diff <= 6) return `偏离较大，差值${diff}。现实和理想之间有段距离，需要费些力气。`;
-  return `严重背离，差值${diff}。这个位置几乎是反着来的，别硬扭，接受偏离本身就是一种解法。`;
+    
+    // 非天机线宫位解析
+    t += '\n【其他位置·远景映射】\n';
+    for (let g = 1; g <= 9; g++) { 
+      if (state.line.includes(g)) continue; 
+      const cards = state.grid[g] || [];
+      cards.forEach(card => { 
+        const diff = calcDiff(g, card); 
+        const wang = getWangState(getWuxing(card), GONG_WUXING[g]);
+        const relToTi = getShengKe(tiWx, getWuxing(card));
+        const context = {
+          gong: { id: g, name: GONG_NAMES[g], element: GONG_WUXING[g] },
+          card: { element: getWuxing(card), value: getCardValue(card), suit: card.suit },
+          tiYongRelation: relToTi || '同我',
+          wangState: wang,
+          linePosition: 'offline', // 未在线内
+          diff: diff,
+          hasVoid: false
+        };
+        t += `【${state.lineOrder[g] || '远位'} · ${GONG_NAMES[g]}宫】\n`;
+        t += generateFullReading(context) + '\n\n';
+      });
+    }
+  } else { 
+    // 无天机线时遍历
+    for (let g = 1; g <= 9; g++) { 
+      const cards = state.grid[g] || [];
+      cards.forEach(card => { 
+        const diff = calcDiff(g, card); 
+        const wang = getWangState(getWuxing(card), GONG_WUXING[g]);
+        const relToTi = getShengKe(tiWx, getWuxing(card));
+        const context = {
+          gong: { id: g, name: GONG_NAMES[g], element: GONG_WUXING[g] },
+          card: { element: getWuxing(card), value: getCardValue(card), suit: card.suit },
+          tiYongRelation: relToTi || '同我',
+          wangState: wang,
+          linePosition: 'offline',
+          diff: diff
+        };
+        t += `【${GONG_NAMES[g]}宫】\n`;
+        t += generateFullReading(context) + '\n\n';
+      });
+    }
+  }
+  return t.trim();
 }
 
 // ===== 观象 =====
@@ -646,7 +687,7 @@ function generateInterpretation() {
       line: state.line,
       lineOrder: state.lineOrder,
       text,
-      chatHistory: state.chatHistory.slice(), // 保存 AI 对话副本
+      chatHistory: state.chatHistory.slice(),
     });
   } catch(e) { toast('历史记录保存失败，但解读仍然有效'); }
   addDrawTimestamp(Date.now()); renderStep3(text);
@@ -770,12 +811,12 @@ function showHistoryDetail(index) {
     <h4 style="margin-top:10px">AI 对话</h4>
     ${aiBlock}
     <div style="margin-top:10px;display:flex;gap:8px">
-      <input type="text" id="historyFollowUpInput" placeholder="追问..." style="flex:1">
+      <input type="text" id="historyFollowUpInput" placeholder="${UI_TEXTS.placeholderFollowUp}" style="flex:1">
       <button id="historyFollowUpBtn" class="small">发送</button>
     </div>
     <div class="btn-row">
       <button data-action="deleteHistoryItem" data-history-index="${index}" class="outline small">删除此条</button>
-      <button data-action="closeModal" class="small">关闭</button>
+      <button data-action="closeModal" class="small">${UI_TEXTS.btnClose}</button>
     </div>
   `;
   domModal.removeAttribute('hidden');
@@ -881,11 +922,11 @@ async function handleTestApiConnection() {
     const msg = await testApiConnection({ provider, apiKey, endpoint, model });
     toast(msg, 3000);
   } catch (e) {
-    toast(`测试失败: ${e.message}`, 4000);
+    toast(UI_TEXTS.toastApiTestFail, 4000);
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.textContent = '测试连接';
+      btn.textContent = UI_TEXTS.btnTestApi;
     }
   }
 }
@@ -899,7 +940,7 @@ function showDailyFortune() {
   const wx = getWuxing(card); const label = card.isJoker ? card.type : card.suit + card.rank; const colorCls = getCardColor(card);
   const fortunes = { '火': '今天你像一团火。热情是燃料，别烧到旁边的人。', '金': '今天你像一块金属。判断力在线，该断则断。', '木': '今天你像一棵树。生长是节奏，别急。', '水': '今天你像一汪水。洞察力敏锐，别过度分析。', '天': '今天你是大王。天意在你这边，顺着直觉走。', '人': '今天你是小王。智谋是你的武器，动脑子就能赢。' };
   const fortune = fortunes[wx] || '今天保持平常心。';
-  domModalContent.innerHTML = `<div style="text-align:center"><h3>今日运势</h3><div class="card-face-small ${colorCls}" style="margin:0 auto;width:80px;height:112px;"><span class="rank">${card.isJoker ? card.type : card.rank}</span><span class="suit">${card.isJoker ? '' : card.suit}</span><span class="wx-tag">${wx}</span></div><p style="margin-top:2vh;font-size:1rem;color:var(--accent)">${label} · ${wx}</p><p style="margin-top:1vh;font-size:0.9rem;color:var(--text);line-height:1.6">${fortune}</p><button data-action="closeModal" style="margin-top:2vh">关闭</button></div>`;
+  domModalContent.innerHTML = `<div style="text-align:center"><h3>今日运势</h3><div class="card-face-small ${colorCls}" style="margin:0 auto;width:80px;height:112px;"><span class="rank">${card.isJoker ? card.type : card.rank}</span><span class="suit">${card.isJoker ? '' : card.suit}</span><span class="wx-tag">${wx}</span></div><p style="margin-top:2vh;font-size:1rem;color:var(--accent)">${label} · ${wx}</p><p style="margin-top:1vh;font-size:0.9rem;color:var(--text);line-height:1.6">${fortune}</p><button data-action="closeModal" style="margin-top:2vh">${UI_TEXTS.btnClose}</button></div>`;
   domModal.removeAttribute('hidden');
 }
 
@@ -917,7 +958,6 @@ function escapeHtml(str) { const div = document.createElement('div'); div.textCo
 document.addEventListener('click', function(e) {
   const btn = e.target.closest('button');
   if (btn) {
-    // 【防御性检查】如果点的是我们加的左右滚动按钮，直接不触发任何 data-action
     if (btn.id === 'scrollLeftBtn' || btn.id === 'scrollRightBtn') {
       return;
     }
@@ -1171,7 +1211,7 @@ function copyLocalResult() {
   navigator.clipboard.writeText(el.innerText).then(() => toast(UI_TEXTS.toastCopied), () => toast(UI_TEXTS.toastCopyFailed));
 }
 
-// ===== 保存 API 设置时自动清除尾部斜杠 =====
+// ===== 保存 API 设置 =====
 function saveApiSettingsFromForm() {
   const p = state.selectedProvider || 'deepseek'; 
   const info = API_PROVIDERS[p] || API_PROVIDERS.deepseek;
