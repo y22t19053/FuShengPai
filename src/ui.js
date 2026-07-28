@@ -134,7 +134,7 @@ function renderTeachingPanel() {
   container.innerHTML = html;
 }
 
-// ===== 牌组渲染（隐藏滚动条，添加左右辅助按钮） =====
+// ===== 牌组渲染（隐藏滚动条，按钮位置改为上方控制栏） =====
 function renderDeck() {
   const el = $('#deckContainer');
   if (!el) return;
@@ -186,84 +186,60 @@ function renderDeck() {
     });
   }
 
-  // 3. 处理左右箭头按钮（保证只生成一次，不干扰原有布局）
-  let wrapper = document.querySelector('#deckWrapper');
-  if (!wrapper) {
-    wrapper = document.createElement('div');
-    wrapper.id = 'deckWrapper';
-    wrapper.style.cssText = 'position:relative;width:100%;';
-    const parent = el.parentNode;
-    parent.insertBefore(wrapper, el);
-    wrapper.appendChild(el);
-  }
+  // 3. 【重要改动】绑定上方控制栏的左右按钮（丝滑帧循环滚动）
+  const leftBtn = document.getElementById('scrollLeftBtn');
+  const rightBtn = document.getElementById('scrollRightBtn');
+  
+  if (leftBtn && rightBtn) {
+    // 因为每次渲染都会重新创建按钮，这里用替换节点的方式清空旧的监听器
+    const lClone = leftBtn.cloneNode(true);
+    const rClone = rightBtn.cloneNode(true);
+    leftBtn.parentNode.replaceChild(lClone, leftBtn);
+    rightBtn.parentNode.replaceChild(rClone, rightBtn);
 
-  let leftBtn = wrapper.querySelector('#scrollLeftBtn');
-  let rightBtn = wrapper.querySelector('#scrollRightBtn');
-  if (!leftBtn) {
-    leftBtn = document.createElement('button');
-    leftBtn.id = 'scrollLeftBtn';
-    leftBtn.textContent = '‹';
-    leftBtn.style.cssText = `
-      position:absolute; left:4px; top:50%; transform:translateY(-50%); z-index:10;
-      width:28px; height:48px; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.2);
-      border-radius:6px; color:#aaa; font-size:24px; cursor:pointer; display:flex;
-      align-items:center; justify-content:center; transition:0.2s; user-select:none;
-    `;
-    leftBtn.addEventListener('mouseenter', () => { leftBtn.style.color = '#fff'; leftBtn.style.background = 'rgba(0,0,0,0.6)'; });
-    leftBtn.addEventListener('mouseleave', () => { leftBtn.style.color = '#aaa'; leftBtn.style.background = 'rgba(0,0,0,0.25)'; });
-    wrapper.appendChild(leftBtn);
-  }
-  if (!rightBtn) {
-    rightBtn = document.createElement('button');
-    rightBtn.id = 'scrollRightBtn';
-    rightBtn.textContent = '›';
-    rightBtn.style.cssText = `
-      position:absolute; right:4px; top:50%; transform:translateY(-50%); z-index:10;
-      width:28px; height:48px; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.2);
-      border-radius:6px; color:#aaa; font-size:24px; cursor:pointer; display:flex;
-      align-items:center; justify-content:center; transition:0.2s; user-select:none;
-    `;
-    rightBtn.addEventListener('mouseenter', () => { rightBtn.style.color = '#fff'; rightBtn.style.background = 'rgba(0,0,0,0.6)'; });
-    rightBtn.addEventListener('mouseleave', () => { rightBtn.style.color = '#aaa'; rightBtn.style.background = 'rgba(0,0,0,0.25)'; });
-    wrapper.appendChild(rightBtn);
-  }
+    const finalLeft = document.getElementById('scrollLeftBtn');
+    const finalRight = document.getElementById('scrollRightBtn');
+    
+    const step = 45; // 每帧移动45px
+    let scrollInterval = null;
 
-  // 4. 绑定左右箭头的滚动逻辑（短按步进，长按连续滚动）
-  const step = 90; // 单次滚动的像素长度
-  let scrollInterval = null;
-
-  const startScroll = (direction) => {
-    const doScroll = () => {
-      const dir = direction === 'left' ? -step : step;
-      el.scrollBy({ left: dir, behavior: 'smooth' });
+    const startScroll = (direction) => {
+      const doScroll = () => {
+        const dir = direction === 'left' ? -step : step;
+        el.scrollLeft += dir; // 直接修改scrollLeft，绝对丝滑
+      };
+      doScroll(); // 短按触发一次单步
+      if (scrollInterval) clearInterval(scrollInterval);
+      scrollInterval = setInterval(doScroll, 16); // 16ms = 约60fps 极致帧循环
     };
-    doScroll(); // 短按触发一次
-    if (scrollInterval) clearInterval(scrollInterval);
-    scrollInterval = setInterval(doScroll, 120); // 长按连续循环触发
-  };
 
-  const stopScroll = () => {
-    if (scrollInterval) {
-      clearInterval(scrollInterval);
-      scrollInterval = null;
-    }
-  };
+    const stopScroll = () => {
+      if (scrollInterval) {
+        clearInterval(scrollInterval);
+        scrollInterval = null;
+      }
+    };
 
-  const attachScrollEvents = (btn, dir) => {
-    // 鼠标事件
-    btn.addEventListener('mousedown', (e) => { e.preventDefault(); startScroll(dir); });
-    btn.addEventListener('mouseup', stopScroll);
-    btn.addEventListener('mouseleave', stopScroll);
-    // 触屏事件
-    btn.addEventListener('touchstart', (e) => { e.preventDefault(); startScroll(dir); });
-    btn.addEventListener('touchend', stopScroll);
-    btn.addEventListener('touchcancel', stopScroll);
-  };
+    // 绑定PC端鼠标
+    finalLeft.addEventListener('mousedown', (e) => { e.preventDefault(); startScroll('left'); });
+    finalLeft.addEventListener('mouseup', stopScroll);
+    finalLeft.addEventListener('mouseleave', stopScroll);
+    
+    finalRight.addEventListener('mousedown', (e) => { e.preventDefault(); startScroll('right'); });
+    finalRight.addEventListener('mouseup', stopScroll);
+    finalRight.addEventListener('mouseleave', stopScroll);
 
-  attachScrollEvents(leftBtn, 'left');
-  attachScrollEvents(rightBtn, 'right');
+    // 绑定移动端触摸
+    finalLeft.addEventListener('touchstart', (e) => { e.preventDefault(); startScroll('left'); });
+    finalLeft.addEventListener('touchend', stopScroll);
+    finalLeft.addEventListener('touchcancel', stopScroll);
 
-  // 5. 绑定滑动吸附选牌逻辑
+    finalRight.addEventListener('touchstart', (e) => { e.preventDefault(); startScroll('right'); });
+    finalRight.addEventListener('touchend', stopScroll);
+    finalRight.addEventListener('touchcancel', stopScroll);
+  }
+
+  // 4. 滑动吸附计算（但取消自动高亮）
   setupCardSwipeSelection(el);
 }
 
@@ -507,18 +483,23 @@ function renderStep1() {
     </div>`;
 }
 
-// ===== 立极 =====
+// ===== 立极（上方加入左右选牌按钮） =====
 function renderStep2() {
   domDynamic.innerHTML = `
     <div class="panel"><h3>${state.manualMode ? '手动录入 · 明牌选阵' : '立极·布阵'}</h3>
       <div class="guide-tip">${state.manualMode ? UI_TEXTS.guideManual : UI_TEXTS.guideSelectTiYong}</div>
       <div class="tiyong-bar" id="tiyongBar"></div>
       <div class="deck-grid" id="deckContainer"></div>
-      <div class="btn-row">
-        ${state.manualMode ? '' : '<button id="btnConfirmTY" disabled data-action="confirmTiYong" class="small primary">' + UI_TEXTS.btnConfirmTiYong + '</button>'}
+      
+      <!-- 【核心改动】将左右滑动按钮直接放在了按钮行中 -->
+      <div class="btn-row" style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center; align-items:center;">
+        <button id="scrollLeftBtn" class="outline small">‹ 选牌</button>
         <button data-action="resetStep2" class="outline small">重抽</button>
+        ${state.manualMode ? '' : '<button id="btnConfirmTY" disabled data-action="confirmTiYong" class="small primary">' + UI_TEXTS.btnConfirmTiYong + '</button>'}
+        <button id="scrollRightBtn" class="outline small">选牌 ›</button>
         ${state.manualMode ? '<button data-action="generateInterpretation" class="small primary">' + UI_TEXTS.btnInterpret + '</button>' : ''}
       </div>
+
       <div id="gridArea" ${state.manualMode ? '' : 'style="display:none"'}>
         <div class="guide-tip">${UI_TEXTS.guideAfterTiYong}</div>
         <div class="grid-9" id="gridContainer"></div>
