@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>浮生牌 · 观测者的镜子</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <script type="module" crossorigin src="/FuShengPai/assets/index-cpL36WUV.js"></script>
+  <link rel="stylesheet" crossorigin href="/FuShengPai/assets/index-BH0jFLrY.css">
+</head>
+<body>
+  <div class="app" id="appRoot">
+
+    <!-- 头部导航 -->
+    <div class="header">
+      <div class="logo">浮生牌</div>
+      <div class="top-btns">
+        <button data-action="togglePanel" data-panel="teaching">教程</button>
+        <button data-action="togglePanel" data-panel="rules">规则</button>
+        <button data-action="togglePanel" data-panel="settings">AI</button>
+        <button data-action="togglePanel" data-panel="profile">个人</button>
+        <button data-action="togglePanel" data-panel="history">历史</button>
+        <button data-action="resetAll">重开</button>
+      </div>
+    </div>
+
+    <!-- 步骤指示器 -->
+    <div class="step-bar" id="stepBar">
+      <span class="step-dot active" id="sd1">起念</span>
+      <span class="step-dot" id="sd2">立极</span>
+      <span class="step-dot" id="sd3">观象</span>
+    </div>
+
+    <!-- 动态主面板 -->
+    <div id="dynamicPanels"></div>
+
+    <!-- 教程面板 -->
+    <div class="panel" id="panelTeaching" hidden>
+      <h3>新手教程</h3>
+      <div id="teachingContent"></div>
+    </div>
+
+    <!-- 规则速查面板 -->
+    <div class="panel" id="panelRules" hidden>
+      <h3>规则速查</h3>
+      <p>♥火 ♦金 ♣木 ♠水 | J/Q/K土 | 大王天(阳) 小王人(阴)<br />生我大吉 克我大凶 同我平 我生小凶 我克小吉</p>
+    </div>
+
+    <!-- AI 设置面板 -->
+    <div class="panel" id="panelSettings" hidden>
+      <h3>AI设置</h3>
+      <p class="hint">填入API Key后可使用AI深度解读。Key仅存本地。</p>
+      <div class="api-provider-grid" id="providerGrid">
+        <button data-value="deepseek" class="selected">DeepSeek</button>
+        <button data-value="qwen">千问</button>
+        <button data-value="openai">OpenAI</button>
+        <button data-value="claude">Claude</button>
+        <button data-value="gemini">Gemini</button>
+        <button data-value="kimi">Kimi</button>
+        <button data-value="zhipu">智谱</button>
+        <button data-value="custom">自定义</button>
+      </div>
+      <input type="password" id="apiKey" placeholder="API Key" />
+      <input type="text" id="apiEndpoint" placeholder="API地址（自动填充）" />
+      <select id="aiStyle">
+        <option value="guide">温和引导者</option>
+        <option value="analyst">冷静分析师</option>
+        <option value="sharp">犀利直言者</option>
+      </select>
+      <div class="btn-row">
+        <button data-action="saveApiSettings" class="primary small">保存</button>
+        <button data-action="clearApiSettings" class="outline small">清除</button>
+      </div>
+      <span id="apiStatus">未配置</span>
+      <p class="hint" style="margin-top:1vh;font-size:0.7rem;">数据流向：你的问题从浏览器直接发送到所选AI服务商，浮生牌不经过任何中转服务器。</p>
+    </div>
+
+    <!-- 个人信息面板 -->
+    <div class="panel" id="panelProfile" hidden>
+      <h3>个人信息</h3>
+      <p class="hint">填写出生日期，系统将自动换算四柱，用于解读参考。出生时间可选填。</p>
+      <label>出生日期（公历）</label>
+      <input type="date" id="birthDate" />
+      <label>出生时间（可选）</label>
+      <input type="time" id="birthTime" />
+      <p class="hint" id="baziPreview" style="margin-top:1vh;color:var(--accent);"></p>
+      <button data-action="saveProfile" class="primary small">保存</button>
+    </div>
+
+    <!-- 历史记录面板 -->
+    <div class="panel" id="panelHistory" hidden>
+      <h3>历史记录</h3>
+      <div id="historyList"></div>
+    </div>
+
+    <!-- 通用模态框 -->
+    <div class="modal" id="modal" hidden>
+      <div class="modal-content" id="modalContent"></div>
+    </div>
+
+    <!-- 分享图预览层 -->
+    <div class="share-image-preview" id="sharePreview" hidden>
+      <canvas id="shareCanvas"></canvas>
+      <div class="share-actions">
+        <button data-action="saveShareImage" class="small primary">保存到相册</button>
+        <button data-action="closeShare" class="outline small">关闭</button>
+      </div>
+    </div>
+
+    <!-- Toast 轻提示 -->
+    <div class="toast" id="toast" hidden></div>
+
+  </div>
+
+  <!-- 应用入口 -->
+</body>
+</html>
