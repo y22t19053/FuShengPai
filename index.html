@@ -4,9 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>浮生牌 · 观测者的镜子</title>
-  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-  <script type="module" crossorigin src="/FuShengPai/assets/index-cpL36WUV.js"></script>
-  <link rel="stylesheet" crossorigin href="/FuShengPai/assets/index-BH0jFLrY.css">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
   <div class="app" id="appRoot">
@@ -35,19 +34,19 @@
     <div id="dynamicPanels"></div>
 
     <!-- 教程面板 -->
-    <div class="panel" id="panelTeaching" hidden>
+    <div class="panel static-panel" id="panelTeaching" hidden>
       <h3>新手教程</h3>
       <div id="teachingContent"></div>
     </div>
 
     <!-- 规则速查面板 -->
-    <div class="panel" id="panelRules" hidden>
+    <div class="panel static-panel" id="panelRules" hidden>
       <h3>规则速查</h3>
       <p>♥火 ♦金 ♣木 ♠水 | J/Q/K土 | 大王天(阳) 小王人(阴)<br />生我大吉 克我大凶 同我平 我生小凶 我克小吉</p>
     </div>
 
     <!-- AI 设置面板 -->
-    <div class="panel" id="panelSettings" hidden>
+    <div class="panel static-panel" id="panelSettings" hidden>
       <h3>AI设置</h3>
       <p class="hint">填入API Key后可使用AI深度解读。Key仅存本地。</p>
       <div class="api-provider-grid" id="providerGrid">
@@ -69,6 +68,7 @@
       </select>
       <div class="btn-row">
         <button data-action="saveApiSettings" class="primary small">保存</button>
+        <button data-action="testApiConnection" class="outline small">测试连接</button>
         <button data-action="clearApiSettings" class="outline small">清除</button>
       </div>
       <span id="apiStatus">未配置</span>
@@ -76,7 +76,7 @@
     </div>
 
     <!-- 个人信息面板 -->
-    <div class="panel" id="panelProfile" hidden>
+    <div class="panel static-panel" id="panelProfile" hidden>
       <h3>个人信息</h3>
       <p class="hint">填写出生日期，系统将自动换算四柱，用于解读参考。出生时间可选填。</p>
       <label>出生日期（公历）</label>
@@ -88,7 +88,7 @@
     </div>
 
     <!-- 历史记录面板 -->
-    <div class="panel" id="panelHistory" hidden>
+    <div class="panel static-panel" id="panelHistory" hidden>
       <h3>历史记录</h3>
       <div id="historyList"></div>
     </div>
@@ -112,6 +112,6 @@
 
   </div>
 
-  <!-- 应用入口 -->
+  <script type="module" src="/src/ui.js"></script>
 </body>
 </html>
