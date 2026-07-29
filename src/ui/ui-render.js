@@ -6,6 +6,8 @@ import { shuffle, drawTiYong, calcFullBaZi, calcYearPillar, getTimeLabels, calcD
 import { getApiSettings, getProfile, getHistory } from '../storage.js';
 import { UI_TEXTS, TUTORIAL_TEXTS, PHYSICAL_GUIDE, SHARE_TEXTS, HISTORY_EMPTY, AI_GUIDE_TEXT, ONBOARDING_STEPS, generateFullReading } from '../texts/index.js';
 import { toast } from './ui-modal.js';
+// 【关键修复】补全缺失的 isCardPlaced 导入
+import { isCardPlaced, selectCard, placeCardOnGong, placeCardOnTiYong } from './ui-drag.js';
 
 export const escapeHtml = (str) => { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; };
 
@@ -147,7 +149,7 @@ export function renderStep1() {
 export function renderStep2() {
   domDynamic.innerHTML = `<div class="panel"><h3>${state.manualMode ? '手动录入 · 明牌选阵' : '立极·布阵'}</h3><div class="guide-tip">${state.manualMode ? UI_TEXTS.guideManual : UI_TEXTS.guideSelectTiYong}</div><div class="tiyong-bar" id="tiyongBar"></div><div class="deck-grid" id="deckContainer"></div><div class="btn-row" style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center; align-items:center;">
       <button id="scrollLeftBtn" class="outline small">‹ 选牌</button>
-      <button data-action="resetStep2" class="outline small">重置选牌</button> <!-- 【已修改】改为重置选牌 -->
+      <button data-action="resetStep2" class="outline small">重置选牌</button>
       ${state.manualMode ? '' : '<button id="btnConfirmTY" disabled data-action="confirmTiYong" class="small primary">' + UI_TEXTS.btnConfirmTiYong + '</button>'}
       <button id="scrollRightBtn" class="outline small">选牌 ›</button>
       ${state.manualMode ? '<button data-action="generateInterpretation" class="small primary">' + UI_TEXTS.btnInterpret + '</button>' : ''}
