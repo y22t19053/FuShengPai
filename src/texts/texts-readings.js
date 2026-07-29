@@ -1,5 +1,7 @@
-// ===== 原子词库与核心生成引擎（九宫、五行、体用、旺衰、差值、天机线） =====
-import { getPhraseSet, getIntensityLevel, pick } from '../constants.js'; // 统一从后面新建的 constants.js 引入
+// ===== src/texts/texts-readings.js =====
+// 原子词库与核心生成引擎（九宫、五行、体用、旺衰、差值、天机线）
+
+import { getPhraseSet, getIntensityLevel, pick } from '../constants.js';
 
 // ===== 九宫各宫位 =====
 export const gongPhrases = {
@@ -139,7 +141,7 @@ export const closingLines = [
 ];
 
 // ================================================================
-// 四、核心生成函数 =====
+// 核心生成函数 =====
 export function generateGongText(context) {
   const gongId = context.gong?.id;
   const intent = context.intent || 'default';
