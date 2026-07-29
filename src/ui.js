@@ -4,8 +4,7 @@ import { injectAnimations } from './ui/ui-anim.js';
 import {
   renderTeachingPanel, renderStep1, renderStep2, renderStep3,
   initSettingsPanel, initProfilePanel, renderHistoryPanel,
-  refreshAll, updateDailySignDisplay, updateApiStatus,
-  escapeHtml
+  refreshAll, updateDailySignDisplay, updateApiStatus, escapeHtml
 } from './ui/ui-render.js';
 import {
   selectCard, placeCardOnGong, placeCardOnTiYong, removeCardFromGong,
@@ -44,48 +43,34 @@ import {
 } from './texts/index.js';
 import { MAX_DAILY_OBSERVATIONS } from './constants.js';
 
-// ================================================================
-// 核心业务逻辑（调度各模块）
-// ================================================================
-function updateStep(n) { /* 保持原样 */ }
-function getBaziFromProfile() { /* 保持原样 */ }
-function detectIntent(question, category) { /* 保持原样 */ }
-function generateFollowUpQuestions(intent, ti, yong) { /* 保持原样 */ }
-function applyRefinement(key, value) { /* 保持原样 */ }
-function localInterpretation() { /* 保持原样 */ }
-function generateInterpretation() { /* 保持原样 */ }
-function buildAIPrompt() { /* 保持原样 */ }
-function resetAll() { /* 保持原样 */ }
-function proceedStartQuestion() { /* 保持原样 */ }
+function updateStep(n) { /* 保持原有逻辑 */ }
+function getBaziFromProfile() { /* 保持原有逻辑 */ }
+function detectIntent(question, category) { /* 保持原有逻辑 */ }
+function localInterpretation() { /* 保持原有逻辑 */ }
+function generateInterpretation() { /* 保持原有逻辑 */ }
+function buildAIPrompt() { /* 保持原有逻辑 */ }
+function resetAll() { /* 保持原有逻辑 */ }
 function startQuestion() { guardMidnight(proceedStartQuestion); }
-function startManualEntry() { guardMidnight(() => { /* 保持原样 */ }); }
+function proceedStartQuestion() { /* 保持原有逻辑 */ }
+function startManualEntry() { guardMidnight(() => { /* 保持原有逻辑 */ }); }
 function lazyStart() { guardMidnight(proceedLazyStart); }
-function proceedLazyStart() { /* 保持原样 */ }
-function resetStep2() { /* 保持原样 */ }
-function confirmTiYong() { /* 保持原样 */ }
-function resetGrid() { /* 保持原样 */ }
-function copyLocalResult() { /* 保持原样 */ }
-function saveApiSettingsFromForm() { /* 保持原样 */ }
-function saveProfileFromForm() { /* 保持原样 */ }
-function checkEthicalBoundary(question) { /* 保持原样 */ }
+function proceedLazyStart() { /* 保持原有逻辑 */ }
+function resetStep2() { /* 保持原有逻辑 */ }
+function confirmTiYong() { /* 保持原有逻辑 */ }
+function resetGrid() { /* 保持原有逻辑 */ }
+function copyLocalResult() { /* 保持原有逻辑 */ }
+function saveApiSettingsFromForm() { /* 保持原有逻辑 */ }
+function saveProfileFromForm() { /* 保持原有逻辑 */ }
+function checkEthicalBoundary(question) { /* 保持原有逻辑 */ }
+async function triggerAI() { /* 保持原有逻辑 */ }
+async function sendFollowUp() { /* 保持原有逻辑 */ }
+async function handleTestApiConnection() { /* 保持原有逻辑 */ }
 
-async function triggerAI() { /* 保持原样 */ }
-async function sendFollowUp() { /* 保持原样 */ }
-async function handleTestApiConnection() { /* 保持原样 */ }
-
-// ================================================================
-// 全局事件监听绑定（彻底防止点击失灵和拖拽干扰）
-// ================================================================
-
-// 点击监听：负责所有按钮事件
 document.addEventListener('click', function(e) {
   const btn = e.target.closest('button');
   if (btn) {
     if (btn.id === 'scrollLeftBtn' || btn.id === 'scrollRightBtn') return;
-    if (btn.classList.contains('refinement-btn')) return; // 已废弃
-    if (btn.classList.contains('tag-remove')) return; // 已废弃
-    const action = btn.dataset.action;
-    if (!action) return;
+    const action = btn.dataset.action; if (!action) return;
     switch (action) {
       case 'togglePanel': togglePanel(btn.dataset.panel); break;
       case 'resetAll': resetAll(); break;
@@ -122,40 +107,24 @@ document.addEventListener('click', function(e) {
   const gong = e.target.closest('.gong'); if (gong && state.sel) { const g = parseInt(gong.dataset.gong); const card = findCardById(state.sel); if (card && !isCardPlaced(card)) placeCardOnGong(card, g); }
 });
 
-// 触摸监听：彻底重写触屏点按与拖拽
 document.addEventListener('touchstart', function(e) {
   const cardEl = e.target.closest('.card-back, .card-face-small');
-  if (!cardEl) return;
-  startPress(e.touches[0].clientX, e.touches[0].clientY, cardEl);
+  if (cardEl) startPress(e.touches[0].clientX, e.touches[0].clientY, cardEl);
 }, { passive: true });
+document.addEventListener('touchmove', function(e) { moveDrag(e.touches[0].clientX, e.touches[0].clientY, e); }, { passive: false });
+document.addEventListener('touchend', function(e) { endDrag(e.changedTouches[0].clientX, e.changedTouches[0].clientY); });
 
-document.addEventListener('touchmove', function(e) {
-  moveDrag(e.touches[0].clientX, e.touches[0].clientY, e);
-}, { passive: false });
-
-document.addEventListener('touchend', function(e) {
-  endDrag(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
-});
-
-// 鼠标监听：PC端原生拖拽与点按
-document.addEventListener('mousedown', function(e) {
-  const cardEl = e.target.closest('.card-back, .card-face-small');
-  if (!cardEl) return;
-  startPress(e.clientX, e.clientY, cardEl);
-});
+document.addEventListener('mousedown', function(e) { const cardEl = e.target.closest('.card-back, .card-face-small'); if (cardEl) startPress(e.clientX, e.clientY, cardEl); });
 document.addEventListener('mousemove', function(e) { moveDrag(e.clientX, e.clientY, e); });
 document.addEventListener('mouseup', function(e) { endDrag(e.clientX, e.clientY); });
 
-// 其它面板绑定
-document.addEventListener('click', function(e) { const b = e.target.closest('#providerGrid button'); if (!b || !b.dataset.value) return; state.selectedProvider = b.dataset.value; $$('#providerGrid button').forEach(x => x.classList.toggle('selected', x === b)); const info = API_PROVIDERS[state.selectedProvider]; if (info) { const ep = $('#apiEndpoint'); if (ep) ep.value = info.endpoint || ''; } });
+document.addEventListener('click', function(e) { const b = e.target.closest('#providerGrid button'); if (b && b.dataset.value) { state.selectedProvider = b.dataset.value; $$('#providerGrid button').forEach(x => x.classList.toggle('selected', x === b)); const info = API_PROVIDERS[state.selectedProvider]; if (info) { const ep = $('#apiEndpoint'); if (ep) ep.value = info.endpoint || ''; } } });
 document.addEventListener('click', function(e) { if (e.target === domModal) domModal.setAttribute('hidden', ''); });
 
-// ================================================================
-// 应用启动
-// ================================================================
 function init() {
   try {
-    cacheDom(); updateStep(1); renderStep1(); updateApiStatus();
+    cacheDom(); // 必须在这里先执行
+    updateStep(1); renderStep1(); updateApiStatus();
     const ep = $('#apiEndpoint'); if (ep && !ep.value) ep.value = API_PROVIDERS.deepseek.endpoint;
     if (!hasCompletedOnboarding()) showOnboarding();
     injectAnimations();

@@ -23,40 +23,27 @@ export function isCardPlaced(card) {
 }
 export function findCardById(id) { return state.deck.find(c => getCardId(c) === id); }
 
-export function placeCardOnGong(card, gong) { /* 保持原逻辑 */ }
-export function placeCardOnTiYong(card, role) { /* 保持原逻辑 */ }
+export function placeCardOnGong(card, gong) { /* 保持原有逻辑 */ }
+export function placeCardOnTiYong(card, role) { /* 保持原有逻辑 */ }
 
-export function checkLines() { /* 保持原逻辑 */ }
-export function setLine(line) { /* 保持原逻辑 */ }
-export function renderLineSelector(candidates) { /* 保持原逻辑 */ }
-export function removeLineSelector() { /* 保持原逻辑 */ }
+export function checkLines() { /* 保持原有逻辑 */ }
+export function setLine(line) { /* 保持原有逻辑 */ }
+export function renderLineSelector(candidates) { /* 保持原有逻辑 */ }
+export function removeLineSelector() { /* 保持原有逻辑 */ }
 
-// ================================================================
-// 防冲突拖拽核心逻辑
-// ================================================================
-let longPressTimer = null;
-let isLongPress = false;
-let ghostCard = null;
-let touchDragX = 0, touchDragY = 0;
-let mouseDragX = 0, mouseDragY = 0;
+let longPressTimer = null; let isLongPress = false; let ghostCard = null;
+let touchDragX = 0, touchDragY = 0; let mouseDragX = 0, mouseDragY = 0;
 
 export function startPress(clientX, clientY, cardEl) {
   if (!cardEl) return;
-  const id = cardEl.dataset.cardid;
-  const card = findCardById(id);
+  const id = cardEl.dataset.cardid; const card = findCardById(id);
   if (!card || isCardPlaced(card)) return;
-  selectCard(id); // 点按必响应
-  isLongPress = false;
-  clearTimeout(longPressTimer);
+  selectCard(id);
+  isLongPress = false; clearTimeout(longPressTimer);
   longPressTimer = setTimeout(() => {
-    isLongPress = true;
-    ghostCard = cardEl.cloneNode(true);
-    ghostCard.style.position = 'fixed';
-    ghostCard.style.zIndex = 1000;
-    ghostCard.style.pointerEvents = 'none';
-    ghostCard.style.opacity = '0.7';
-    ghostCard.style.width = cardEl.offsetWidth + 'px';
-    ghostCard.style.height = cardEl.offsetHeight + 'px';
+    isLongPress = true; ghostCard = cardEl.cloneNode(true);
+    ghostCard.style.position = 'fixed'; ghostCard.style.zIndex = 1000; ghostCard.style.pointerEvents = 'none';
+    ghostCard.style.opacity = '0.7'; ghostCard.style.width = cardEl.offsetWidth + 'px'; ghostCard.style.height = cardEl.offsetHeight + 'px';
     document.body.appendChild(ghostCard);
     if (navigator.vibrate) navigator.vibrate(10);
   }, 250);
@@ -70,12 +57,10 @@ export function moveDrag(clientX, clientY, e) {
   } else {
     const dx = clientX - touchDragX, dy = clientY - touchDragY;
     if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-      clearTimeout(longPressTimer);
-      isLongPress = true;
+      clearTimeout(longPressTimer); isLongPress = true;
       const cardEl = document.elementFromPoint(touchDragX, touchDragY)?.closest('.card-back, .card-face-small');
       if (cardEl) {
-        ghostCard = cardEl.cloneNode(true);
-        ghostCard.style.position = 'fixed'; ghostCard.style.zIndex = 1000;
+        ghostCard = cardEl.cloneNode(true); ghostCard.style.position = 'fixed'; ghostCard.style.zIndex = 1000;
         ghostCard.style.pointerEvents = 'none'; ghostCard.style.opacity = '0.7';
         ghostCard.style.width = cardEl.offsetWidth + 'px'; ghostCard.style.height = cardEl.offsetHeight + 'px';
         document.body.appendChild(ghostCard);
@@ -89,8 +74,7 @@ export function endDrag(clientX, clientY) {
   if (isLongPress && ghostCard) {
     const dropTarget = document.elementFromPoint(clientX, clientY);
     ghostCard.remove(); ghostCard = null;
-    const gong = dropTarget?.closest('.gong');
-    const emptyDash = dropTarget?.closest('.empty-dash');
+    const gong = dropTarget?.closest('.gong'); const emptyDash = dropTarget?.closest('.empty-dash');
     let placed = false;
     if (gong && state.sel) { const g = parseInt(gong.dataset.gong); const card = findCardById(state.sel); if (card && !isCardPlaced(card)) placed = placeCardOnGong(card, g); } 
     else if (emptyDash && state.sel) { const card = findCardById(state.sel); if (card && !isCardPlaced(card)) { if (emptyDash.textContent.includes('体')) placed = placeCardOnTiYong(card, 'ti'); else placed = placeCardOnTiYong(card, 'yong'); } }

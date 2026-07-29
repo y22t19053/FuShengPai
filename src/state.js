@@ -28,7 +28,6 @@ export const state = {
 export const $ = (sel) => document.querySelector(sel);
 export const $$ = (sel) => document.querySelectorAll(sel);
 
-// 【核心修复】明确声明并导出 DOM 节点，确保 ui-modal.js 能正确引用
 export let domApp, domDynamic, domToast, domModal, domModalContent, domSharePreview, domShareCanvas;
 
 export function cacheDom() {
