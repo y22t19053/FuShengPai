@@ -2,7 +2,9 @@
 import { state, $, $$ } from '../state.js';
 import { ALL_LINES, TIME_LABELS, GONG_NAMES, getCardId } from '../data.js';
 import { UI_TEXTS } from '../texts/index.js';
-import { toast, refreshAll } from './ui-render.js';
+// 【核心修复】toast 在 ui-modal.js 中，refreshAll 在 ui-render.js 中
+import { toast } from './ui-modal.js';
+import { refreshAll } from './ui-render.js';
 
 // 核心操作函数
 export function selectCard(cardId) {
