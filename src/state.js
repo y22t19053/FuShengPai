@@ -1,6 +1,4 @@
 // ===== src/state.js · 全局状态与 DOM 引用 =====
-import { getCardId } from './data.js';
-
 export const state = {
   question: '',
   category: '',
