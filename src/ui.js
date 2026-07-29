@@ -6,10 +6,12 @@ import {
   initSettingsPanel, initProfilePanel, renderHistoryPanel,
   refreshAll, updateDailySignDisplay, updateApiStatus, escapeHtml
 } from './ui/ui-render.js';
+// 【关键修复】补全从 ui-drag.js 导入的 isCardPlaced 和 findCardById
 import {
   selectCard, placeCardOnGong, placeCardOnTiYong, removeCardFromGong,
   checkLines, setLine, renderLineSelector, removeLineSelector,
-  startPress, moveDrag, endDrag
+  startPress, moveDrag, endDrag,
+  isCardPlaced, findCardById
 } from './ui/ui-drag.js';
 import {
   toast, togglePanel, showOnboarding, guardMidnight, showDailyFortune,
