@@ -30,14 +30,22 @@ export function renderTeachingPanel() {
   `;
 }
 
-// 核心补全：牌组渲染（带首尾相连和滑动手势）
 export function renderDeck() {
   const el = $('#deckContainer');
   if (!el) return;
-  const previousScrollLeft = el.scrollLeft || 0;
-  if (!state.deck.length) { el.innerHTML = '<span style="color:#444;padding:10px;">牌库空</span>'; return; }
-  el.style.cssText = `display: flex; flex-wrap: nowrap; gap: 12px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; padding: 10px 20px; touch-action: pan-x; scrollbar-width: none; -ms-overflow-style: none;`;
+  if (!state.deck.length) {
+    el.innerHTML = '<span style="color:#444;padding:10px;display:block;text-align:center;width:100%;">牌库已空，请重置或重新抽牌</span>'; 
+    return; 
+  }
+  // 【优化】保留原有 class 样式，避免纯 style.cssText 覆盖原外部属性
+  el.style.cssText = `
+    display: flex; flex-wrap: nowrap; gap: 12px; overflow-x: auto; overflow-y: hidden;
+    scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+    padding: 10px 20px; touch-action: pan-x;
+    scrollbar-width: none; -ms-overflow-style: none;
+  `;
   el.style.setProperty('::-webkit-scrollbar', 'display', 'none');
+  
   let html = '';
   state.deck.forEach((c, index) => {
     const id = getCardId(c);
@@ -56,7 +64,6 @@ export function renderDeck() {
     }
   });
   el.innerHTML = html;
-  if (previousScrollLeft > 0) requestAnimationFrame(() => { el.scrollLeft = previousScrollLeft; });
 }
 
 export function renderTiYong() {
@@ -138,7 +145,13 @@ export function renderStep1() {
 }
 
 export function renderStep2() {
-  domDynamic.innerHTML = `<div class="panel"><h3>${state.manualMode ? '手动录入 · 明牌选阵' : '立极·布阵'}</h3><div class="guide-tip">${state.manualMode ? UI_TEXTS.guideManual : UI_TEXTS.guideSelectTiYong}</div><div class="tiyong-bar" id="tiyongBar"></div><div class="deck-grid" id="deckContainer"></div><div class="btn-row" style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center; align-items:center;"><button id="scrollLeftBtn" class="outline small">‹ 选牌</button><button data-action="resetStep2" class="outline small">重置九宫</button>${state.manualMode ? '' : '<button id="btnConfirmTY" disabled data-action="confirmTiYong" class="small primary">' + UI_TEXTS.btnConfirmTiYong + '</button>'}<button id="scrollRightBtn" class="outline small">选牌 ›</button>${state.manualMode ? '<button data-action="generateInterpretation" class="small primary">' + UI_TEXTS.btnInterpret + '</button>' : ''}</div><div id="gridArea" ${state.manualMode ? '' : 'style="display:none"' }><div class="guide-tip">${UI_TEXTS.guideAfterTiYong}</div><div class="grid-9" id="gridContainer"></div><div class="btn-row"><button data-action="resetGrid" class="outline small">清九宫</button>${state.manualMode ? '' : '<button data-action="generateInterpretation" class="small primary">' + UI_TEXTS.btnInterpret + '</button>'}</div></div></div>`;
+  domDynamic.innerHTML = `<div class="panel"><h3>${state.manualMode ? '手动录入 · 明牌选阵' : '立极·布阵'}</h3><div class="guide-tip">${state.manualMode ? UI_TEXTS.guideManual : UI_TEXTS.guideSelectTiYong}</div><div class="tiyong-bar" id="tiyongBar"></div><div class="deck-grid" id="deckContainer"></div><div class="btn-row" style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center; align-items:center;">
+      <button id="scrollLeftBtn" class="outline small">‹ 选牌</button>
+      <button data-action="resetStep2" class="outline small">重置选牌</button> <!-- 【已修改】改为重置选牌 -->
+      ${state.manualMode ? '' : '<button id="btnConfirmTY" disabled data-action="confirmTiYong" class="small primary">' + UI_TEXTS.btnConfirmTiYong + '</button>'}
+      <button id="scrollRightBtn" class="outline small">选牌 ›</button>
+      ${state.manualMode ? '<button data-action="generateInterpretation" class="small primary">' + UI_TEXTS.btnInterpret + '</button>' : ''}
+    </div><div id="gridArea" ${state.manualMode ? '' : 'style="display:none"' }><div class="guide-tip">${UI_TEXTS.guideAfterTiYong}</div><div class="grid-9" id="gridContainer"></div><div class="btn-row"><button data-action="resetGrid" class="outline small">清九宫</button>${state.manualMode ? '' : '<button data-action="generateInterpretation" class="small primary">' + UI_TEXTS.btnInterpret + '</button>'}</div></div></div>`;
   refreshAll();
   if (state.ti && state.yong && !state.manualMode) { const btn = $('#btnConfirmTY'); if (btn) btn.disabled = false; }
 }

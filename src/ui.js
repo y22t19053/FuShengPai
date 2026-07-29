@@ -121,14 +121,6 @@ function generateFollowUpQuestions(intent, ti, yong) {
   return questions.slice(0, 3);
 }
 
-function applyRefinement(key, value) {
-  const interpretEl = $('#interpretText');
-  if (!interpretEl) return;
-  const tagsEl = $('#refinementTags');
-  if (tagsEl) { tagsEl.innerHTML += `<span class="tag">${value} <span class="tag-remove" data-remove="${key}" style="cursor:pointer;color:#d45050;">×</span></span>`; state.refinementTags[key] = value; }
-  toast('已记录补充信息，可再次生成解读以刷新内容', 2000);
-}
-
 function localInterpretation() {
   const tiWx = getWuxing(state.ti); 
   const yongWx = getWuxing(state.yong);
