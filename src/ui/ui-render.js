@@ -1,8 +1,8 @@
 // ===== src/ui/ui-render.js · 所有页面的绘制逻辑 =====
 import { state, $, $$, domDynamic, domModal, domModalContent, domSharePreview, domShareCanvas } from '../state.js';
 import { GONG_ORDER, GONG_NAMES, GONG_WUXING, CATEGORIES } from '../data.js';
-import { calcDiff, getWangState, getWuxing, getCardColor, getCardId, getCardValue } from '../data.js';
-import { shuffle, drawTiYong, calcFullBaZi, calcYearPillar, getTimeLabels } from '../engine.js';
+import { getWangState, getWuxing, getCardColor, getCardId, getCardValue } from '../data.js'; // 【修正】移除了 calcDiff
+import { shuffle, drawTiYong, calcFullBaZi, calcYearPillar, getTimeLabels, calcDiff } from '../engine.js'; // 【修正】calcDiff 正确加在这里
 import { getApiSettings, getProfile, getHistory } from '../storage.js';
 import {
   UI_TEXTS, TUTORIAL_TEXTS, PHYSICAL_GUIDE, SHARE_TEXTS,
@@ -114,7 +114,7 @@ export function initProfilePanel() { /* ...此处省略initProfilePanel... */ }
 export function renderHistoryPanel() { /* ...此处省略renderHistoryPanel... */ }
 export function updateDailySignDisplay(sign) { /* ...此处省略... */ }
 
-// ===== 【新增修复】这里补上了缺失的导出函数 =====
+// ===== 修复：补全导出函数 =====
 export function updateApiStatus() {
   const s = getApiSettings();
   const st = $('#apiStatus');
