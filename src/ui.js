@@ -25,14 +25,16 @@ import {
 } from './storage.js';
 import { checkUsageFrequency } from './engine.js'; 
 import { requestReading, requestFollowUp, testApiConnection } from './ai.js';
+// 【关键修复】engine.js 只保留纯算法
 import {
-  createDeck, shuffle, drawTiYong, calcDiff, getWangState, // 修正点：这里删除了 getWuxing
-  getShengKe, getShengKeLabel, detectLines, calcFullBaZi, calcYearPillar
+  createDeck, shuffle, drawTiYong, calcDiff, detectLines, calcFullBaZi, calcYearPillar
 } from './engine.js';
+// 【关键修复】getWangState, getShengKe, getShengKeLabel 全部放回 data.js
 import {
   SUITS, RANKS, GONG_ORDER, GONG_NAMES, GONG_WUXING, GONG_DIRECTION,
   ALL_LINES, TIME_LABELS, API_PROVIDERS, CATEGORIES,
-  getWuxing, getCardValue, getCardId, getCardColor // 修正点：确保 getWuxing 在这里
+  getWuxing, getCardValue, getCardId, getCardColor,
+  getShengKe, getShengKeLabel, getWangState
 } from './data.js';
 import {
   UI_TEXTS, RULES_TEXTS, TUTORIAL_TEXTS, PHYSICAL_GUIDE,
