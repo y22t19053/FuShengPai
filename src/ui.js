@@ -1,5 +1,6 @@
 // ===== src/ui.js · 业务主控中心 =====
-import { state, $, $$, cacheDom } from './state.js';
+// 【关键修复】把漏掉的 domModal 加回了导入列表！
+import { state, $, $$, cacheDom, domModal } from './state.js'; 
 import { injectAnimations } from './ui/ui-anim.js';
 import {
   renderTeachingPanel, renderStep1, renderStep2, renderStep3,
@@ -123,7 +124,7 @@ document.addEventListener('click', function(e) { if (e.target === domModal) domM
 
 function init() {
   try {
-    cacheDom(); // 必须在这里先执行
+    cacheDom(); 
     updateStep(1); renderStep1(); updateApiStatus();
     const ep = $('#apiEndpoint'); if (ep && !ep.value) ep.value = API_PROVIDERS.deepseek.endpoint;
     if (!hasCompletedOnboarding()) showOnboarding();
