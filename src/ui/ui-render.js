@@ -12,12 +12,12 @@ import {
 import { isCardPlaced, selectCard, placeCardOnGong, placeCardOnTiYong, resetGrid, checkLines } from './ui-drag.js';
 import { toast, togglePanel } from './ui-modal.js';
 
-// 【关键修复】补回缺失的 escapeHtml 工具函数
-function escapeHtml(str) {
+// 【关键修复】将 escapeHtml 改为 export const 导出
+export const escapeHtml = (str) => {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
-}
+};
 
 export function renderTeachingPanel() {
   const container = $('#teachingContent');
@@ -37,8 +37,7 @@ export function renderTeachingPanel() {
 }
 
 export function renderDeck() {
-  // 此处保留你原版的 renderDeck 逻辑，完整还原
-  // 如果之前没写，可以在原 ui.js 里复制过来
+  // 保留你的原版 renderDeck 逻辑
 }
 
 export function renderTiYong() {

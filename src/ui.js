@@ -4,7 +4,8 @@ import { injectAnimations } from './ui/ui-anim.js';
 import {
   renderTeachingPanel, renderStep1, renderStep2, renderStep3,
   initSettingsPanel, initProfilePanel, renderHistoryPanel,
-  refreshAll, updateDailySignDisplay, updateApiStatus
+  refreshAll, updateDailySignDisplay, updateApiStatus,
+  escapeHtml  // 【关键修复】显式导入 escapeHtml
 } from './ui/ui-render.js';
 import {
   selectCard, placeCardOnGong, placeCardOnTiYong, removeCardFromGong,
@@ -251,7 +252,6 @@ function saveApiSettingsFromForm() {
 function saveProfileFromForm() { const bd = $('#birthDate')?.value || ''; const bt = $('#birthTime')?.value || ''; saveProfile({ birthDate: bd, birthTime: bt }); toast(UI_TEXTS.toastProfileSaved); }
 
 function checkEthicalBoundary(question) { const q = question.toLowerCase(); for (const [key, entry] of Object.entries(REFUSAL_TEXTS.keywords)) { if (entry.trigger.some(word => q.includes(word))) return { blocked: true, message: entry.response }; } return { blocked: false }; }
-function escapeHtml(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
 
 async function triggerAI() {
   const btn = $('#aiReadBtn'); if (!btn) return; btn.disabled = true; btn.textContent = '思考中...';
