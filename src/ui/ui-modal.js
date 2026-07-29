@@ -43,7 +43,7 @@ export function renderOnboardStep() {
 export function guardMidnight(callback) {
   const h = new Date().getHours();
   if ((h >= 23 || h < 1) && !localStorage.getItem('fs_midnight_dismiss')) {
-    if (!domModal || !domModalContent) { callback(); return; } // 防御性返回
+    if (!domModal || !domModalContent) { callback(); return; }
     domModalContent.innerHTML = `
       <h3 style="text-align:center;">子时提示</h3>
       <p style="margin:10px 0;color:var(--dim);">当前为子时，观测者效应可能衰减。结果仅供参考。</p>
@@ -59,7 +59,7 @@ export function guardMidnight(callback) {
 }
 
 export function showDailyFortune() {
-  if (!domModal || !domModalContent) { toast('弹窗系统尚未加载'); return; } // 防御性返回
+  if (!domModal || !domModalContent) { toast('弹窗系统尚未加载'); return; }
   const today = new Date().toDateString(); 
   let hash = 0; for (let i = 0; i < today.length; i++) { hash = ((hash << 5) - hash) + today.charCodeAt(i); hash |= 0; }
   const idx = Math.abs(hash) % 54; let card;

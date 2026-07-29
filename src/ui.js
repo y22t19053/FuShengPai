@@ -1,5 +1,4 @@
 // ===== src/ui.js · 业务主控中心 =====
-// 【核心修复】移除对 domModal 的模块导入，改用它最安全的原生获取方式
 import { state, $, $$, cacheDom } from './state.js'; 
 import { injectAnimations } from './ui/ui-anim.js';
 import {
@@ -44,7 +43,6 @@ import {
 } from './texts/index.js';
 import { MAX_DAILY_OBSERVATIONS } from './constants.js';
 
-// 算法工具函数（补全）
 function mulberry32(a) {
   return function() {
     a |= 0; a = a + 0x6D2B79F5 | 0;
@@ -71,10 +69,6 @@ async function generateEntropySeed() {
   } catch(e) {}
   return seed;
 }
-
-// ================================================================
-// 核心业务逻辑（已补全实际代码）
-// ================================================================
 
 function updateStep(n) {
   state.step = n;
@@ -361,7 +355,6 @@ document.addEventListener('click', function(e) {
       case 'deleteHistoryItem': if (btn.dataset.historyIndex !== undefined) { deleteHistoryItem(parseInt(btn.dataset.historyIndex)); renderHistoryPanel(); domModal.setAttribute('hidden', ''); toast('已删除'); } break;
       case 'importCode': importShareCode(); break;
       case 'dailyFortune': showDailyFortune(); break;
-      /* 【核心修复】下面两个使用 domModal 的地方全部改成原生获取方式 */
       case 'closeModal': 
         const modalEl = document.getElementById('modal');
         if (modalEl) modalEl.setAttribute('hidden', '');
@@ -390,7 +383,6 @@ document.addEventListener('mouseup', function(e) { endDrag(e.clientX, e.clientY)
 
 document.addEventListener('click', function(e) { const b = e.target.closest('#providerGrid button'); if (b && b.dataset.value) { state.selectedProvider = b.dataset.value; $$('#providerGrid button').forEach(x => x.classList.toggle('selected', x === b)); const info = API_PROVIDERS[state.selectedProvider]; if (info) { const ep = $('#apiEndpoint'); if (ep) ep.value = info.endpoint || ''; } } });
 
-/* 【核心修复】点击模态框背景关闭的逻辑，同样改为原生获取 */
 document.addEventListener('click', function(e) {
   const modalEl = document.getElementById('modal');
   if (e.target === modalEl && modalEl) {

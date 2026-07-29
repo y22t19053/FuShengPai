@@ -23,8 +23,27 @@ export function isCardPlaced(card) {
 }
 export function findCardById(id) { return state.deck.find(c => getCardId(c) === id); }
 
-export function placeCardOnGong(card, gong) { /* 保持原有逻辑 */ }
-export function placeCardOnTiYong(card, role) { /* 保持原有逻辑 */ }
+export function placeCardOnGong(card, gong) {
+  if (!card) return false;
+  if (!state.grid[gong]) state.grid[gong] = [];
+  state.grid[gong].push(card);
+  state.deck = state.deck.filter(c => getCardId(c) !== getCardId(card));
+  if (!state.gongOrder.includes(gong)) state.gongOrder.push(gong);
+  state.sel = null; refreshAll(); checkLines();
+  try { if (navigator.vibrate) navigator.vibrate(10); } catch (e) {}
+  toast(UI_TEXTS.toastAnyCount, 1500);
+  return true;
+}
+export function placeCardOnTiYong(card, role) {
+  if (!card || card.isJoker) return false;
+  if (role === 'ti' && state.ti) return false;
+  if (role === 'yong' && state.yong) return false;
+  state.deck = state.deck.filter(c => getCardId(c) !== getCardId(card));
+  if (role === 'ti') state.ti = card; else state.yong = card;
+  state.sel = null; refreshAll();
+  try { if (navigator.vibrate) navigator.vibrate(10); } catch (e) {}
+  return true;
+}
 
 export function checkLines() { /* 保持原有逻辑 */ }
 export function setLine(line) { /* 保持原有逻辑 */ }
