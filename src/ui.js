@@ -4,7 +4,7 @@ import { injectAnimations } from './ui/ui-anim.js';
 import {
   renderTeachingPanel, renderStep1, renderStep2, renderStep3,
   initSettingsPanel, initProfilePanel, renderHistoryPanel,
-  refreshAll, updateDailySignDisplay
+  refreshAll, updateDailySignDisplay, updateApiStatus
 } from './ui/ui-render.js';
 import {
   selectCard, placeCardOnGong, placeCardOnTiYong, removeCardFromGong,
@@ -16,7 +16,6 @@ import {
   showHistoryDetail, generateShareCode, importShareCode,
   generateShareImage, saveShareImage
 } from './ui/ui-modal.js';
-
 import {
   getHistory, saveReading, addDrawTimestamp,
   getApiSettings, saveApiSettings, clearApiSettings,
@@ -25,11 +24,9 @@ import {
 } from './storage.js';
 import { checkUsageFrequency } from './engine.js'; 
 import { requestReading, requestFollowUp, testApiConnection } from './ai.js';
-// 【关键修复】engine.js 只保留纯算法
 import {
   createDeck, shuffle, drawTiYong, calcDiff, detectLines, calcFullBaZi, calcYearPillar
 } from './engine.js';
-// 【关键修复】getWangState, getShengKe, getShengKeLabel 全部放回 data.js
 import {
   SUITS, RANKS, GONG_ORDER, GONG_NAMES, GONG_WUXING, GONG_DIRECTION,
   ALL_LINES, TIME_LABELS, API_PROVIDERS, CATEGORIES,

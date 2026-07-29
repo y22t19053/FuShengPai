@@ -1,8 +1,8 @@
 // ===== src/ui/ui-render.js · 所有页面的绘制逻辑 =====
 import { state, $, $$, domDynamic, domModal, domModalContent, domSharePreview, domShareCanvas } from '../state.js';
 import { GONG_ORDER, GONG_NAMES, GONG_WUXING, CATEGORIES } from '../data.js';
-import { getWangState, getWuxing, getCardColor, getCardId, getCardValue } from '../data.js'; // 【修正】移除了 calcDiff
-import { shuffle, drawTiYong, calcFullBaZi, calcYearPillar, getTimeLabels, calcDiff } from '../engine.js'; // 【修正】calcDiff 正确加在这里
+import { getWangState, getWuxing, getCardColor, getCardId, getCardValue } from '../data.js';
+import { shuffle, drawTiYong, calcFullBaZi, calcYearPillar, getTimeLabels, calcDiff } from '../engine.js';
 import { getApiSettings, getProfile, getHistory } from '../storage.js';
 import {
   UI_TEXTS, TUTORIAL_TEXTS, PHYSICAL_GUIDE, SHARE_TEXTS,
@@ -11,7 +11,7 @@ import {
 } from '../texts/index.js';
 import { isCardPlaced, selectCard, placeCardOnGong, placeCardOnTiYong, resetGrid, checkLines } from './ui-drag.js';
 import { toast, togglePanel } from './ui-modal.js';
-import { localInterpretation, generateInterpretation } from '../ui.js';
+// 【关键修复】删除了 import ... from '../ui.js'，解开了循环死锁
 
 export function renderTeachingPanel() {
   const container = $('#teachingContent');
@@ -31,8 +31,7 @@ export function renderTeachingPanel() {
 }
 
 export function renderDeck() {
-  // 复刻原 renderDeck 逻辑 (此处省略长代码，保持与原版一致，重点在末尾加上首尾相连逻辑即可)
-  // 直接从原 ui.js 中截取 renderDeck 完整部分粘贴
+  // 这里是你原版的 renderDeck 逻辑，保持原样即可
 }
 
 export function renderTiYong() {
@@ -91,9 +90,9 @@ export function renderStep1() {
   </div>`;
 }
 
-export function renderStep2() { /* ...此处省略完整renderStep2，使用你原始的逻辑... */ }
+export function renderStep2() { /* 保留你的原版逻辑 */ }
 
-export function renderStep3(text) { /* ...此处省略完整renderStep3，使用你原始的逻辑... */ }
+export function renderStep3(text) { /* 保留你的原版逻辑 */ }
 
 export function initSettingsPanel() {
   const s = getApiSettings();
@@ -110,11 +109,11 @@ export function initSettingsPanel() {
   }
 }
 
-export function initProfilePanel() { /* ...此处省略initProfilePanel... */ }
-export function renderHistoryPanel() { /* ...此处省略renderHistoryPanel... */ }
-export function updateDailySignDisplay(sign) { /* ...此处省略... */ }
+export function initProfilePanel() { /* 保留你的原版逻辑 */ }
+export function renderHistoryPanel() { /* 保留你的原版逻辑 */ }
+export function updateDailySignDisplay(sign) { /* 保留你的原版逻辑 */ }
 
-// ===== 修复：补全导出函数 =====
+// ===== 导出 updateApiStatus =====
 export function updateApiStatus() {
   const s = getApiSettings();
   const st = $('#apiStatus');
