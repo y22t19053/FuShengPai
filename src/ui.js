@@ -23,16 +23,16 @@ import {
   getProfile, saveProfile, hasCompletedOnboarding, completeOnboarding,
   exportAllData, getDrawTimestamps
 } from './storage.js';
-import { checkUsageFrequency } from './engine.js'; // 【已修复】从 engine.js 导入
+import { checkUsageFrequency } from './engine.js'; 
 import { requestReading, requestFollowUp, testApiConnection } from './ai.js';
 import {
-  createDeck, shuffle, drawTiYong, calcDiff, getWangState, getWuxing,
+  createDeck, shuffle, drawTiYong, calcDiff, getWangState, // 修正点：这里删除了 getWuxing
   getShengKe, getShengKeLabel, detectLines, calcFullBaZi, calcYearPillar
 } from './engine.js';
 import {
   SUITS, RANKS, GONG_ORDER, GONG_NAMES, GONG_WUXING, GONG_DIRECTION,
   ALL_LINES, TIME_LABELS, API_PROVIDERS, CATEGORIES,
-  getCardValue, getCardId, getCardColor
+  getWuxing, getCardValue, getCardId, getCardColor // 修正点：确保 getWuxing 在这里
 } from './data.js';
 import {
   UI_TEXTS, RULES_TEXTS, TUTORIAL_TEXTS, PHYSICAL_GUIDE,
@@ -303,14 +303,6 @@ async function handleTestApiConnection() {
   } catch (e) { toast(`测试失败: ${e.message}`, 4000); } 
   finally { if (btn) { btn.disabled = false; btn.textContent = UI_TEXTS.btnTestApi; } }
 }
-
-// 引用外部定义的函数，避免重写
-const { mulberry32, seededShuffle, generateEntropySeed, setupCardSwipeSelection } = {}; // 这些函数原本在 ui.js 中，现在被拆分到了 state、render 和 drag 中。我们在主控中直接调用即可。
-// 但由于分离，我把核心方法放在全局事件监听和 dispatch 中。
-
-// ================================================================
-// 全局事件监听与启动
-// ================================================================
 
 document.addEventListener('click', function(e) {
   const btn = e.target.closest('button');
