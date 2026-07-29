@@ -1,6 +1,6 @@
 // ===== src/ui.js · 业务主控中心 =====
-// 【关键修复】把漏掉的 domModal 加回了导入列表！
-import { state, $, $$, cacheDom, domModal } from './state.js'; 
+// 【核心修复】移除对 domModal 的模块导入，改用它最安全的原生获取方式
+import { state, $, $$, cacheDom } from './state.js'; 
 import { injectAnimations } from './ui/ui-anim.js';
 import {
   renderTeachingPanel, renderStep1, renderStep2, renderStep3,
@@ -96,7 +96,11 @@ document.addEventListener('click', function(e) {
       case 'deleteHistoryItem': if (btn.dataset.historyIndex !== undefined) { deleteHistoryItem(parseInt(btn.dataset.historyIndex)); renderHistoryPanel(); domModal.setAttribute('hidden', ''); toast('已删除'); } break;
       case 'importCode': importShareCode(); break;
       case 'dailyFortune': showDailyFortune(); break;
-      case 'closeModal': domModal.setAttribute('hidden', ''); break;
+      /* 【核心修复】下面两个使用 domModal 的地方全部改成原生获取方式 */
+      case 'closeModal': 
+        const modalEl = document.getElementById('modal');
+        if (modalEl) modalEl.setAttribute('hidden', '');
+        break;
       case 'closeShare': domSharePreview.setAttribute('hidden', ''); break;
       case 'saveShareImage': saveShareImage(); break;
     }
@@ -120,7 +124,14 @@ document.addEventListener('mousemove', function(e) { moveDrag(e.clientX, e.clien
 document.addEventListener('mouseup', function(e) { endDrag(e.clientX, e.clientY); });
 
 document.addEventListener('click', function(e) { const b = e.target.closest('#providerGrid button'); if (b && b.dataset.value) { state.selectedProvider = b.dataset.value; $$('#providerGrid button').forEach(x => x.classList.toggle('selected', x === b)); const info = API_PROVIDERS[state.selectedProvider]; if (info) { const ep = $('#apiEndpoint'); if (ep) ep.value = info.endpoint || ''; } } });
-document.addEventListener('click', function(e) { if (e.target === domModal) domModal.setAttribute('hidden', ''); });
+
+/* 【核心修复】点击模态框背景关闭的逻辑，同样改为原生获取 */
+document.addEventListener('click', function(e) {
+  const modalEl = document.getElementById('modal');
+  if (e.target === modalEl && modalEl) {
+    modalEl.setAttribute('hidden', '');
+  }
+});
 
 function init() {
   try {
