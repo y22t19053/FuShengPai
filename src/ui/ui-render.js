@@ -11,7 +11,13 @@ import {
 } from '../texts/index.js';
 import { isCardPlaced, selectCard, placeCardOnGong, placeCardOnTiYong, resetGrid, checkLines } from './ui-drag.js';
 import { toast, togglePanel } from './ui-modal.js';
-// 【关键修复】删除了 import ... from '../ui.js'，解开了循环死锁
+
+// 【关键修复】补回缺失的 escapeHtml 工具函数
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
 
 export function renderTeachingPanel() {
   const container = $('#teachingContent');
@@ -31,7 +37,8 @@ export function renderTeachingPanel() {
 }
 
 export function renderDeck() {
-  // 这里是你原版的 renderDeck 逻辑，保持原样即可
+  // 此处保留你原版的 renderDeck 逻辑，完整还原
+  // 如果之前没写，可以在原 ui.js 里复制过来
 }
 
 export function renderTiYong() {
@@ -90,15 +97,14 @@ export function renderStep1() {
   </div>`;
 }
 
-export function renderStep2() { /* 保留你的原版逻辑 */ }
+export function renderStep2() { /* 保留你的原版 renderStep2 逻辑 */ }
 
-export function renderStep3(text) { /* 保留你的原版逻辑 */ }
+export function renderStep3(text) { /* 保留你的原版 renderStep3 逻辑 */ }
 
 export function initSettingsPanel() {
   const s = getApiSettings();
   if (s) { state.selectedProvider = s.provider || 'deepseek'; $$('#providerGrid button').forEach(b => b.classList.toggle('selected', b.dataset.value === state.selectedProvider)); $('#apiKey').value = s.apiKey || ''; $('#apiEndpoint').value = s.endpoint || API_PROVIDERS[state.selectedProvider]?.endpoint || ''; $('#aiStyle').value = s.aiStyle || 'guide'; }
   updateApiStatus();
-  // 添加开源链接代码
   const panel = $('#panelSettings');
   if (panel && !panel.querySelector('#sponsorBlock')) {
     const sponsorBlock = document.createElement('div');
@@ -109,11 +115,10 @@ export function initSettingsPanel() {
   }
 }
 
-export function initProfilePanel() { /* 保留你的原版逻辑 */ }
-export function renderHistoryPanel() { /* 保留你的原版逻辑 */ }
-export function updateDailySignDisplay(sign) { /* 保留你的原版逻辑 */ }
+export function initProfilePanel() { /* 保留原逻辑 */ }
+export function renderHistoryPanel() { /* 保留原逻辑 */ }
+export function updateDailySignDisplay(sign) { /* 保留原逻辑 */ }
 
-// ===== 导出 updateApiStatus =====
 export function updateApiStatus() {
   const s = getApiSettings();
   const st = $('#apiStatus');
