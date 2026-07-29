@@ -185,7 +185,6 @@ function renderDeck() {
     const rank = c.isJoker ? c.type : c.rank;
     const suit = c.isJoker ? '' : c.suit;
     const wx = getWuxing(c);
-    // 【新增】加入卡片入场序列动画
     const delay = index * 0.03;
     const animationStyle = `animation: cardAppear 0.25s ease both; animation-delay: ${delay}s;`;
     if (state.manualMode) {
@@ -391,10 +390,11 @@ function renderOnboardStep() {
   if (skipBtn) skipBtn.addEventListener('click', () => { overlay.remove(); completeOnboarding(); });
 }
 
+// ===== 首页布局 =====
 function renderStep1() {
   domDynamic.innerHTML = `<div class="panel">
     <div id="dailySignCard" style="margin-bottom:20px;background:rgba(255,255,255,0.02);border-radius:8px;padding:16px;text-align:center;border:1px solid rgba(255,255,255,0.05);">
-      <div style="color:var(--dim);font-size:0.8rem;">今日折射</div>
+      <div style="color:var(--dim);font-size:0.8rem;">今日状态</div>
       <div style="font-size:1.4rem;color:var(--accent);margin:8px 0;">待观测</div>
       <button data-action="dailyFortune" class="small outline" style="margin-top:4px;">获取今日状态</button>
     </div>
@@ -415,6 +415,7 @@ function renderStep1() {
   </div>`;
 }
 
+// ===== 重抽保留体用 =====
 function resetStep2() {
   for (const g in state.grid) { state.deck.push(...state.grid[g]); }
   state.grid = {}; state.line = null; state.lineOrder = {}; state.gongOrder = []; state.sel = null; state.possible = [];
@@ -682,7 +683,6 @@ function initSettingsPanel() {
   const s = getApiSettings();
   if (s) { state.selectedProvider = s.provider || 'deepseek'; $$('#providerGrid button').forEach(b => b.classList.toggle('selected', b.dataset.value === state.selectedProvider)); $('#apiKey').value = s.apiKey || ''; $('#apiEndpoint').value = s.endpoint || API_PROVIDERS[state.selectedProvider]?.endpoint || ''; $('#aiStyle').value = s.aiStyle || 'guide'; }
   updateApiStatus();
-  // 【新增】开源仓库链接与支持区
   const panel = $('#panelSettings');
   if (panel && !panel.querySelector('#sponsorBlock')) {
     const sponsorBlock = document.createElement('div');
@@ -752,7 +752,6 @@ async function triggerAI() {
   const btn = $('#aiReadBtn'); if (!btn) return; btn.disabled = true; btn.textContent = '思考中...';
   const settings = getApiSettings(); if (!settings || !settings.apiKey) { toast('请先配置 API Key'); btn.disabled = false; btn.textContent = UI_TEXTS.btnAIDeepRead; return; }
   const provider = settings.provider || 'deepseek'; 
-  // 【修复】接口路径清洗
   let endpoint = settings.endpoint || API_PROVIDERS[provider]?.endpoint || '';
   if (endpoint.endsWith('/v1')) endpoint = endpoint.slice(0, -3); 
   if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
@@ -774,7 +773,6 @@ async function sendFollowUp() {
   const history = state.chatHistory; if (!history || history.length < 2) { toast('请先进行一次 AI 解读'); return; }
   history.push({ role: 'user', content: q }); const chatBlock = $('#chatHistoryBlock'); if (chatBlock) chatBlock.innerHTML += `<div class="chat-msg user">${q}</div>`;
   const provider = settings.provider || 'deepseek'; 
-  // 【修复】接口路径清洗
   let endpoint = settings.endpoint || API_PROVIDERS[provider]?.endpoint || '';
   if (endpoint.endsWith('/v1')) endpoint = endpoint.slice(0, -3); 
   if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
@@ -791,7 +789,6 @@ async function handleTestApiConnection() {
   const btn = document.querySelector('[data-action="testApiConnection"]'); if (btn) { btn.disabled = true; btn.textContent = '测试中...'; }
   try {
     const provider = state.selectedProvider || 'deepseek'; 
-    // 【修复】接口路径清洗
     let endpoint = $('#apiEndpoint')?.value?.trim() || '';
     const apiKey = $('#apiKey')?.value?.trim() || '';
     if (!apiKey && provider !== 'custom') throw new Error('请先填写 API Key');
@@ -804,12 +801,27 @@ async function handleTestApiConnection() {
   finally { if (btn) { btn.disabled = false; btn.textContent = UI_TEXTS.btnTestApi; } }
 }
 
-// ===== 【重构】每日运势升级为“御神签”形态 =====
+// ===== 更新神签显示（持久化） =====
+function updateDailySignDisplay(sign) {
+  const card = $('#dailySignCard');
+  if (!card) return;
+  card.innerHTML = `
+    <div style="color:var(--dim);font-size:0.8rem;">今日状态</div>
+    <div style="font-size:1.4rem;color:var(--accent);margin:8px 0;">${sign.status}</div>
+    <div style="font-size:0.9rem;color:#ddd;margin-bottom:8px;">“${sign.quote}”</div>
+    <button data-action="dailyFortune" class="small outline" style="margin-top:0;">更新今日状态</button>
+  `;
+}
+
 function showDailyFortune() {
   const today = new Date().toDateString(); let hash = 0; for (let i = 0; i < today.length; i++) { hash = ((hash << 5) - hash) + today.charCodeAt(i); hash |= 0; }
   const idx = Math.abs(hash) % Math.max(SIGN_LIBRARY.length, 1);
   const sign = SIGN_LIBRARY[idx];
   if (sign) {
+    localStorage.setItem('fs_todays_sign_date', today);
+    localStorage.setItem('fs_todays_sign', JSON.stringify(sign));
+    updateDailySignDisplay(sign);
+
     domModalContent.innerHTML = `
       <div style="text-align:center;padding:10px;font-family:'Georgia',serif;">
         <h3 style="font-size:1.8rem;color:var(--accent);letter-spacing:4px;">今日御神签</h3>
@@ -829,7 +841,6 @@ function showDailyFortune() {
     `;
     domModal.removeAttribute('hidden');
 
-    // 绑定 AI 按钮
     document.getElementById('dailyAiBtn').addEventListener('click', async function() {
       this.disabled = true; this.textContent = '召唤中...';
       const settings = getApiSettings();
@@ -856,7 +867,7 @@ function showDailyFortune() {
 }
 
 // ================================================================
-// 长按拖拽、鼠标拖拽部分
+// 长按拖拽、鼠标拖拽部分（修复乱飞 Bug）
 // ================================================================
 document.addEventListener('touchstart', function(e) {
   const cardEl = e.target.closest('.card-back, .card-face-small');
@@ -906,17 +917,20 @@ document.addEventListener('touchend', function(e) {
     if (gong && state.sel) { const g = parseInt(gong.dataset.gong); const card = findCardById(state.sel); if (card && !isCardPlaced(card)) placed = placeCardOnGong(card, g); } 
     else if (emptyDash && state.sel) { const card = findCardById(state.sel); if (card && !isCardPlaced(card)) { if (emptyDash.textContent.includes('体')) placed = placeCardOnTiYong(card, 'ti'); else placed = placeCardOnTiYong(card, 'yong'); } }
 
-    // 【修复】拖拽落牌动画飞入
+    // 修复：飞入动画与幽灵卡消除
     if (placed) {
       const targetRect = gong ? gong.getBoundingClientRect() : emptyDash.getBoundingClientRect();
-      ghostCard.style.transition = 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
-      ghostCard.style.left = (targetRect.left + targetRect.width / 2 - ghostCard.offsetWidth / 2) + 'px';
-      ghostCard.style.top = (targetRect.top + targetRect.height / 2 - ghostCard.offsetHeight / 2) + 'px';
-      ghostCard.style.transform = 'scale(0.6)';
-      ghostCard.style.opacity = '0';
-      setTimeout(() => { ghostCard.remove(); ghostCard = null; }, 300);
+      if (ghostCard) {
+        ghostCard.style.transition = 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        ghostCard.style.left = (targetRect.left + targetRect.width / 2 - ghostCard.offsetWidth / 2) + 'px';
+        ghostCard.style.top = (targetRect.top + targetRect.height / 2 - ghostCard.offsetHeight / 2) + 'px';
+        ghostCard.style.transform = 'scale(0.6)';
+        ghostCard.style.opacity = '0';
+        setTimeout(() => { if (ghostCard) ghostCard.remove(); ghostCard = null; }, 300);
+      }
     } else {
-      ghostCard.remove(); ghostCard = null;
+      if (ghostCard) ghostCard.remove();
+      ghostCard = null;
     }
     isLongPress = false; return;
   }
@@ -959,19 +973,20 @@ document.addEventListener('mouseup', function(e) {
     else if (emptyDash && state.sel) { const card = findCardById(state.sel); if (card && !isCardPlaced(card)) { if (emptyDash.textContent.includes('体')) placed = placeCardOnTiYong(card, 'ti'); else placed = placeCardOnTiYong(card, 'yong'); } }
     if (placed) {
       const targetRect = gong ? gong.getBoundingClientRect() : emptyDash.getBoundingClientRect();
-      ghostCard.style.transition = 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
-      ghostCard.style.left = (targetRect.left + targetRect.width / 2 - ghostCard.offsetWidth / 2) + 'px';
-      ghostCard.style.top = (targetRect.top + targetRect.height / 2 - ghostCard.offsetHeight / 2) + 'px';
-      ghostCard.style.transform = 'scale(0.6)'; ghostCard.style.opacity = '0';
-      setTimeout(() => { ghostCard.remove(); ghostCard = null; }, 300);
-    } else { ghostCard.remove(); ghostCard = null; }
+      if (ghostCard) {
+        ghostCard.style.transition = 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        ghostCard.style.left = (targetRect.left + targetRect.width / 2 - ghostCard.offsetWidth / 2) + 'px';
+        ghostCard.style.top = (targetRect.top + targetRect.height / 2 - ghostCard.offsetHeight / 2) + 'px';
+        ghostCard.style.transform = 'scale(0.6)'; ghostCard.style.opacity = '0';
+        setTimeout(() => { if (ghostCard) ghostCard.remove(); ghostCard = null; }, 300);
+      }
+    } else { if (ghostCard) ghostCard.remove(); ghostCard = null; }
     isLongPress = false; return;
   }
   const cardEl = e.target.closest('.card-back, .card-face-small');
   if (!isLongPress && cardEl) { const id = cardEl.dataset.cardid; const card = findCardById(id); if (card && !isCardPlaced(card)) selectCard(id); }
 });
 
-// 全局点击事件
 document.addEventListener('click', function(e) {
   const btn = e.target.closest('button');
   if (btn) {
@@ -1062,7 +1077,16 @@ function init() {
     const ep = $('#apiEndpoint'); if (ep && !ep.value) ep.value = API_PROVIDERS.deepseek.endpoint;
     if (!hasCompletedOnboarding()) showOnboarding();
 
-    // 【新增】注入按钮回弹动画的 CSS 样式，不依赖外部 CSS 文件
+    // 检查并加载持久化的今日状态
+    const storedDate = localStorage.getItem('fs_todays_sign_date');
+    const storedSign = localStorage.getItem('fs_todays_sign');
+    const today = new Date().toDateString();
+    if (storedDate === today && storedSign) {
+      try {
+        updateDailySignDisplay(JSON.parse(storedSign));
+      } catch(e) {}
+    }
+
     const style = document.createElement('style');
     style.textContent = `
       @keyframes cardAppear {
