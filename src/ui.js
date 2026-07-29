@@ -1,6 +1,5 @@
 // ===== 浮生牌 · UI 层 =====
 // DOM 渲染、事件委托、长按拖拽、多步引导。
-// 本版本与 texts.js 的语法生成引擎完全配合，所有用户可见文案均由 generateFullReading 动态生成。
 
 import {
   SUITS, RANKS, GONG_ORDER, GONG_NAMES, GONG_WUXING, GONG_DIRECTION,
@@ -35,10 +34,12 @@ import {
   generateFullReading, 
   MIRROR_QUESTIONS, 
   RITUAL_COSTS,
-  PERSONALITY_TONES
+  PERSONALITY_TONES,
+  OBSERVER_COVENANT,
+  SIGN_LIBRARY,
+  INTENT_QUESTIONS
 } from './texts.js';
 
-// ===== 应用全局状态 =====
 const state = {
   question: '',
   category: '',
@@ -60,7 +61,7 @@ const state = {
   currentOnboardStep: 0,
   refinementTags: {},
   userCorpus: [],       
-  intent: null,         // 新增：用于驱动语法生成的意图
+  intent: null,
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -69,6 +70,12 @@ const $$ = (sel) => document.querySelectorAll(sel);
 let domApp, domDynamic, domToast, domModal, domModalContent, domSharePreview, domShareCanvas;
 let cardScrollTimeout = null;
 let toastTimer = null;
+let isInfiniteLoop = false;
+let longPressTimer = null;
+let isLongPress = false;
+let ghostCard = null;
+let touchDragX = 0, touchDragY = 0;
+let mouseDragX = 0, mouseDragY = 0;
 
 function cacheDom() {
   domApp = $('#appRoot');
@@ -120,20 +127,20 @@ function togglePanel(panelId) {
 function renderTeachingPanel() {
   const container = $('#teachingContent');
   if (!container) return;
-  let html = '<p>' + TUTORIAL_TEXTS.intro + '</p>';
-  html += '<ol style="padding-left:1.2rem;margin-bottom:2vh;">' + TUTORIAL_TEXTS.steps.map(s => '<li style="margin-bottom:0.5vh;font-size:0.85rem;color:var(--dim)">' + s + '</li>').join('') + '</ol>';
-  html += '<p style="font-size:0.75rem;color:var(--accent);margin-bottom:2vh;">' + TUTORIAL_TEXTS.offlineHint + '</p>';
-  if (PHYSICAL_GUIDE && PHYSICAL_GUIDE.sections) {
-    html += '<h4 style="color:var(--accent);margin-top:2vh;">' + PHYSICAL_GUIDE.title + '</h4>';
-    PHYSICAL_GUIDE.sections.forEach(sec => {
-      html += '<h4>' + sec.heading + '</h4>';
-      html += '<div class="physical-body">' + sec.body.replace(/\n/g, '<br>') + '</div>';
-    });
-  }
+  let html = `
+    <details>
+      <summary style="cursor:pointer;color:var(--accent);font-weight:bold;margin-bottom:8px;">展开完整教程手册</summary>
+      <div style="margin-top:10px;padding:10px;background:rgba(255,255,255,0.02);border-radius:6px;">
+        <p>${TUTORIAL_TEXTS.intro}</p>
+        <ol style="padding-left:1.2rem;margin-bottom:2vh;">${TUTORIAL_TEXTS.steps.map(s => '<li style="margin-bottom:0.5vh;font-size:0.85rem;color:var(--dim)">' + s + '</li>').join('')}</ol>
+        <p style="font-size:0.75rem;color:var(--accent);margin-bottom:2vh;">${TUTORIAL_TEXTS.offlineHint}</p>
+        ${PHYSICAL_GUIDE && PHYSICAL_GUIDE.sections ? `<h4 style="color:var(--accent);margin-top:2vh;">${PHYSICAL_GUIDE.title}</h4>` + PHYSICAL_GUIDE.sections.map(sec => `<h4>${sec.heading}</h4><div class="physical-body">${sec.body.replace(/\n/g, '<br>')}</div>`).join('') : ''}
+      </div>
+    </details>
+  `;
   container.innerHTML = html;
 }
 
-// ===== Mulberry32 伪随机种子算法 =====
 function mulberry32(a) {
   return function() {
     a |= 0; a = a + 0x6D2B79F5 | 0;
@@ -162,7 +169,6 @@ async function generateEntropySeed() {
   return seed;
 }
 
-// ===== 牌组渲染 =====
 function renderDeck() {
   const el = $('#deckContainer');
   if (!el) return;
@@ -171,7 +177,7 @@ function renderDeck() {
   el.style.cssText = `display: flex; flex-wrap: nowrap; gap: 12px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; padding: 10px 20px; touch-action: pan-x; scrollbar-width: none; -ms-overflow-style: none;`;
   el.style.setProperty('::-webkit-scrollbar', 'display', 'none');
   let html = '';
-  state.deck.forEach(c => {
+  state.deck.forEach((c, index) => {
     const id = getCardId(c);
     const placed = isCardPlaced(c);
     const sel = state.sel === id;
@@ -179,10 +185,13 @@ function renderDeck() {
     const rank = c.isJoker ? c.type : c.rank;
     const suit = c.isJoker ? '' : c.suit;
     const wx = getWuxing(c);
+    // 【新增】加入卡片入场序列动画
+    const delay = index * 0.03;
+    const animationStyle = `animation: cardAppear 0.25s ease both; animation-delay: ${delay}s;`;
     if (state.manualMode) {
-      html += `<div class="card-face-small ${colorCls}${sel ? ' selected' : ''}${placed ? ' used' : ''}" data-cardid="${id}" data-cardindex="${state.deck.indexOf(c)}" style="${placed ? 'opacity:0.3;pointer-events:none' : ''}; scroll-snap-align: center; flex-shrink: 0; width: 70px; height: 100px;"><span class="rank">${rank}</span><span class="suit">${suit}</span><span class="wx-tag">${wx}</span></div>`;
+      html += `<div class="card-face-small ${colorCls}${sel ? ' selected' : ''}${placed ? ' used' : ''}" data-cardid="${id}" data-cardindex="${index}" style="${placed ? 'opacity:0.3;pointer-events:none' : ''}; scroll-snap-align: center; flex-shrink: 0; width: 70px; height: 100px; ${animationStyle}"><span class="rank">${rank}</span><span class="suit">${suit}</span><span class="wx-tag">${wx}</span></div>`;
     } else {
-      html += `<div class="card-back${sel ? ' selected' : ''}${placed ? ' used' : ''}" data-cardid="${id}" data-cardindex="${state.deck.indexOf(c)}" style="${placed ? 'opacity:0.3;pointer-events:none' : ''}; scroll-snap-align: center; flex-shrink: 0; width: 70px; height: 100px;"></div>`;
+      html += `<div class="card-back${sel ? ' selected' : ''}${placed ? ' used' : ''}" data-cardid="${id}" data-cardindex="${index}" style="${placed ? 'opacity:0.3;pointer-events:none' : ''}; scroll-snap-align: center; flex-shrink: 0; width: 70px; height: 100px; ${animationStyle}"></div>`;
     }
   });
   el.innerHTML = html;
@@ -220,6 +229,23 @@ function renderDeck() {
     finalRight.addEventListener('touchend', stopScroll); finalRight.addEventListener('touchcancel', stopScroll);
   }
   setupCardSwipeSelection(el);
+
+  isInfiniteLoop = false;
+  const loopListener = () => {
+    if (isInfiniteLoop) return;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    if (el.scrollLeft <= 30) {
+      isInfiniteLoop = true;
+      el.scrollTo({ left: maxScroll - 30, behavior: 'instant' });
+      isInfiniteLoop = false;
+    } else if (el.scrollLeft >= maxScroll - 30) {
+      isInfiniteLoop = true;
+      el.scrollTo({ left: 30, behavior: 'instant' });
+      isInfiniteLoop = false;
+    }
+  };
+  el.removeEventListener('scroll', loopListener);
+  el.addEventListener('scroll', loopListener, { passive: true });
 }
 
 function setupCardSwipeSelection(container) {
@@ -245,7 +271,6 @@ function setupCardSwipeSelection(container) {
   container._scrollListener = handleScroll;
 }
 
-// ===== 体用栏 =====
 function renderTiYong() {
   const bar = $('#tiyongBar');
   if (!bar) return;
@@ -260,7 +285,6 @@ function renderTiYong() {
   const btn = $('#btnConfirmTY'); if (btn) btn.disabled = !(state.ti && state.yong);
 }
 
-// ===== 九宫格 =====
 function renderGrid() {
   const el = $('#gridContainer'); if (!el) return;
   el.innerHTML = GONG_ORDER.map(g => {
@@ -315,15 +339,6 @@ function placeCardOnTiYong(card, role) {
   try { if (navigator.vibrate) navigator.vibrate(10); } catch (e) { /* ignore */ }
   return true;
 }
-function removeCardFromGong(gong) {
-  const cards = state.grid[gong] || [];
-  if (!cards.length) return;
-  const card = cards.pop();
-  state.deck.push(card);
-  state.deck = state.manualMode ? state.deck : shuffle(state.deck);
-  if (!cards.length) { delete state.grid[gong]; state.gongOrder = state.gongOrder.filter(x => x !== gong); }
-  state.line = null; state.lineOrder = {}; state.possible = []; removeLineSelector(); refreshAll(); checkLines();
-}
 
 // ===== 天机线 =====
 function checkLines() {
@@ -377,11 +392,37 @@ function renderOnboardStep() {
 }
 
 function renderStep1() {
-  domDynamic.innerHTML = `<div class="panel"><h3>${UI_TEXTS.step1}</h3><div class="guide-tip">默念问题（也可不写），选个领域。也可导入朋友的分享码。</div><input type="text" id="questionInput" placeholder="${UI_TEXTS.placeholderQuestion}" autocomplete="off" value="${escapeHtml(state.question)}"><div class="category-grid">${CATEGORIES.map(c => `<button data-action="selectCategory" data-category="${c}" class="${state.category === c ? 'selected' : ''}">${c}</button>`).join('')}</div><div class="btn-row"><button data-action="confirmQuestion" class="primary">${UI_TEXTS.btnStartDraw}</button><button data-action="manualEntry" class="outline">${UI_TEXTS.btnManual}</button><button data-action="lazyStart" class="outline">${UI_TEXTS.btnLazy}</button></div><div class="import-row btn-row"><input type="text" id="importCode" placeholder="${UI_TEXTS.placeholderImport}" autocomplete="off" style="flex:1;"><button data-action="importCode" class="small outline">${UI_TEXTS.btnImport}</button><button data-action="dailyFortune" class="small outline">${UI_TEXTS.btnDailyFortune}</button></div></div>`;
+  domDynamic.innerHTML = `<div class="panel">
+    <div id="dailySignCard" style="margin-bottom:20px;background:rgba(255,255,255,0.02);border-radius:8px;padding:16px;text-align:center;border:1px solid rgba(255,255,255,0.05);">
+      <div style="color:var(--dim);font-size:0.8rem;">今日折射</div>
+      <div style="font-size:1.4rem;color:var(--accent);margin:8px 0;">待观测</div>
+      <button data-action="dailyFortune" class="small outline" style="margin-top:4px;">获取今日状态</button>
+    </div>
+    <h3 style="margin-top:0;">${UI_TEXTS.step1}</h3>
+    <div class="guide-tip">默念问题（也可不写），选个领域。也可导入朋友的分享码。</div>
+    <input type="text" id="questionInput" placeholder="${UI_TEXTS.placeholderQuestion}" autocomplete="off" value="${escapeHtml(state.question)}">
+    <div class="category-grid">${CATEGORIES.map(c => `<button data-action="selectCategory" data-category="${c}" class="${state.category === c ? 'selected' : ''}">${c}</button>`).join('')}</div>
+    <div class="btn-row">
+      <button data-action="confirmQuestion" class="primary">${UI_TEXTS.btnStartDraw}</button>
+      <button data-action="manualEntry" class="outline">${UI_TEXTS.btnManual}</button>
+      <button data-action="lazyStart" class="outline">${UI_TEXTS.btnLazy}</button>
+    </div>
+    <div class="import-row btn-row">
+      <input type="text" id="importCode" placeholder="${UI_TEXTS.placeholderImport}" autocomplete="off" style="flex:1;">
+      <button data-action="importCode" class="small outline">${UI_TEXTS.btnImport}</button>
+      <button data-action="dailyFortune" class="small outline">${UI_TEXTS.btnDailyFortune}</button>
+    </div>
+  </div>`;
+}
+
+function resetStep2() {
+  for (const g in state.grid) { state.deck.push(...state.grid[g]); }
+  state.grid = {}; state.line = null; state.lineOrder = {}; state.gongOrder = []; state.sel = null; state.possible = [];
+  state.deck = shuffle(state.deck); removeLineSelector(); refreshAll(); toast(UI_TEXTS.toastGridCleared);
 }
 
 function renderStep2() {
-  domDynamic.innerHTML = `<div class="panel"><h3>${state.manualMode ? '手动录入 · 明牌选阵' : '立极·布阵'}</h3><div class="guide-tip">${state.manualMode ? UI_TEXTS.guideManual : UI_TEXTS.guideSelectTiYong}</div><div class="tiyong-bar" id="tiyongBar"></div><div class="deck-grid" id="deckContainer"></div><div class="btn-row" style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center; align-items:center;"><button id="scrollLeftBtn" class="outline small">‹ 选牌</button><button data-action="resetStep2" class="outline small">重抽</button>${state.manualMode ? '' : '<button id="btnConfirmTY" disabled data-action="confirmTiYong" class="small primary">' + UI_TEXTS.btnConfirmTiYong + '</button>'}<button id="scrollRightBtn" class="outline small">选牌 ›</button>${state.manualMode ? '<button data-action="generateInterpretation" class="small primary">' + UI_TEXTS.btnInterpret + '</button>' : ''}</div><div id="gridArea" ${state.manualMode ? '' : 'style="display:none"' }><div class="guide-tip">${UI_TEXTS.guideAfterTiYong}</div><div class="grid-9" id="gridContainer"></div><div class="btn-row"><button data-action="resetGrid" class="outline small">清九宫</button>${state.manualMode ? '' : '<button data-action="generateInterpretation" class="small primary">' + UI_TEXTS.btnInterpret + '</button>'}</div></div></div>`;
+  domDynamic.innerHTML = `<div class="panel"><h3>${state.manualMode ? '手动录入 · 明牌选阵' : '立极·布阵'}</h3><div class="guide-tip">${state.manualMode ? UI_TEXTS.guideManual : UI_TEXTS.guideSelectTiYong}</div><div class="tiyong-bar" id="tiyongBar"></div><div class="deck-grid" id="deckContainer"></div><div class="btn-row" style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center; align-items:center;"><button id="scrollLeftBtn" class="outline small">‹ 选牌</button><button data-action="resetStep2" class="outline small">重置九宫</button>${state.manualMode ? '' : '<button id="btnConfirmTY" disabled data-action="confirmTiYong" class="small primary">' + UI_TEXTS.btnConfirmTiYong + '</button>'}<button id="scrollRightBtn" class="outline small">选牌 ›</button>${state.manualMode ? '<button data-action="generateInterpretation" class="small primary">' + UI_TEXTS.btnInterpret + '</button>' : ''}</div><div id="gridArea" ${state.manualMode ? '' : 'style="display:none"' }><div class="guide-tip">${UI_TEXTS.guideAfterTiYong}</div><div class="grid-9" id="gridContainer"></div><div class="btn-row"><button data-action="resetGrid" class="outline small">清九宫</button>${state.manualMode ? '' : '<button data-action="generateInterpretation" class="small primary">' + UI_TEXTS.btnInterpret + '</button>'}</div></div></div>`;
   refreshAll();
   if (state.ti && state.yong && !state.manualMode) { const btn = $('#btnConfirmTY'); if (btn) btn.disabled = false; }
 }
@@ -401,9 +442,34 @@ function resetGrid() {
   state.deck = state.manualMode ? state.deck : shuffle(state.deck); removeLineSelector(); refreshAll(); toast(UI_TEXTS.toastGridCleared);
 }
 
-function lazyStart() {
+function guardMidnight(callback) {
   const h = new Date().getHours();
-  if (h >= 23 || h < 1) { toast(TIME_RESTRICTION.message); return; }
+  if ((h >= 23 || h < 1) && !localStorage.getItem('fs_midnight_dismiss')) {
+    domModalContent.innerHTML = `
+      <h3 style="text-align:center;">子时提示</h3>
+      <p style="margin:10px 0;color:var(--dim);">当前为子时，观测者效应可能衰减。结果仅供参考。</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">
+        <button id="midnightProceedBtn" class="primary">我清楚，继续</button>
+        <button id="midnightHideBtn" class="outline">今天别提醒我了</button>
+      </div>
+    `;
+    domModal.removeAttribute('hidden');
+    document.getElementById('midnightProceedBtn').addEventListener('click', () => {
+      domModal.setAttribute('hidden', '');
+      callback();
+    });
+    document.getElementById('midnightHideBtn').addEventListener('click', () => {
+      localStorage.setItem('fs_midnight_dismiss', 'true');
+      domModal.setAttribute('hidden', '');
+      callback();
+    });
+  } else {
+    callback();
+  }
+}
+
+function lazyStart() { guardMidnight(proceedLazyStart); }
+function proceedLazyStart() {
   state.question = $('#questionInput')?.value?.trim() || ''; state.manualMode = false;
   generateEntropySeed().then(seed => {
     let deck = createDeck(false);
@@ -437,7 +503,6 @@ function getBaziFromProfile() {
   } catch (e) { return null; }
 }
 
-// ----- 意图检测（用于驱动语法生成） -----
 function detectIntent(question, category) {
   if (category && CATEGORIES.includes(category)) return category;
   const q = (question || '').toLowerCase();
@@ -458,28 +523,21 @@ function detectIntent(question, category) {
 
 function generateFollowUpQuestions(intent, ti, yong) {
   const questions = [];
-  if (intent === '感情') { 
-    questions.push({ key: 'role', label: '你在这段关系里，是主动付出的一方，还是被动接受的一方？', options: ['主动', '被动'] }); 
-  } else if (intent === '财运') { 
-    questions.push({ key: 'money_type', label: '这笔财是正职收入，还是意外之财？', options: ['正财', '偏财'] }); 
-  } else { 
-    questions.push({ key: 'feeling', label: '你现在的状态更多是焦虑，还是疲惫？', options: ['焦虑', '疲惫', '平静'] }); 
-  }
+  if (intent === '感情') { questions.push({ key: 'role', label: '你在这段关系里，是主动付出的一方，还是被动接受的一方？', options: ['主动', '被动'] }); } 
+  else if (intent === '财运') { questions.push({ key: 'money_type', label: '这笔财是正职收入，还是意外之财？', options: ['正财', '偏财'] }); } 
+  else { questions.push({ key: 'feeling', label: '你现在的状态更多是焦虑，还是疲惫？', options: ['焦虑', '疲惫', '平静'] }); }
   return questions.slice(0, 3);
 }
 
-// ----- 应用细化标签（当前仅保留接口，不触发重新生成） -----
 function applyRefinement(key, value) {
   const interpretEl = $('#interpretText');
   if (!interpretEl) return;
   let html = interpretEl.innerHTML;
-  // 目前不强制重新生成，只做标记
   const tagsEl = $('#refinementTags');
   if (tagsEl) { tagsEl.innerHTML += `<span class="tag">${value} <span class="tag-remove" data-remove="${key}" style="cursor:pointer;color:#d45050;">×</span></span>`; state.refinementTags[key] = value; }
   toast('已记录补充信息，可再次生成解读以刷新内容', 2000);
 }
 
-// ===== 本地解读生成（使用新的语法引擎） =====
 function localInterpretation() {
   const tiWx = getWuxing(state.ti); 
   const yongWx = getWuxing(state.yong);
@@ -489,31 +547,21 @@ function localInterpretation() {
 
   let result = '';
   if (state.category) result += `【领域：${state.category}】\n\n`;
-
   const bazi = getBaziFromProfile();
   if (bazi) result += `【四柱】${bazi.fullText}\n\n`;
-
-  // 体用概要
   result += `体牌为${tiWx}，代表你。用牌为${yongWx}，代表所问之事。\n`;
   if (relation) result += `（${relation} ${getShengKeLabel(relation)}）\n\n`;
+  if (state.line) { result += `天机线：${state.line.map(g => GONG_NAMES[g] + '宫').join(' → ')}\n\n`; }
 
-  // 如果有天机线，先输出天机线概要
-  if (state.line) {
-    result += `天机线：${state.line.map(g => GONG_NAMES[g] + '宫').join(' → ')}\n\n`;
-  }
-
-  // 遍历所有有牌的宫位，生成解读
   const allGongs = state.gongOrder.length ? state.gongOrder : Object.keys(state.grid).map(Number);
   for (const g of allGongs) {
-    const cards = state.grid[g] || [];
-    if (!cards.length) continue;
+    const cards = state.grid[g] || []; if (!cards.length) continue;
     cards.forEach(card => {
       const diff = calcDiff(g, card);
       const wang = getWangState(getWuxing(card), GONG_WUXING[g]);
       const relToTi = getShengKe(tiWx, getWuxing(card));
       const linePos = state.line ? state.line.indexOf(g) : -1;
       const linePosition = linePos === 0 ? 'start' : linePos === 1 ? 'middle' : linePos === 2 ? 'end' : 'offline';
-      
       const ctx = {
         gong: { id: g, name: GONG_NAMES[g], element: GONG_WUXING[g] },
         card: { element: getWuxing(card), value: getCardValue(card), suit: card.suit },
@@ -523,13 +571,11 @@ function localInterpretation() {
         diff: diff,
         intent: intent
       };
-      
       const readingResult = generateFullReading(ctx);
       const label = state.lineOrder[g] || GONG_NAMES[g] + '宫';
-      result += `【${label}】\n${readingResult.light}\n\n`;
+      result += `【${label}】\n${readingResult.light}\n\n---\n${readingResult.shadow}\n\n`;
     });
   }
-
   return result.trim();
 }
 
@@ -537,7 +583,6 @@ function renderStep3(text) {
   const aiSettings = getApiSettings(); const aiVisible = aiSettings && aiSettings.apiKey;
   const followUpQuestions = generateFollowUpQuestions(state.intent, state.ti, state.yong);
   const followUpHTML = followUpQuestions.map(q => `<button class="refinement-btn" data-key="${q.key}" data-options='${JSON.stringify(q.options)}' style="margin:4px;">${q.label}</button>`).join('');
-
   domDynamic.innerHTML = `<div class="panel"><h3>${UI_TEXTS.step3}</h3>
     <div class="result-block" id="interpretText">${text.replace(/\n/g, '<br>')}</div>
     <div id="refinementArea" class="refinement-area" style="margin:12px 0; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px;">
@@ -560,36 +605,44 @@ function renderStep3(text) {
 }
 
 function generateInterpretation() {
-  const timestamps = getDrawTimestamps(); const usage = checkUsageFrequency(timestamps);
-  if (usage.level !== 'normal') toast(usage.message, 4000);
+  const timestamps = getDrawTimestamps(); 
+  const todayCount = timestamps.filter(ts => new Date(ts).toDateString() === new Date().toDateString()).length;
+  const usage = checkUsageFrequency(timestamps);
   if (!state.userCorpus.includes(state.question)) state.userCorpus.push(state.question);
   const text = localInterpretation(); updateStep(3);
+  renderStep3(text);
+  const interpretEl = $('#interpretText');
+  if (interpretEl && todayCount >= 8 && !localStorage.getItem('fs_limit_alert_today')) {
+    const alertHTML = `<div style="margin-top:15px;font-size:0.7rem;color:var(--dim);border-top:1px solid rgba(255,255,255,0.05);padding-top:10px;">※ 今日已观测 8 次以上，镜面易起雾，请注意休息。</div>`;
+    interpretEl.innerHTML += alertHTML;
+    localStorage.setItem('fs_limit_alert_today', 'true');
+  }
+  if (usage.level !== 'normal') toast(usage.message, 4000);
   try {
-    saveReading({ time: Date.now(), question: state.question, category: state.category, ti: state.ti, yong: state.yong, grid: state.grid, line: state.line, lineOrder: state.lineOrder, text, chatHistory: state.chatHistory.slice() });
+    saveReading({ time: Date.now(), question: state.question, category: state.category, intent: state.intent, ti: state.ti, yong: state.yong, grid: state.grid, line: state.line, lineOrder: state.lineOrder, text, chatHistory: state.chatHistory.slice() });
   } catch(e) { toast('历史记录保存失败，但解读仍然有效'); }
-  addDrawTimestamp(Date.now()); renderStep3(text);
+  addDrawTimestamp(Date.now()); 
 }
 
-// ===== 分享码 =====
 function generateShareCode() {
   const data = { q: state.question, c: state.category, ti: state.ti, yong: state.yong, grid: state.grid, line: state.line };
   const code = btoa(encodeURIComponent(JSON.stringify(data)));
   navigator.clipboard.writeText(code).then(() => toast(UI_TEXTS.toastShareCodeCopied), () => toast(UI_TEXTS.toastCopyFailed));
 }
 function importShareCode() {
-  const h = new Date().getHours(); if (h >= 23 || h < 1) { toast(TIME_RESTRICTION.message); return; }
-  const code = $('#importCode')?.value?.trim(); if (!code) { toast(UI_TEXTS.placeholderImport); return; }
-  try {
-    const data = JSON.parse(decodeURIComponent(atob(code)));
-    state.question = data.q || ''; state.category = data.c || ''; state.ti = data.ti; state.yong = data.yong; state.grid = data.grid || {}; state.line = data.line || null;
-    const key = (state.line || []).join(','); const tl = TIME_LABELS[key] || {}; state.lineOrder = {};
-    if (state.line) { state.lineOrder[state.line[0]] = '起因'; state.lineOrder[state.line[1]] = '经过'; state.lineOrder[state.line[2]] = '结果'; for (let g = 1; g <= 9; g++) if (!state.lineOrder[g]) state.lineOrder[g] = tl[g] || ''; }
-    state.possible = []; state.gongOrder = Object.keys(state.grid).map(Number); state.step = 3; state.manualMode = false; state.deck = []; state.sel = null; state.chatHistory = [];
-    generateInterpretation(); toast(UI_TEXTS.toastImportSuccess);
-  } catch (e) { toast(UI_TEXTS.toastImportFail); }
+  guardMidnight(() => {
+    const code = $('#importCode')?.value?.trim(); if (!code) { toast(UI_TEXTS.placeholderImport); return; }
+    try {
+      const data = JSON.parse(decodeURIComponent(atob(code)));
+      state.question = data.q || ''; state.category = data.c || ''; state.ti = data.ti; state.yong = data.yong; state.grid = data.grid || {}; state.line = data.line || null;
+      const key = (state.line || []).join(','); const tl = TIME_LABELS[key] || {}; state.lineOrder = {};
+      if (state.line) { state.lineOrder[state.line[0]] = '起因'; state.lineOrder[state.line[1]] = '经过'; state.lineOrder[state.line[2]] = '结果'; for (let g = 1; g <= 9; g++) if (!state.lineOrder[g]) state.lineOrder[g] = tl[g] || ''; }
+      state.possible = []; state.gongOrder = Object.keys(state.grid).map(Number); state.step = 3; state.manualMode = false; state.deck = []; state.sel = null; state.chatHistory = [];
+      generateInterpretation(); toast(UI_TEXTS.toastImportSuccess);
+    } catch (e) { toast(UI_TEXTS.toastImportFail); }
+  });
 }
 
-// ===== 分享图 =====
 function generateShareImage() {
   const canvas = domShareCanvas; const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const w = 400, h = 340; canvas.width = w * dpr; canvas.height = h * dpr;
@@ -606,20 +659,22 @@ function generateShareImage() {
   ctx.fillStyle = '#e0b860'; ctx.font = 'bold 36px Georgia,"Songti SC",serif'; ctx.fillText(summary, 20, 125);
   ctx.fillStyle = '#c9a060'; ctx.font = '16px Georgia,"Songti SC",serif'; ctx.fillText(`${tiWx} ⚡ ${yongWx}  ${rel ? rel + ' ' + getShengKeLabel(rel) : '变数'}`, 20, 165);
   if (state.line) { ctx.fillStyle = '#b0b0c0'; ctx.font = '14px Georgia,"Songti SC",serif'; ctx.fillText(`${SHARE_TEXTS.linePrefix}${state.line.map(g => GONG_NAMES[g] + '宫').join('→')}`, 20, 205); }
+  if (state.chatHistory && state.chatHistory.length >= 2) {
+    const aiReply = state.chatHistory[state.chatHistory.length - 1].content;
+    const maxChars = 60; const truncated = aiReply.length > maxChars ? aiReply.substring(0, maxChars) + '……' : aiReply;
+    ctx.fillStyle = '#6a6a7e'; ctx.font = 'italic 11px Georgia,"Songti SC",serif'; ctx.fillText('深层映照：' + truncated, 20, 230);
+  }
   const quote = SHARE_QUOTES[Math.floor(Math.random() * SHARE_QUOTES.length)];
-  ctx.fillStyle = '#8888a0'; ctx.font = 'italic 13px Georgia,"Songti SC",serif'; ctx.fillText('"' + quote + '"', 20, 245);
+  ctx.fillStyle = '#8888a0'; ctx.font = 'italic 13px Georgia,"Songti SC",serif'; ctx.fillText('"' + quote + '"', 20, 255);
   ctx.fillStyle = '#6a6a7e'; ctx.font = '11px Georgia,"Songti SC",serif'; ctx.fillText(SHARE_TEXTS.footer, 20, h - 16);
-  domSharePreview.removeAttribute('hidden');
-  toast('长按图片即可保存，或点下方按钮保存到相册');
+  domSharePreview.removeAttribute('hidden'); toast('长按图片即可保存，或点下方按钮保存到相册');
 }
 function saveShareImage() {
   const canvas = domShareCanvas;
   canvas.toBlob(blob => {
     if (!blob) { toast('保存失败'); return; }
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `浮生牌_${new Date().toISOString().slice(0,10)}.png`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url); toast('分享图已保存');
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `浮生牌_${new Date().toISOString().slice(0,10)}.png`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); toast('分享图已保存');
   }, 'image/png');
 }
 
@@ -627,6 +682,20 @@ function initSettingsPanel() {
   const s = getApiSettings();
   if (s) { state.selectedProvider = s.provider || 'deepseek'; $$('#providerGrid button').forEach(b => b.classList.toggle('selected', b.dataset.value === state.selectedProvider)); $('#apiKey').value = s.apiKey || ''; $('#apiEndpoint').value = s.endpoint || API_PROVIDERS[state.selectedProvider]?.endpoint || ''; $('#aiStyle').value = s.aiStyle || 'guide'; }
   updateApiStatus();
+  // 【新增】开源仓库链接与支持区
+  const panel = $('#panelSettings');
+  if (panel && !panel.querySelector('#sponsorBlock')) {
+    const sponsorBlock = document.createElement('div');
+    sponsorBlock.id = 'sponsorBlock';
+    sponsorBlock.style.cssText = `margin-top:20px;border-top:1px solid rgba(255,255,255,0.1);padding-top:16px;text-align:center;`;
+    sponsorBlock.innerHTML = `
+        <div style="font-size:0.7rem; color:var(--dim);">本项目完全开源，欢迎审查与自由使用。</div>
+        <div style="font-size:0.8rem; margin-top:6px;">
+          <a href="https://github.com/y22t19053/FuShengPai" target="_blank" style="color:var(--accent);text-decoration:none;">🔗 查看开源仓库 GitHub</a>
+        </div>
+    `;
+    panel.appendChild(sponsorBlock);
+  }
 }
 function initProfilePanel() {
   const p = getProfile(); $('#birthDate').value = p.birthDate || ''; $('#birthTime').value = p.birthTime || ''; updateBaziPreview();
@@ -647,7 +716,6 @@ function updateApiStatus() {
   st.textContent = s && s.apiKey ? UI_TEXTS.apiStatusConfigured : UI_TEXTS.apiStatusNotConfigured;
   st.style.color = s && s.apiKey ? '#5a9a6a' : '';
 }
-
 function renderHistoryPanel() {
   const list = $('#historyList'); if (!list) return;
   const history = getHistory();
@@ -656,6 +724,8 @@ function renderHistoryPanel() {
 }
 function showHistoryDetail(index) {
   const history = getHistory(); const r = history[index]; if (!r) return;
+  const savedLocalText = r.text || '';
+  const buildHistoricalPrompt = (historyRecord, question) => { return `请根据以下浮生牌局象进行详细解读。\n\n历史牌局解读：${historyRecord.text}\n\n用户追问：${question}\n\n规则：纯文本格式，用自然语言。话不说死。`; };
   let aiBlock = '';
   if (r.chatHistory && r.chatHistory.length) { aiBlock = '<div class="result-block" style="max-height:150px;margin-top:10px">' + r.chatHistory.map(m => `<div class="chat-msg ${m.role === 'user' ? 'user' : 'ai'}">${m.content.replace(/\n/g, '<br>')}</div>`).join('') + '</div>'; } 
   else { aiBlock = '<p style="color:var(--dim)">暂无 AI 对话记录</p>'; }
@@ -667,8 +737,9 @@ function showHistoryDetail(index) {
       const q = followInput.value.trim(); if (!q) return; followInput.value = ''; followBtn.disabled = true; followBtn.textContent = '发送中...';
       const settings = getApiSettings(); if (!settings || !settings.apiKey) { toast('请先配置 API Key'); followBtn.disabled = false; followBtn.textContent = '发送'; return; }
       const chatHistory = r.chatHistory ? [...r.chatHistory] : []; chatHistory.push({ role: 'user', content: q });
+      const prompt = buildHistoricalPrompt(r, q);
       try {
-        const answer = await requestFollowUp({ history: chatHistory, provider: settings.provider, apiKey: settings.apiKey, endpoint: settings.endpoint, model: settings.model });
+        const answer = await requestFollowUp({ history: [{ role: 'user', content: prompt }, ...chatHistory], provider: settings.provider, apiKey: settings.apiKey, endpoint: settings.endpoint, model: settings.model });
         chatHistory.push({ role: 'assistant', content: answer }); r.chatHistory = chatHistory;
         const allHistory = getHistory(); allHistory[index] = r; localStorage.setItem('fs_history', JSON.stringify(allHistory)); showHistoryDetail(index);
       } catch (e) { toast(e.message, 3000); } finally { followBtn.disabled = false; followBtn.textContent = '发送'; }
@@ -677,11 +748,15 @@ function showHistoryDetail(index) {
   }
 }
 
-// ===== AI 调用 =====
 async function triggerAI() {
   const btn = $('#aiReadBtn'); if (!btn) return; btn.disabled = true; btn.textContent = '思考中...';
   const settings = getApiSettings(); if (!settings || !settings.apiKey) { toast('请先配置 API Key'); btn.disabled = false; btn.textContent = UI_TEXTS.btnAIDeepRead; return; }
-  const provider = settings.provider || 'deepseek'; let endpoint = settings.endpoint || API_PROVIDERS[provider]?.endpoint || ''; if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1); const model = settings.model || API_PROVIDERS[provider]?.model || '';
+  const provider = settings.provider || 'deepseek'; 
+  // 【修复】接口路径清洗
+  let endpoint = settings.endpoint || API_PROVIDERS[provider]?.endpoint || '';
+  if (endpoint.endsWith('/v1')) endpoint = endpoint.slice(0, -3); 
+  if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
+  const model = settings.model || API_PROVIDERS[provider]?.model || '';
   const prompt = buildAIPrompt();
   try {
     const result = await requestReading({ provider, apiKey: settings.apiKey, endpoint, model, style: settings.aiStyle || 'guide', prompt });
@@ -698,7 +773,12 @@ async function sendFollowUp() {
   const settings = getApiSettings(); if (!settings || !settings.apiKey) { toast('未配置 API Key'); return; }
   const history = state.chatHistory; if (!history || history.length < 2) { toast('请先进行一次 AI 解读'); return; }
   history.push({ role: 'user', content: q }); const chatBlock = $('#chatHistoryBlock'); if (chatBlock) chatBlock.innerHTML += `<div class="chat-msg user">${q}</div>`;
-  const provider = settings.provider || 'deepseek'; let endpoint = settings.endpoint || API_PROVIDERS[provider]?.endpoint || ''; if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1); const model = settings.model || API_PROVIDERS[provider]?.model || '';
+  const provider = settings.provider || 'deepseek'; 
+  // 【修复】接口路径清洗
+  let endpoint = settings.endpoint || API_PROVIDERS[provider]?.endpoint || '';
+  if (endpoint.endsWith('/v1')) endpoint = endpoint.slice(0, -3); 
+  if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
+  const model = settings.model || API_PROVIDERS[provider]?.model || '';
   try { const result = await requestFollowUp({ history, provider, apiKey: settings.apiKey, endpoint, model }); history.push({ role: 'assistant', content: result }); if (chatBlock) { chatBlock.innerHTML += `<div class="chat-msg ai">${result.replace(/\n/g, '<br>')}</div>`; chatBlock.scrollTop = chatBlock.scrollHeight; } } 
   catch (e) { if (chatBlock) chatBlock.innerHTML += `<div class="chat-msg" style="color:#d45050">失败：${e.message}</div>`; }
 }
@@ -710,30 +790,188 @@ function buildAIPrompt() {
 async function handleTestApiConnection() {
   const btn = document.querySelector('[data-action="testApiConnection"]'); if (btn) { btn.disabled = true; btn.textContent = '测试中...'; }
   try {
-    const provider = state.selectedProvider || 'deepseek'; let endpoint = $('#apiEndpoint')?.value?.trim() || ''; const apiKey = $('#apiKey')?.value?.trim() || '';
+    const provider = state.selectedProvider || 'deepseek'; 
+    // 【修复】接口路径清洗
+    let endpoint = $('#apiEndpoint')?.value?.trim() || '';
+    const apiKey = $('#apiKey')?.value?.trim() || '';
     if (!apiKey && provider !== 'custom') throw new Error('请先填写 API Key');
-    if (!endpoint && API_PROVIDERS[provider]) endpoint = API_PROVIDERS[provider].endpoint; if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
+    if (!endpoint && API_PROVIDERS[provider]) endpoint = API_PROVIDERS[provider].endpoint; 
+    if (endpoint.endsWith('/v1')) endpoint = endpoint.slice(0, -3); 
+    if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
     const model = API_PROVIDERS[provider]?.model || '';
     const msg = await testApiConnection({ provider, apiKey, endpoint, model }); toast(msg, 3000);
   } catch (e) { toast(`测试失败: ${e.message}`, 4000); } 
   finally { if (btn) { btn.disabled = false; btn.textContent = UI_TEXTS.btnTestApi; } }
 }
 
+// ===== 【重构】每日运势升级为“御神签”形态 =====
 function showDailyFortune() {
-  const today = new Date().toDateString(); let hash = 0; for (let i = 0; i < today.length; i++) { hash = ((hash << 5) - hash) + today.charCodeAt(i); hash |= 0; } const idx = Math.abs(hash) % 54; let card;
-  if (idx < 52) { const suit = SUITS[Math.floor(idx / 13)]; const rank = RANKS[idx % 13]; card = { suit, rank, isJoker: false }; } 
-  else if (idx === 52) card = { isJoker: true, type: '大王' }; else card = { isJoker: true, type: '小王' };
-  const wx = getWuxing(card); const label = card.isJoker ? card.type : card.suit + card.rank; const colorCls = getCardColor(card);
-  const fortunes = { '火': '今天你像一团火。热情是燃料，别烧到旁边的人。', '金': '今天你像一块金属。判断力在线，该断则断。', '木': '今天你像一棵树。生长是节奏，别急。', '水': '今天你像一汪水。洞察力敏锐，别过度分析。', '天': '今天你是大王。天意在你这边，顺着直觉走。', '人': '今天你是小王。智谋是你的武器，动脑子就能赢。' };
-  const fortune = fortunes[wx] || '今天保持平常心。';
-  domModalContent.innerHTML = `<div style="text-align:center"><h3>今日运势</h3><div class="card-face-small ${colorCls}" style="margin:0 auto;width:80px;height:112px;"><span class="rank">${card.isJoker ? card.type : card.rank}</span><span class="suit">${card.isJoker ? '' : card.suit}</span><span class="wx-tag">${wx}</span></div><p style="margin-top:2vh;font-size:1rem;color:var(--accent)">${label} · ${wx}</p><p style="margin-top:1vh;font-size:0.9rem;color:var(--text);line-height:1.6">${fortune}</p><button data-action="closeModal" style="margin-top:2vh">${UI_TEXTS.btnClose}</button></div>`;
-  domModal.removeAttribute('hidden');
+  const today = new Date().toDateString(); let hash = 0; for (let i = 0; i < today.length; i++) { hash = ((hash << 5) - hash) + today.charCodeAt(i); hash |= 0; }
+  const idx = Math.abs(hash) % Math.max(SIGN_LIBRARY.length, 1);
+  const sign = SIGN_LIBRARY[idx];
+  if (sign) {
+    domModalContent.innerHTML = `
+      <div style="text-align:center;padding:10px;font-family:'Georgia',serif;">
+        <h3 style="font-size:1.8rem;color:var(--accent);letter-spacing:4px;">今日御神签</h3>
+        <div style="margin:12px 0;background:rgba(0,0,0,0.3);padding:12px;border-radius:4px;border:1px solid rgba(255,255,255,0.05);">
+          <div style="font-size:1.2rem;margin-bottom:4px;">【 ${sign.status || '静观其变'} 】</div>
+          <div style="font-size:0.9rem;color:#ddd;margin:8px 0;">“${sign.quote || ''}”</div>
+          <div style="font-size:0.8rem;color:var(--dim);">— ${sign.author || '浮生牌'}</div>
+          <div style="display:flex;justify-content:center;gap:16px;font-size:0.85rem;margin:12px 0;">
+            <span style="color:#5a9a6a;">🌞 宜：${sign.advice?.split('；')[0]?.replace('宜：','') || ''}</span>
+            <span style="color:#d45050;">🌙 忌：${sign.advice?.split('；')[1]?.replace('忌：','') || ''}</span>
+          </div>
+        </div>
+        <button id="dailyAiBtn" class="primary small">✨ 呼唤AI深度解析</button>
+        <div id="dailyAiResult" style="margin-top:8px;text-align:left;font-size:0.85rem;color:#ddd;"></div>
+        <button data-action="closeModal" style="margin-top:12px;">关闭</button>
+      </div>
+    `;
+    domModal.removeAttribute('hidden');
+
+    // 绑定 AI 按钮
+    document.getElementById('dailyAiBtn').addEventListener('click', async function() {
+      this.disabled = true; this.textContent = '召唤中...';
+      const settings = getApiSettings();
+      if (!settings || !settings.apiKey) {
+          toast('请先在设置中配置 AI API Key');
+          this.disabled = false; this.textContent = '✨ 呼唤AI深度解析';
+          return;
+      }
+      try {
+        const provider = settings.provider || 'deepseek';
+        let endpoint = settings.endpoint || API_PROVIDERS[provider]?.endpoint || '';
+        if (endpoint.endsWith('/v1')) endpoint = endpoint.slice(0, -3); 
+        if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
+        const model = settings.model || API_PROVIDERS[provider]?.model || '';
+        const prompt = `请针对今日的占卜签文进行深度解读。\n状态词：${sign.status}\n名言：${sign.quote}\n宜忌：${sign.advice}\n要求：纯中文，话不说死，指出这对用户今天生活的具体心理暗示。`;
+        const result = await requestReading({ provider, apiKey: settings.apiKey, endpoint, model, prompt });
+        document.getElementById('dailyAiResult').innerHTML = `<div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:8px;margin-top:8px;color:#e0e0e0;"><strong>AI 解签：</strong><br>${result}</div>`;
+      } catch (e) { toast(e.message); }
+      finally { this.disabled = false; this.textContent = '✨ 呼唤AI深度解析'; }
+    });
+  } else {
+    toast('神签库尚未填充文案，待您亲笔撰写。', 3000);
+  }
 }
 
-function checkEthicalBoundary(question) { const q = question.toLowerCase(); for (const [key, entry] of Object.entries(REFUSAL_TEXTS.keywords)) { if (entry.trigger.some(word => q.includes(word))) return { blocked: true, message: entry.response }; } return { blocked: false }; }
-function escapeHtml(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
+// ================================================================
+// 长按拖拽、鼠标拖拽部分
+// ================================================================
+document.addEventListener('touchstart', function(e) {
+  const cardEl = e.target.closest('.card-back, .card-face-small');
+  if (!cardEl) return;
+  const id = cardEl.dataset.cardid;
+  const card = findCardById(id);
+  if (!card || isCardPlaced(card)) return;
+  isLongPress = false;
+  longPressTimer = setTimeout(() => {
+    isLongPress = true;
+    ghostCard = cardEl.cloneNode(true);
+    ghostCard.style.position = 'fixed';
+    ghostCard.style.zIndex = 1000;
+    ghostCard.style.pointerEvents = 'none';
+    ghostCard.style.opacity = '0.7';
+    ghostCard.style.width = cardEl.offsetWidth + 'px';
+    ghostCard.style.height = cardEl.offsetHeight + 'px';
+    document.body.appendChild(ghostCard);
+    if (navigator.vibrate) navigator.vibrate(10);
+  }, 300);
+  const touch = e.touches[0];
+  touchDragX = touch.clientX; touchDragY = touch.clientY;
+}, { passive: true });
 
-// ===== 全局事件委托 =====
+document.addEventListener('touchmove', function(e) {
+  const touch = e.touches[0];
+  const dx = touch.clientX - touchDragX; const dy = touch.clientY - touchDragY;
+  if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+    clearTimeout(longPressTimer);
+    if (isLongPress && ghostCard) {
+      ghostCard.style.left = (touch.clientX - ghostCard.offsetWidth / 2) + 'px';
+      ghostCard.style.top = (touch.clientY - ghostCard.offsetHeight / 2) + 'px';
+      e.preventDefault();
+    }
+  }
+}, { passive: false });
+
+document.addEventListener('touchend', function(e) {
+  clearTimeout(longPressTimer);
+  if (isLongPress && ghostCard) {
+    const touch = e.changedTouches[0];
+    const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+    const gong = dropTarget?.closest('.gong');
+    const emptyDash = dropTarget?.closest('.empty-dash');
+    
+    let placed = false;
+    if (gong && state.sel) { const g = parseInt(gong.dataset.gong); const card = findCardById(state.sel); if (card && !isCardPlaced(card)) placed = placeCardOnGong(card, g); } 
+    else if (emptyDash && state.sel) { const card = findCardById(state.sel); if (card && !isCardPlaced(card)) { if (emptyDash.textContent.includes('体')) placed = placeCardOnTiYong(card, 'ti'); else placed = placeCardOnTiYong(card, 'yong'); } }
+
+    // 【修复】拖拽落牌动画飞入
+    if (placed) {
+      const targetRect = gong ? gong.getBoundingClientRect() : emptyDash.getBoundingClientRect();
+      ghostCard.style.transition = 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
+      ghostCard.style.left = (targetRect.left + targetRect.width / 2 - ghostCard.offsetWidth / 2) + 'px';
+      ghostCard.style.top = (targetRect.top + targetRect.height / 2 - ghostCard.offsetHeight / 2) + 'px';
+      ghostCard.style.transform = 'scale(0.6)';
+      ghostCard.style.opacity = '0';
+      setTimeout(() => { ghostCard.remove(); ghostCard = null; }, 300);
+    } else {
+      ghostCard.remove(); ghostCard = null;
+    }
+    isLongPress = false; return;
+  }
+  const cardEl = e.target.closest('.card-back, .card-face-small');
+  if (!isLongPress && cardEl) { const id = cardEl.dataset.cardid; const card = findCardById(id); if (card && !isCardPlaced(card)) selectCard(id); }
+}, { passive: true });
+
+document.addEventListener('mousedown', function(e) {
+  const cardEl = e.target.closest('.card-back, .card-face-small');
+  if (!cardEl) return;
+  const id = cardEl.dataset.cardid; const card = findCardById(id);
+  if (!card || isCardPlaced(card)) return;
+  isLongPress = false;
+  longPressTimer = setTimeout(() => {
+    isLongPress = true;
+    ghostCard = cardEl.cloneNode(true);
+    ghostCard.style.position = 'fixed'; ghostCard.style.zIndex = 1000; ghostCard.style.pointerEvents = 'none';
+    ghostCard.style.opacity = '0.7'; ghostCard.style.width = cardEl.offsetWidth + 'px'; ghostCard.style.height = cardEl.offsetHeight + 'px';
+    document.body.appendChild(ghostCard);
+  }, 300);
+  mouseDragX = e.clientX; mouseDragY = e.clientY;
+});
+
+document.addEventListener('mousemove', function(e) {
+  if (!isLongPress || !ghostCard) return;
+  const dx = e.clientX - mouseDragX; const dy = e.clientY - mouseDragY;
+  if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+    ghostCard.style.left = (e.clientX - ghostCard.offsetWidth / 2) + 'px';
+    ghostCard.style.top = (e.clientY - ghostCard.offsetHeight / 2) + 'px';
+  }
+});
+
+document.addEventListener('mouseup', function(e) {
+  clearTimeout(longPressTimer);
+  if (isLongPress && ghostCard) {
+    const dropTarget = document.elementFromPoint(e.clientX, e.clientY);
+    const gong = dropTarget?.closest('.gong'); const emptyDash = dropTarget?.closest('.empty-dash');
+    let placed = false;
+    if (gong && state.sel) { const g = parseInt(gong.dataset.gong); const card = findCardById(state.sel); if (card && !isCardPlaced(card)) placed = placeCardOnGong(card, g); } 
+    else if (emptyDash && state.sel) { const card = findCardById(state.sel); if (card && !isCardPlaced(card)) { if (emptyDash.textContent.includes('体')) placed = placeCardOnTiYong(card, 'ti'); else placed = placeCardOnTiYong(card, 'yong'); } }
+    if (placed) {
+      const targetRect = gong ? gong.getBoundingClientRect() : emptyDash.getBoundingClientRect();
+      ghostCard.style.transition = 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
+      ghostCard.style.left = (targetRect.left + targetRect.width / 2 - ghostCard.offsetWidth / 2) + 'px';
+      ghostCard.style.top = (targetRect.top + targetRect.height / 2 - ghostCard.offsetHeight / 2) + 'px';
+      ghostCard.style.transform = 'scale(0.6)'; ghostCard.style.opacity = '0';
+      setTimeout(() => { ghostCard.remove(); ghostCard = null; }, 300);
+    } else { ghostCard.remove(); ghostCard = null; }
+    isLongPress = false; return;
+  }
+  const cardEl = e.target.closest('.card-back, .card-face-small');
+  if (!isLongPress && cardEl) { const id = cardEl.dataset.cardid; const card = findCardById(id); if (card && !isCardPlaced(card)) selectCard(id); }
+});
+
+// 全局点击事件
 document.addEventListener('click', function(e) {
   const btn = e.target.closest('button');
   if (btn) {
@@ -743,14 +981,9 @@ document.addEventListener('click', function(e) {
       if (options.length > 0) { const btnText = btn.textContent; btn.parentNode.innerHTML = `<span style="color:var(--dim);margin-right:8px;">${btnText}</span>` + options.map(opt => `<button class="refinement-option-btn" data-key="${key}" data-value="${opt}" style="margin:4px;">${opt}</button>`).join(''); }
       return;
     }
-    if (btn.classList.contains('refinement-option-btn')) {
-      const key = btn.dataset.key; const value = btn.dataset.value; applyRefinement(key, value);
-      btn.parentNode.innerHTML = `<span style="color:var(--accent);font-size:0.85rem;">✓ 已补充：${value}</span>`; return;
-    }
+    if (btn.classList.contains('refinement-option-btn')) { const key = btn.dataset.key; const value = btn.dataset.value; applyRefinement(key, value); btn.parentNode.innerHTML = `<span style="color:var(--accent);font-size:0.85rem;">✓ 已补充：${value}</span>`; return; }
     if (btn.classList.contains('tag-remove')) { const key = btn.dataset.remove; delete state.refinementTags[key]; btn.closest('.tag').remove(); return; }
-
-    const action = btn.dataset.action;
-    if (!action) return;
+    const action = btn.dataset.action; if (!action) return;
     switch (action) {
       case 'togglePanel': togglePanel(btn.dataset.panel); break;
       case 'resetAll': resetAll(); break;
@@ -759,7 +992,7 @@ document.addEventListener('click', function(e) {
       case 'manualEntry': startManualEntry(); break;
       case 'selectCategory': state.category = state.category === btn.dataset.category ? '' : btn.dataset.category; document.querySelectorAll('[data-action="selectCategory"]').forEach(b => b.classList.toggle('selected', b.dataset.category === state.category)); break;
       case 'confirmTiYong': confirmTiYong(); break;
-      case 'resetStep2': startQuestion(); break;
+      case 'resetStep2': resetStep2(); break;
       case 'resetGrid': resetGrid(); break;
       case 'generateInterpretation': generateInterpretation(); break;
       case 'copyLocal': copyLocalResult(); break;
@@ -787,45 +1020,14 @@ document.addEventListener('click', function(e) {
   const gong = e.target.closest('.gong'); if (gong && state.sel) { const g = parseInt(gong.dataset.gong); const card = findCardById(state.sel); if (card && !isCardPlaced(card)) placeCardOnGong(card, g); }
 });
 
-// ===== 长按拖拽系统 =====
-const LONG_PRESS_DURATION = 200; let dragData = null; let pressTimer = null;
-function clearPressTimer() { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } }
-function startPress(clientX, clientY, cardEl) {
-  const id = cardEl.dataset.cardid; const card = findCardById(id); if (!card || isCardPlaced(card)) return;
-  const rect = cardEl.getBoundingClientRect();
-  dragData = { cardId: id, cardEl, startX: clientX, startY: clientY, offsetX: clientX - rect.left, offsetY: clientY - rect.top, origRect: rect, moved: false, clone: null, longPressTriggered: false };
-  pressTimer = setTimeout(() => {
-    if (dragData) { dragData.longPressTriggered = true; const clone = dragData.cardEl.cloneNode(true); clone.style.position = 'fixed'; clone.style.zIndex = '10000'; clone.style.pointerEvents = 'none'; clone.style.willChange = 'transform'; clone.style.width = dragData.origRect.width + 'px'; clone.style.height = dragData.origRect.height + 'px'; clone.style.margin = '0'; document.body.appendChild(clone); dragData.clone = clone; dragData.moved = true; const x = dragData.startX - dragData.offsetX; const y = dragData.startY - dragData.offsetY; clone.style.transform = `translate3d(${x}px, ${y}px, 0)`; try { if (navigator.vibrate) navigator.vibrate(10); } catch (e) {} }
-  }, LONG_PRESS_DURATION);
-}
-function moveDrag(clientX, clientY, e) {
-  if (!dragData) return;
-  if (dragData.clone) { if (e && e.preventDefault) e.preventDefault(); const x = clientX - dragData.offsetX; const y = clientY - dragData.offsetY; dragData.clone.style.transform = `translate3d(${x}px, ${y}px, 0)`; } 
-  else { const dx = clientX - dragData.startX; const dy = clientY - dragData.startY; if (Math.sqrt(dx*dx + dy*dy) > 8) { clearPressTimer(); const rect = dragData.cardEl.getBoundingClientRect(); dragData.origRect = rect; const clone = dragData.cardEl.cloneNode(true); clone.style.position = 'fixed'; clone.style.zIndex = '10000'; clone.style.pointerEvents = 'none'; clone.style.willChange = 'transform'; clone.style.width = rect.width + 'px'; clone.style.height = rect.height + 'px'; clone.style.margin = '0'; document.body.appendChild(clone); dragData.clone = clone; dragData.moved = true; dragData.longPressTriggered = true; const x = clientX - dragData.offsetX; const y = clientY - dragData.offsetY; clone.style.transform = `translate3d(${x}px, ${y}px, 0)`; } }
-}
-function endDrag(clientX, clientY) {
-  clearPressTimer(); if (!dragData) return;
-  if (dragData.clone && dragData.moved) {
-    const clone = dragData.clone; const card = findCardById(dragData.cardId); clone.style.display = 'none'; const target = document.elementFromPoint(clientX, clientY); clone.style.display = '';
-    let placed = false; if (card && !isCardPlaced(card)) { const tg = target?.closest('.gong'); if (tg) placed = placeCardOnGong(card, parseInt(tg.dataset.gong)); const td = target?.closest('.empty-dash'); if (!placed && td) { if (td.textContent.includes('体')) placed = placeCardOnTiYong(card, 'ti'); else if (td.textContent.includes('用')) placed = placeCardOnTiYong(card, 'yong'); } }
-    if (placed) { clone.remove(); } else { clone.style.transition = 'transform 0.2s ease'; const x = dragData.origRect.left; const y = dragData.origRect.top; clone.style.transform = `translate3d(${x}px, ${y}px, 0)`; const onEnd = () => { clone.remove(); clone.removeEventListener('transitionend', onEnd); }; clone.addEventListener('transitionend', onEnd); setTimeout(() => { if (clone.parentNode) clone.remove(); }, 300); }
-  } else if (!dragData.longPressTriggered) { selectCard(dragData.cardId); }
-  dragData = null;
-}
-document.addEventListener('touchstart', function(e) { const cardEl = e.target.closest('.card-back, .card-face-small'); if (!cardEl) return; startPress(e.touches[0].clientX, e.touches[0].clientY, cardEl); }, { passive: true });
-document.addEventListener('touchmove', function(e) { moveDrag(e.touches[0].clientX, e.touches[0].clientY, e); }, { passive: false });
-document.addEventListener('touchend', function(e) { endDrag(e.changedTouches[0].clientX, e.changedTouches[0].clientY); });
-document.addEventListener('mousedown', function(e) { const cardEl = e.target.closest('.card-back, .card-face-small'); if (!cardEl) return; e.preventDefault(); const id = cardEl.dataset.cardid; const card = findCardById(id); if (!card || isCardPlaced(card)) return; const rect = cardEl.getBoundingClientRect(); const clone = cardEl.cloneNode(true); clone.style.position = 'fixed'; clone.style.zIndex = '10000'; clone.style.pointerEvents = 'none'; clone.style.willChange = 'transform'; clone.style.width = rect.width + 'px'; clone.style.height = rect.height + 'px'; clone.style.margin = '0'; document.body.appendChild(clone); const x = e.clientX - (e.clientX - rect.left); const y = e.clientY - (e.clientY - rect.top); clone.style.transform = `translate3d(${x}px, ${y}px, 0)`; dragData = { cardId: id, cardEl, startX: e.clientX, startY: e.clientY, offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top, origRect: rect, moved: true, clone, longPressTriggered: true, }; clearPressTimer(); });
-document.addEventListener('mousemove', function(e) { if (!dragData || !dragData.clone) return; e.preventDefault(); const x = e.clientX - dragData.offsetX; const y = e.clientY - dragData.offsetY; dragData.clone.style.transform = `translate3d(${x}px, ${y}px, 0)`; });
-document.addEventListener('mouseup', function(e) { if (!dragData) return; if (dragData.clone && dragData.moved) { const dx = e.clientX - dragData.startX; const dy = e.clientY - dragData.startY; if (Math.abs(dx) < 3 && Math.abs(dy) < 3) { const cardId = dragData.cardId; dragData.clone.remove(); dragData = null; selectCard(cardId); return; } endDrag(e.clientX, e.clientY); } else { endDrag(e.clientX, e.clientY); } });
-
 function resetAll() {
   Object.assign(state, { question: '', category: '', deck: [], ti: null, yong: null, grid: {}, line: null, lineOrder: {}, step: 1, sel: null, possible: [], manualMode: false, gongOrder: [], chatHistory: [], uid: 0, editCount: 0, refinementTags: {}, intent: null });
   updateStep(1); renderStep1(); toast(UI_TEXTS.toastReset);
 }
-function startQuestion() {
-  const h = new Date().getHours(); if (h >= 23 || h < 1) { domDynamic.innerHTML = `<div class="panel"><h3>子时不卜</h3><p style="text-align:center;padding:30px">${TIME_RESTRICTION.message}</p></div>`; return; }
-  const q = $('#questionInput')?.value?.trim() || ''; if (q) { const check = checkEthicalBoundary(q); if (check.blocked) { domDynamic.innerHTML = `<div class="panel"><h3>提示</h3><p>${check.message}</p><button data-action="resetAll" class="small">返回</button></div>`; return; } }
+function startQuestion() { guardMidnight(proceedStartQuestion); }
+function proceedStartQuestion() {
+  const q = $('#questionInput')?.value?.trim() || ''; 
+  if (q) { const check = checkEthicalBoundary(q); if (check.blocked) { domDynamic.innerHTML = `<div class="panel"><h3>提示</h3><p>${check.message}</p><button data-action="resetAll" class="small">返回</button></div>`; return; } }
   state.question = q; state.manualMode = false; state.uid = 0; 
   generateEntropySeed().then(seed => {
     state.deck = seededShuffle(createDeck(false), seed);
@@ -834,13 +1036,13 @@ function startQuestion() {
   });
 }
 function startManualEntry() {
-  const h = new Date().getHours(); if (h >= 23 || h < 1) { toast(TIME_RESTRICTION.message); return; }
-  state.question = $('#questionInput')?.value?.trim() || ''; state.manualMode = true; state.uid = 0; state.deck = createDeck(true);
-  state.ti = null; state.yong = null; state.grid = {}; state.line = null; state.lineOrder = {}; state.sel = null; state.possible = []; state.chatHistory = []; state.gongOrder = []; state.editCount = 0; state.refinementTags = {}; state.intent = null;
-  updateStep(2); renderStep2();
+  guardMidnight(() => {
+    state.question = $('#questionInput')?.value?.trim() || ''; state.manualMode = true; state.uid = 0; state.deck = createDeck(true);
+    state.ti = null; state.yong = null; state.grid = {}; state.line = null; state.lineOrder = {}; state.sel = null; state.possible = []; state.chatHistory = []; state.gongOrder = []; state.editCount = 0; state.refinementTags = {}; state.intent = null;
+    updateStep(2); renderStep2();
+  });
 }
 function copyLocalResult() { const el = $('#interpretText'); if (!el) return; navigator.clipboard.writeText(el.innerText).then(() => toast(UI_TEXTS.toastCopied), () => toast(UI_TEXTS.toastCopyFailed)); }
-
 function saveApiSettingsFromForm() {
   const p = state.selectedProvider || 'deepseek'; const info = API_PROVIDERS[p] || API_PROVIDERS.deepseek; let endpoint = $('#apiEndpoint')?.value?.trim() || info.endpoint || ''; if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
   const settings = { provider: p, apiKey: $('#apiKey')?.value?.trim() || '', endpoint: endpoint, model: info.model || '', aiStyle: $('#aiStyle')?.value || 'guide' };
@@ -851,11 +1053,25 @@ function saveProfileFromForm() { const bd = $('#birthDate')?.value || ''; const 
 document.addEventListener('click', function(e) { const b = e.target.closest('#providerGrid button'); if (!b || !b.dataset.value) return; state.selectedProvider = b.dataset.value; $$('#providerGrid button').forEach(x => x.classList.toggle('selected', x === b)); const info = API_PROVIDERS[state.selectedProvider]; if (info) { const ep = $('#apiEndpoint'); if (ep) ep.value = info.endpoint || ''; } });
 document.addEventListener('click', function(e) { if (e.target === domModal) domModal.setAttribute('hidden', ''); });
 
+function checkEthicalBoundary(question) { const q = question.toLowerCase(); for (const [key, entry] of Object.entries(REFUSAL_TEXTS.keywords)) { if (entry.trigger.some(word => q.includes(word))) return { blocked: true, message: entry.response }; } return { blocked: false }; }
+function escapeHtml(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
+
 function init() {
   try {
     cacheDom(); updateStep(1); renderStep1(); updateApiStatus();
     const ep = $('#apiEndpoint'); if (ep && !ep.value) ep.value = API_PROVIDERS.deepseek.endpoint;
     if (!hasCompletedOnboarding()) showOnboarding();
+
+    // 【新增】注入按钮回弹动画的 CSS 样式，不依赖外部 CSS 文件
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes cardAppear {
+        0% { opacity: 0; transform: scale(0.8); }
+        100% { opacity: 1; transform: scale(1); }
+      }
+      button:active { transform: scale(0.95); transition: transform 0.1s ease; }
+    `;
+    document.head.appendChild(style);
   } catch (e) { document.body.innerHTML = '<div style="color:#d45050;padding:40px;text-align:center;font-family:sans-serif;"><h2>浮生牌启动失败</h2><p>请检查浏览器控制台（F12）的错误信息，并确认所有文件已正确保存。</p><p style="font-size:0.8rem;">' + e.message + '</p></div>'; console.error(e); }
 }
 document.addEventListener('DOMContentLoaded', init);
