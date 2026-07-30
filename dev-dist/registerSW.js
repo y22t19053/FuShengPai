@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/FuShengPai/dev-sw.js?dev-sw', { scope: '/FuShengPai/', type: 'classic' })

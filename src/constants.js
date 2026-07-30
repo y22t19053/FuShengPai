@@ -1,13 +1,32 @@
 // ===== src/constants.js =====
 // 可调数值常量
 
-export const MAX_DAILY_OBSERVATIONS = 8;   // 每日精神力阈值
-export const LONG_PRESS_DURATION = 300;     // 长按触发拖拽毫秒数
-export const SCROLL_MAX_SPEED = 150;        // 牌堆滑动最高速度
-export const SCROLL_STEP_INCREMENT = 25;    // 滑动加速度
+export const MAX_DAILY_OBSERVATIONS = 8;
+export const LONG_PRESS_DURATION = 300;
+export const SCROLL_MAX_SPEED = 150;
+export const SCROLL_STEP_INCREMENT = 25;
 
-// ===== 辅助函数（原本在 texts.js 顶部，现统一收拢于此） =====
+// ===== 熵与混沌 =====
+export const ENTROPY_THRESHOLD = 30;
+export const CHAOS_ITERATIONS = 100;
+export const FINGERPRINT_LENGTH = 8;
 
+// ===== 榴莲指数 =====
+export const DURIAN_WEIGHTS = {
+  diff: 0.35,
+  ke: 0.25,
+  trend: 0.20,
+  tension: 0.20
+};
+
+// ===== 模式 =====
+export const MODES = {
+  SIMPLE: 'simple',
+  STANDARD: 'standard',
+  PRO: 'pro'
+};
+
+// ===== 辅助函数 =====
 export function pick(arr) {
   if (!arr || arr.length === 0) return '';
   return arr[Math.floor(Math.random() * arr.length)];

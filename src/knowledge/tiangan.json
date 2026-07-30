@@ -1,0 +1,12 @@
+{
+  "甲": { "element": "木", "yinYang": "阳", "image": "参天大树", "desc": "阳木，主生长、承担、领导" },
+  "乙": { "element": "木", "yinYang": "阴", "image": "藤蔓花草", "desc": "阴木，主柔韧、适应、迂回" },
+  "丙": { "element": "火", "yinYang": "阳", "image": "太阳", "desc": "阳火，主光明、热情、照耀" },
+  "丁": { "element": "火", "yinYang": "阴", "image": "星火", "desc": "阴火，主细微、温暖、持续" },
+  "戊": { "element": "土", "yinYang": "阳", "image": "高山大地", "desc": "阳土，主承载、稳定、厚重" },
+  "己": { "element": "土", "yinYang": "阴", "image": "田园沃土", "desc": "阴土，主滋养、细腻、包容" },
+  "庚": { "element": "金", "yinYang": "阳", "image": "刀剑", "desc": "阳金，主决断、变革、刚硬" },
+  "辛": { "element": "金", "yinYang": "阴", "image": "珠玉", "desc": "阴金，主精致、审慎、雕琢" },
+  "壬": { "element": "水", "yinYang": "阳", "image": "江河", "desc": "阳水，主流动、智慧、广阔" },
+  "癸": { "element": "水", "yinYang": "阴", "image": "雨露", "desc": "阴水，主渗透、细腻、暗流" }
+}

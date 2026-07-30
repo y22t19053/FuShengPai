@@ -4,9 +4,10 @@ import {
   resetAll, startQuestion, startManualEntry, lazyStart, generateInterpretation, 
   confirmTiYong, resetGrid, resetStep2, triggerAI, sendFollowUp, 
   handleTestApiConnection, saveApiSettingsFromForm, saveProfileFromForm,
-  copyLocalResult, checkEthicalBoundary
+  copyLocalResult, checkEthicalBoundary, switchMode, sealDeckAction,
+  showTimeCapsuleAction, showDurianReportAction
 } from '../ui.js';
-import { togglePanel, toast, showDailyFortune, showHistoryDetail, generateShareCode, importShareCode, generateShareImage, saveShareImage, showPrivacyWarning } from '../ui/ui-modal.js';
+import { togglePanel, toast, showDailyFortune, showHistoryDetail, generateShareCode, importShareCode, generateShareImage, saveShareImage, showPrivacyWarning, showTimeCapsule, showDurianReport } from '../ui/ui-modal.js';
 import { initSettingsPanel, initProfilePanel, renderHistoryPanel, refreshAll, updateApiStatus } from '../ui/ui-render.js';
 import { getApiSettings, clearApiSettings, exportAllData } from '../storage.js';
 import { UI_TEXTS } from '../texts/index.js';
@@ -51,5 +52,19 @@ export function handleAction(action, dataset) {
       break;
     case 'closeShare': document.getElementById('sharePreview')?.setAttribute('hidden', ''); break;
     case 'saveShareImage': saveShareImage(); break;
+    
+    // ---- 新增动作 ----
+    case 'switchMode':
+      switchMode(dataset.mode);
+      break;
+    case 'sealDeck':
+      sealDeckAction();
+      break;
+    case 'timeCapsule':
+      showTimeCapsuleAction();
+      break;
+    case 'durianReport':
+      showDurianReportAction();
+      break;
   }
 }

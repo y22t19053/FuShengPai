@@ -1,0 +1,14 @@
+{
+  "子": { "element": "水", "season": "冬", "hour": "23-1", "image": "夜半", "desc": "水之正位，主智谋、潜藏" },
+  "丑": { "element": "土", "season": "冬", "hour": "1-3", "image": "鸡鸣", "desc": "湿土，主收藏、过渡" },
+  "寅": { "element": "木", "season": "春", "hour": "3-5", "image": "平旦", "desc": "木之正位，主生发、行动" },
+  "卯": { "element": "木", "season": "春", "hour": "5-7", "image": "日出", "desc": "木之盛位，主成长、扩张" },
+  "辰": { "element": "土", "season": "春", "hour": "7-9", "image": "食时", "desc": "湿土，主转化、过渡" },
+  "巳": { "element": "火", "season": "夏", "hour": "9-11", "image": "隅中", "desc": "火之生位，主热情、活动" },
+  "午": { "element": "火", "season": "夏", "hour": "11-13", "image": "日中", "desc": "火之正位，主光明、极致" },
+  "未": { "element": "土", "season": "夏", "hour": "13-15", "image": "日昳", "desc": "燥土，主沉淀、收获" },
+  "申": { "element": "金", "season": "秋", "hour": "15-17", "image": "晡时", "desc": "金之生位，主变革、决断" },
+  "酉": { "element": "金", "season": "秋", "hour": "17-19", "image": "日入", "desc": "金之正位，主收敛、肃杀" },
+  "戌": { "element": "土", "season": "秋", "hour": "19-21", "image": "黄昏", "desc": "燥土，主收尾、总结" },
+  "亥": { "element": "水", "season": "冬", "hour": "21-23", "image": "人定", "desc": "水之生位，主潜藏、酝酿" }
+}

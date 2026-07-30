@@ -2,6 +2,7 @@
 import { getCardId } from './data.js';
 
 export const state = {
+  // --- 原有字段 ---
   question: '',
   category: '',
   deck: [],
@@ -15,15 +16,25 @@ export const state = {
   possible: [],
   manualMode: false,
   gongOrder: [],
-  chatHistory: [],      
+  chatHistory: [],
   selectedProvider: 'deepseek',
-  // 【修复】将 uid 改为时间戳取模，防止每次重置带来的 ID 冲突
-  uid: Date.now() % 1000000,
+  uid: (function() { return Date.now() % 1000000; })(),
   editCount: 0,
   currentOnboardStep: 0,
   refinementTags: {},
-  userCorpus: [],       
+  userCorpus: [],
   intent: null,
+  
+  // --- 新增字段 ---
+  fingerprint: null,
+  entropyLevel: 0,
+  chaosSeed: null,
+  sealed: false,
+  sealedAt: null,
+  mode: 'simple',
+  durianIndex: null,
+  sealStatus: null,
+  timeCapsule: null,
 };
 
 export const $ = (sel) => document.querySelector(sel);

@@ -2,24 +2,26 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes, viewport-fit=cover">
   <title>浮生牌 · 观测者的镜子</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%83%8F%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
   <div id="appRoot">
-    <!-- 顶部导航（原样恢复） -->
-    <div class="header">
+    <!-- 顶部导航 -->
+    <header class="header">
       <div class="logo">浮生牌</div>
-      <div class="top-btns">
+      <nav class="top-btns">
         <button data-action="togglePanel" data-panel="teaching">教程</button>
         <button data-action="togglePanel" data-panel="rules">规则</button>
         <button data-action="togglePanel" data-panel="settings">AI</button>
         <button data-action="togglePanel" data-panel="profile">个人</button>
         <button data-action="togglePanel" data-panel="history">历史</button>
+        <button data-action="durianReport">榴莲报告</button>
         <button data-action="resetAll">重开</button>
-      </div>
-    </div>
+      </nav>
+    </header>
 
     <!-- 步骤条 -->
     <div class="step-row" id="stepRow">
@@ -28,23 +30,25 @@
       <div id="sd3" class="step-dot"></div>
     </div>
 
-    <!-- 三栏主容器（动态内容由 ui-render 注入） -->
-    <div id="dynamicPanels" class="main-grid">
-      <div id="tiyongArea" class="grid-col"></div>
-      <div id="coreArea" class="grid-col"></div>
-      <div id="resultArea" class="grid-col"></div>
+    <!-- 主内容区 -->
+    <div id="dynamicPanels">
+      <div id="tiyongArea" class="panel tiyong-panel">
+        <div class="tiyong-bar" id="tiyongBar"></div>
+      </div>
+      <div id="coreArea" class="panel core-panel"></div>
+      <div id="resultArea" class="panel result-panel"></div>
     </div>
 
-    <!-- 静态面板（原样恢复，放在主容器外面） -->
-    <div class="panel static-panel" id="panelTeaching" hidden>
+    <!-- 静态面板 -->
+    <div class="static-panel" id="panelTeaching" hidden>
       <h3>新手教程</h3>
       <div id="teachingContent"></div>
     </div>
-    <div class="panel static-panel" id="panelRules" hidden>
+    <div class="static-panel" id="panelRules" hidden>
       <h3>规则速查</h3>
       <p>♥火 ♦金 ♣木 ♠水 | J/Q/K土 | 大王天(阳) 小王人(阴)<br />生我大吉 克我大凶 同我平 我生小凶 我克小吉</p>
     </div>
-    <div class="panel static-panel" id="panelSettings" hidden>
+    <div class="static-panel" id="panelSettings" hidden>
       <h3>AI设置</h3>
       <p class="hint">填入API Key后可使用AI深度解读。Key仅存本地。</p>
       <div class="api-provider-grid" id="providerGrid">
@@ -72,7 +76,7 @@
       <span id="apiStatus">未配置</span>
       <p class="hint" style="margin-top:1vh;font-size:0.7rem;">数据流向：你的问题从浏览器直接发送到所选AI服务商，浮生牌不经过任何中转服务器。</p>
     </div>
-    <div class="panel static-panel" id="panelProfile" hidden>
+    <div class="static-panel" id="panelProfile" hidden>
       <h3>个人信息</h3>
       <p class="hint">填写出生日期，系统将自动换算四柱，用于解读参考。出生时间可选填。</p>
       <label>出生日期（公历）</label>
@@ -82,7 +86,7 @@
       <p class="hint" id="baziPreview" style="margin-top:1vh;color:var(--accent);"></p>
       <button data-action="saveProfile" class="primary small">保存</button>
     </div>
-    <div class="panel static-panel" id="panelHistory" hidden>
+    <div class="static-panel" id="panelHistory" hidden>
       <h3>历史记录</h3>
       <div id="historyList"></div>
     </div>

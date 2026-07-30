@@ -1,5 +1,6 @@
 // ===== src/texts/texts-readings.js =====
 // 原子词库与核心生成引擎（九宫、五行、体用、旺衰、差值、天机线）
+// 【重要修改】删除所有傻逼结尾语，解读不留废话
 
 import { getPhraseSet, getIntensityLevel, pick } from '../constants.js';
 
@@ -131,15 +132,6 @@ export const intensityMap = {
   'huge': { adv: ['极其深刻地', '完全彻底地', '以一种覆盖一切的方式'], verb: ['吞噬着', '重塑着', '决定着', '定义着', '主导着'], effect: ['你几乎被这件事占满了。','它已经成了你当前生活的主轴。','你感到自己被一股巨大的力量推着走。'] }
 };
 
-export const closingLines = [
-  '牌局到此暂时停下，剩下的时间是你自己的。',
-  '这不是结束，是重新开始的起点。',
-  '记住，牌只是一面镜子。',
-  '你已经看到了，接下来怎么做，是你自己的事。',
-  '一次占卜只管一个问题，当下的结果只对应你刚才问的事。',
-  '牌走完了，路还在你脚下。'
-];
-
 // ================================================================
 // 核心生成函数 =====
 export function generateGongText(context) {
@@ -219,10 +211,9 @@ export function generateFullReading(context) {
   if (context.card?.element) { const ele = context.card.element; const elePositive = pick(elementPhrases[ele]?.positive || []); if (elePositive) result += `，其牌面属${ele}，${elePositive}`; }
   if (trait) result += `，此宫显象${trait}`;
   if (hidden) result += `。深层注意：${hidden}`;
-  const lightParts = [result, pick(closingLines)];
   let shadow = '';
   if (context.wangState === '死' && context.diff > 5) { shadow = '死态遇高差，强行推进可能折损自身，建议暂缓行动，以守代攻。'; }
   else if (context.diff > 8) { shadow = '高差值暗示方向与实际产生巨大错位。及时察觉，可避大耗。'; }
   else { shadow = ''; }
-  return { light: lightParts.join(' '), shadow: shadow, };
+  return { light: result, shadow: shadow };
 }

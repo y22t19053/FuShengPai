@@ -131,6 +131,31 @@ export function analyzeGrid(grid, lineOrder, ti) {
   return results;
 }
 
+// ===== 差值等级 =====
+export function getDiffLevel(diff) {
+  if (diff <= 1) return { level: '轻微', color: '#4CAF50', desc: '几乎贴合，十分顺畅' };
+  if (diff <= 3) return { level: '低', color: '#8BC34A', desc: '略有偏差，整体良好' };
+  if (diff <= 5) return { level: '中', color: '#FFC107', desc: '明显偏差，需要调整' };
+  if (diff <= 7) return { level: '高', color: '#FF9800', desc: '较大偏差，建议谨慎' };
+  if (diff <= 9) return { level: '极高', color: '#F44336', desc: '严重偏差，不宜冒进' };
+  return { level: '极端', color: '#D32F2F', desc: '完全脱节，强烈建议观望' };
+}
+
+// ===== 趋势线 =====
+export function calcTrendLine(grid, line) {
+  if (!line || line.length < 3) return null;
+  const diffs = line.map(g => {
+    const cards = grid[g] || [];
+    return cards.length ? calcDiff(g, cards[0]) : 0;
+  });
+  const trend = diffs[2] - diffs[0];
+  let direction = '稳定';
+  if (trend < -3) direction = '改善';
+  else if (trend > 3) direction = '恶化';
+  else direction = '持平';
+  return { diffs, trend, direction };
+}
+
 // ===== 四柱计算 =====
 const TIAN_GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
 const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
