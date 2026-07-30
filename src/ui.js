@@ -162,8 +162,6 @@ export function resetStep2() {
   state.grid = {}; state.line = null; state.lineOrder = {}; state.gongOrder = []; state.sel = null; state.possible = [];
   state.deck = shuffle(state.deck); removeLineSelector(); refreshAll(); toast(UI_TEXTS.toastGridCleared);
 }
-
-// 【关键修复】把 confirmTiYong 的 export 明确加在这里，让 ActionHandler 能读到
 export function confirmTiYong() {
   if (!state.ti || !state.yong) return;
   state.deck.push({ isJoker: true, type: '大王', _uid: state.uid++ }, { isJoker: true, type: '小王', _uid: state.uid++ });
@@ -172,7 +170,6 @@ export function confirmTiYong() {
   const deckEl = $('#deckContainer'); if (deckEl) { deckEl.classList.add('shuffling'); setTimeout(() => deckEl.classList.remove('shuffling'), 700); }
   toast(UI_TEXTS.toastJokersInjected); refreshAll();
 }
-
 export function resetGrid() {
   for (const g in state.grid) state.deck.push(...state.grid[g]);
   state.grid = {}; state.line = null; state.lineOrder = {}; state.possible = []; state.gongOrder = []; state.sel = null;
@@ -231,7 +228,7 @@ export async function handleTestApiConnection() {
   } catch (e) { toast(`测试失败: ${e.message}`, 4000); } finally { if (btn) { btn.disabled = false; btn.textContent = UI_TEXTS.btnTestApi; } }
 }
 
-// 启动初始化
+// 启动初始化（已移除麦克风检测）
 function init() {
   try {
     cacheDom();
@@ -241,7 +238,7 @@ function init() {
     if (!hasCompletedOnboarding()) showOnboarding();
     injectAnimations();
     bindAll();
-    import('./environment.js').then(env => env.initEnvironmentMonitor());
+    // 【已移除】import('./environment.js').then(env => env.initEnvironmentMonitor());
   } catch (e) { 
     document.body.innerHTML = '<div style="color:#d45050;padding:40px;text-align:center;font-family:sans-serif;"><h2>浮生牌启动失败</h2><p>请检查浏览器控制台（F12）的错误信息，并确认所有文件已正确保存。</p><p style="font-size:0.8rem;">' + e.message + '</p></div>'; console.error(e); 
   }
