@@ -1,9 +1,15 @@
 // ===== src/controllers/ActionHandler.js · 动作调度中心 =====
 import { state, $, $$ } from '../state.js';
-import { resetAll, startQuestion, startManualEntry, lazyStart, generateInterpretation, confirmTiYong, resetGrid, resetStep2 } from '../ui.js';
-import { togglePanel, toast, showDailyFortune, showHistoryDetail, generateShareCode, importShareCode, generateShareImage, saveShareImage, showPrivacyWarning, guardMidnight } from '../ui/ui-modal.js';
+// 从 ui.js 导入所需的核心业务函数
+import { 
+  resetAll, startQuestion, startManualEntry, lazyStart, generateInterpretation, 
+  confirmTiYong, resetGrid, resetStep2, triggerAI, sendFollowUp, 
+  handleTestApiConnection, saveApiSettingsFromForm, saveProfileFromForm,
+  copyLocalResult, checkEthicalBoundary
+} from '../ui.js';
+// 从各个 UI 模块导入界面控制函数
+import { togglePanel, toast, showDailyFortune, showHistoryDetail, generateShareCode, importShareCode, generateShareImage, saveShareImage, showPrivacyWarning } from '../ui/ui-modal.js';
 import { initSettingsPanel, initProfilePanel, renderHistoryPanel, refreshAll } from '../ui/ui-render.js';
-import { triggerAI, sendFollowUp, handleTestApiConnection, saveApiSettingsFromForm, saveProfileFromForm, checkEthicalBoundary } from '../ui.js';
 import { getApiSettings, clearApiSettings, updateApiStatus, exportAllData } from '../storage.js';
 import { UI_TEXTS } from '../texts/index.js';
 
@@ -45,14 +51,7 @@ export function handleAction(action, dataset) {
       const modalEl = document.getElementById('modal');
       if (modalEl) modalEl.setAttribute('hidden', '');
       break;
-    case 'closeShare': domSharePreview.setAttribute('hidden', ''); break;
+    case 'closeShare': document.getElementById('sharePreview')?.setAttribute('hidden', ''); break;
     case 'saveShareImage': saveShareImage(); break;
   }
-}
-
-// 辅助函数封装（避免循环引用）
-function copyLocalResult() {
-  const el = document.getElementById('interpretText');
-  if (!el) return;
-  navigator.clipboard.writeText(el.innerText).then(() => toast(UI_TEXTS.toastCopied), () => toast(UI_TEXTS.toastCopyFailed));
 }
