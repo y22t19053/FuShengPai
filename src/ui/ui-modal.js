@@ -1,5 +1,7 @@
 // ===== src/ui/ui-modal.js · 弹窗、Toast、引导与分享 =====
-import { state, $, $$, domToast, domModal, domModalContent, domSharePreview, domShareCanvas } from '../state.js';
+// 【核心修复】修正 DOM 节点的导入路径，剥离掉 state.js 的旧引用
+import { state, $, $$ } from '../state.js';
+import { domToast, domModal, domModalContent, domSharePreview, domShareCanvas } from '../domCache.js';
 import { SUITS, RANKS, API_PROVIDERS, getWuxing, getCardColor } from '../data.js';
 import { requestReading } from '../ai.js';
 import { getApiSettings, getProfile, getHistory, deleteHistoryItem, exportAllData } from '../storage.js';
@@ -62,7 +64,6 @@ export function guardMidnight(callback) {
   } else { callback(); }
 }
 
-// 【新功能】隐私模式检测弹窗
 export function showPrivacyWarning() {
   if (!domModal || !domModalContent) return;
   domModalContent.innerHTML = `
@@ -87,7 +88,47 @@ export function showPrivacyWarning() {
   });
 }
 
-export function showDailyFortune() { /* 保持原有逻辑 */ }
+export function showDailyFortune() {
+  if (!domModal || !domModalContent) { toast('弹窗系统尚未加载'); return; }
+  const today = new Date().toDateString(); 
+  let hash = 0; for (let i = 0; i < today.length; i++) { hash = ((hash << 5) - hash) + today.charCodeAt(i); hash |= 0; }
+  const idx = Math.abs(hash) % 54; let card;
+  if (idx < 52) { const suit = SUITS[Math.floor(idx / 13)]; const rank = RANKS[idx % 13]; card = { suit, rank, isJoker: false }; }
+  else if (idx === 52) card = { isJoker: true, type: '大王' }; else card = { isJoker: true, type: '小王' };
+  const wx = getWuxing(card); const label = card.isJoker ? card.type : card.suit + card.rank; const colorCls = getCardColor(card);
+  const fortunes = { '火': '热情是你的燃料，别让它灼伤你。', '金': '决断的时刻来了，信任你的切割力。', '木': '生长的节奏不可强求，根深自然叶茂。', '水': '顺应变化，暗流之下自有出路。', '天': '天意如风，顺势而行。', '人': '智谋是你的武器，善用巧劲。' };
+  const quote = fortunes[wx] || '平常心，即是最好的状态。';
+  localStorage.setItem('fs_todays_sign_date', today); localStorage.setItem('fs_todays_sign', JSON.stringify(card));
+  domModalContent.innerHTML = `
+    <div style="text-align:center;padding:10px;font-family:'Georgia',serif;">
+      <h3 style="font-size:1.8rem;color:var(--accent);letter-spacing:4px;">今日抽牌</h3>
+      <div class="card-face-small ${colorCls}" style="margin:12px auto;width:80px;height:112px;display:flex;align-items:center;justify-content:center;flex-direction:column;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);">
+        <span class="rank" style="font-size:2.2rem;font-weight:bold;line-height:1;">${label}</span>
+        <span class="suit" style="font-size:1.4rem;">${card.isJoker ? '' : card.suit}</span>
+      </div>
+      <p style="font-size:0.9rem;color:var(--dim);margin-top:8px;">今日启示：${quote}</p>
+      <button id="dailyAiBtn" class="primary small" style="margin-top:12px;">✨ 呼唤AI深度解析</button>
+      <div id="dailyAiResult" style="margin-top:8px;text-align:left;font-size:0.85rem;color:#ddd;"></div>
+      <button data-action="closeModal" style="margin-top:12px;">关闭</button>
+    </div>
+  `;
+  domModal.removeAttribute('hidden');
+  document.getElementById('dailyAiBtn').addEventListener('click', async function() {
+    this.disabled = true; this.textContent = '召唤中...';
+    const settings = getApiSettings();
+    if (!settings || !settings.apiKey) { toast('请先配置 API Key'); this.disabled = false; this.textContent = '✨ 呼唤AI深度解析'; return; }
+    try {
+      const provider = settings.provider || 'deepseek'; let endpoint = settings.endpoint || API_PROVIDERS[provider]?.endpoint || '';
+      if (endpoint.endsWith('/v1')) endpoint = endpoint.slice(0, -3); if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
+      const model = settings.model || API_PROVIDERS[provider]?.model || '';
+      const prompt = `请针对抽中的扑克牌进行深度解读。\n牌面：${label}\n五行：${wx}\n启示：${quote}\n要求：纯中文，话不说死，以心理学共情和日常生活的角度展开。`;
+      const result = await requestReading({ provider, apiKey: settings.apiKey, endpoint, model, prompt });
+      document.getElementById('dailyAiResult').innerHTML = `<div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:8px;margin-top:8px;color:#e0e0e0;"><strong>AI 解牌：</strong><br>${result}</div>`;
+    } catch (e) { toast(e.message); }
+    finally { this.disabled = false; this.textContent = '✨ 呼唤AI深度解析'; }
+  });
+}
+
 export function showHistoryDetail(index) { /* 保持原有逻辑 */ }
 export function generateShareCode() { /* 保持原有逻辑 */ }
 export function importShareCode() { /* 保持原有逻辑 */ }

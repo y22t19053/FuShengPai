@@ -32,6 +32,11 @@ export function placeCardOnGong(card, gong) {
   state.deck = state.deck.filter(c => getCardId(c) !== getCardId(card));
   if (!state.gongOrder.includes(gong)) state.gongOrder.push(gong);
   state.sel = null; refreshAll(); checkLines();
+  // 【微调】放牌后闪现差值计算
+  const diff = calcDiff(gong, card);
+  const gongName = GONG_NAMES[gong];
+  const cardName = card.isJoker ? card.type : card.suit + card.rank;
+  toast(`${gongName}宫(${gong}) - ${cardName} = 差值 ${diff}`, 1800);
   try { if (navigator.vibrate) navigator.vibrate(10); } catch (e) {}
   toast(UI_TEXTS.toastAnyCount, 1500);
   return true;
