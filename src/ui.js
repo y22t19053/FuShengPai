@@ -2,11 +2,11 @@
 import { state, $, $$ } from './state.js';
 import { cacheDom, domCore } from './domCache.js';
 import { injectAnimations } from './ui/ui-anim.js';
-import { renderStep1, renderStep2, renderStep3, renderHistoryPanel, initSettingsPanel, initProfilePanel, updateApiStatus, refreshAll } from './ui/ui-render.js'; // 导入 refreshAll
+import { renderStep1, renderStep2, renderStep3, renderHistoryPanel, initSettingsPanel, initProfilePanel, updateApiStatus, refreshAll } from './ui/ui-render.js';
 import { toast, guardMidnight, showOnboarding, showPrivacyWarning } from './ui/ui-modal.js';
 import { startPress, moveDrag, endDrag, removeLineSelector } from './ui/ui-drag.js';
 import { bindAll } from './controllers/EventBinder.js';
-import { getApiSettings, saveApiSettings, clearApiSettings, getProfile, saveProfile, hasCompletedOnboarding, completeOnboarding, getDrawTimestamps, addDrawTimestamp, saveReading } from './storage.js'; // 导入 getDrawTimestamps 等
+import { getApiSettings, saveApiSettings, clearApiSettings, getProfile, saveProfile, hasCompletedOnboarding, completeOnboarding, getDrawTimestamps, addDrawTimestamp, saveReading } from './storage.js';
 import { requestReading, requestFollowUp, testApiConnection } from './ai.js';
 import { createDeck, shuffle, drawTiYong, calcDiff, detectLines, calcFullBaZi, calcYearPillar, checkUsageFrequency } from './engine.js';
 import { API_PROVIDERS, getShengKe, getShengKeLabel, getWangState, getWuxing, getCardValue, GONG_NAMES, GONG_WUXING, ALL_LINES, TIME_LABELS, GONG_ORDER } from './data.js';
@@ -138,24 +138,25 @@ function proceedStartQuestion() {
     updateStep(2); renderStep2();
   });
 }
-function proceedLazyStart() {
+async function proceedLazyStart() {
   state.question = $('#questionInput')?.value?.trim() || ''; state.manualMode = false;
-  generateEntropySeed().then(seed => {
-    let deck = createDeck(false);
-    const { ti, yong, remaining } = drawTiYong(deck);
-    state.ti = ti; state.yong = yong;
-    let remainingDeck = remaining;
-    remainingDeck.push({ isJoker: true, type: '大王', _uid: state.uid++ }, { isJoker: true, type: '小王', _uid: state.uid++ });
-    remainingDeck = seededShuffle(remainingDeck, seed + 12345);
-    const line = ALL_LINES[Math.floor(mulberry32(seed + 67890)() * ALL_LINES.length)];
-    state.line = [...line]; const key = line.join(','); const tl = TIME_LABELS[key] || {};
-    state.lineOrder = {}; state.lineOrder[line[0]] = '起因'; state.lineOrder[line[1]] = '经过'; state.lineOrder[line[2]] = '结果';
-    for (let g = 1; g <= 9; g++) if (!state.lineOrder[g]) state.lineOrder[g] = tl[g] || '';
-    for (const g of line) state.grid[g] = [remainingDeck.pop()];
-    for (const g of GONG_ORDER) if (!state.grid[g] && remainingDeck.length) state.grid[g] = [remainingDeck.pop()];
-    state.deck = remainingDeck; state.gongOrder = line.slice();
-    updateStep(3); renderStep3(await localInterpretation());
-  });
+  const seed = await generateEntropySeed();
+  let deck = createDeck(false);
+  const { ti, yong, remaining } = drawTiYong(deck);
+  state.ti = ti; state.yong = yong;
+  let remainingDeck = remaining;
+  remainingDeck.push({ isJoker: true, type: '大王', _uid: state.uid++ }, { isJoker: true, type: '小王', _uid: state.uid++ });
+  remainingDeck = seededShuffle(remainingDeck, seed + 12345);
+  const line = ALL_LINES[Math.floor(mulberry32(seed + 67890)() * ALL_LINES.length)];
+  state.line = [...line]; const key = line.join(','); const tl = TIME_LABELS[key] || {};
+  state.lineOrder = {}; state.lineOrder[line[0]] = '起因'; state.lineOrder[line[1]] = '经过'; state.lineOrder[line[2]] = '结果';
+  for (let g = 1; g <= 9; g++) if (!state.lineOrder[g]) state.lineOrder[g] = tl[g] || '';
+  for (const g of line) state.grid[g] = [remainingDeck.pop()];
+  for (const g of GONG_ORDER) if (!state.grid[g] && remainingDeck.length) state.grid[g] = [remainingDeck.pop()];
+  state.deck = remainingDeck; state.gongOrder = line.slice();
+  updateStep(3); 
+  const text = await localInterpretation();
+  renderStep3(text);
 }
 export function resetStep2() {
   for (const g in state.grid) { state.deck.push(...state.grid[g]); }
@@ -252,9 +253,7 @@ function init() {
     if (!hasCompletedOnboarding()) showOnboarding();
     injectAnimations();
     bindAll();
-    bindScrollButtons(); // 绑定滚动按钮
-    // 监听动态生成的 deck，每次渲染后重新绑定（但使用事件代理更佳，我们直接在点击时实时查找）
-    // 但为了安全，我们在 renderStep2 后也会调用，但此处先绑定一次。
+    bindScrollButtons();
   } catch (e) { 
     document.body.innerHTML = '<div style="color:#d45050;padding:40px;text-align:center;font-family:sans-serif;"><h2>浮生牌启动失败</h2><p>请检查浏览器控制台（F12）的错误信息，并确认所有文件已正确保存。</p><p style="font-size:0.8rem;">' + e.message + '</p></div>'; console.error(e); 
   }
