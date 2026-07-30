@@ -1,6 +1,5 @@
 // ===== src/ui/ui-render.js · 所有页面的绘制逻辑 =====
 import { state, $, $$ } from '../state.js';
-// 【关键修复】引入分栏后的独立 DOM 容器
 import { domCore, domResult } from '../domCache.js';
 import { GONG_ORDER, GONG_NAMES, GONG_WUXING, CATEGORIES, getShengKe, getShengKeLabel } from '../data.js';
 import { getWangState, getWuxing, getCardColor, getCardId, getCardValue, SUITS, RANKS } from '../data.js';
@@ -40,12 +39,13 @@ export function renderDeck() {
     el.innerHTML = '<span style="color:#666;padding:10px;display:block;text-align:center;width:100%;">镜中牌已尽，可重置以重观</span>';
     return;
   }
-  // 保持滚动条样式
+  // 保持滚动条样式，并限制最大宽度，居中
   el.style.cssText = `
     display: flex; flex-wrap: nowrap; gap: 12px; overflow-x: auto; overflow-y: hidden;
     scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
     padding: 10px 20px; touch-action: pan-x;
     scrollbar-width: none; -ms-overflow-style: none;
+    max-width: 100%; justify-content: flex-start;
   `;
   // 清除原有内容
   el.innerHTML = '';
@@ -143,7 +143,7 @@ export function renderStep1() {
     <div id="dailySignCard" style="margin-bottom:20px;background:rgba(255,255,255,0.02);border-radius:8px;padding:16px;text-align:center;border:1px solid rgba(255,255,255,0.05);">${dailyHTML}</div>
     <h3 style="margin-top:0;">${UI_TEXTS.step1}</h3>
     <div class="guide-tip">默念问题（也可不写），选个领域。也可导入朋友的分享码。</div>
-    <input type="text" id="questionInput" placeholder="${UI_TEXTS.placeholderQuestion}" autocomplete="off" value="${escapeHtml(state.question)}">
+    <input type="text" id="questionInput" placeholder="${UI_TEXTS.placeholderQuestion}" autocomplete="off" value="${escapeHtml(state.question)}" style="width:100%;padding:8px 12px;margin:8px 0;">
     <div class="category-grid">${CATEGORIES.map(c => `<button data-action="selectCategory" data-category="${c}" class="${state.category === c ? 'selected' : ''}">${c}</button>`).join('')}</div>
     <div class="btn-row">
       <button data-action="confirmQuestion" class="primary">${UI_TEXTS.btnStartDraw}</button>
@@ -160,10 +160,10 @@ export function renderStep1() {
 
 export function renderStep2() {
   domCore.innerHTML = `<div class="panel"><h3>${state.manualMode ? '手动录入 · 明牌选阵' : '立极·布阵'}</h3><div class="guide-tip">${state.manualMode ? UI_TEXTS.guideManual : UI_TEXTS.guideSelectTiYong}</div><div class="tiyong-bar" id="tiyongBar"></div><div class="deck-grid" id="deckContainer"></div><div class="btn-row" style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center; align-items:center;">
-      <button id="scrollLeftBtn" class="outline small">‹ 选牌</button>
+      <button id="scrollLeftBtn" class="outline small">‹ 向左滚动</button>
       <button data-action="resetStep2" class="outline small">重置选牌</button>
       ${state.manualMode ? '' : '<button id="btnConfirmTY" disabled data-action="confirmTiYong" class="small primary">' + UI_TEXTS.btnConfirmTiYong + '</button>'}
-      <button id="scrollRightBtn" class="outline small">选牌 ›</button>
+      <button id="scrollRightBtn" class="outline small">向右滚动 ›</button>
       ${state.manualMode ? '<button data-action="generateInterpretation" class="small primary">' + UI_TEXTS.btnInterpret + '</button>' : ''}
     </div><div id="gridArea" ${state.manualMode ? '' : 'style="display:none"' }><div class="guide-tip">${UI_TEXTS.guideAfterTiYong}</div><div class="grid-9" id="gridContainer"></div><div class="btn-row"><button data-action="resetGrid" class="outline small">清九宫</button>${state.manualMode ? '' : '<button data-action="generateInterpretation" class="small primary">' + UI_TEXTS.btnInterpret + '</button>'}</div></div></div>`;
   refreshAll();
@@ -188,9 +188,9 @@ export function renderStep3(text) {
       <div class="result-block" id="chatHistoryBlock" style="margin-top:6px;max-height:200px;font-size:0.8rem"></div></div></div></div>`;
 }
 
-export function initSettingsPanel() { /* 保持原有逻辑，此处省略（不影响核心） */ }
-export function initProfilePanel() { /* 保持原有逻辑 */ }
-export function renderHistoryPanel() { /* 保持原有逻辑 */ }
+export function initSettingsPanel() { /* 保持原样 */ }
+export function initProfilePanel() { /* 保持原样 */ }
+export function renderHistoryPanel() { /* 保持原样 */ }
 
 export function updateApiStatus() {
   const s = getApiSettings();

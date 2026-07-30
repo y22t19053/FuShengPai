@@ -78,7 +78,7 @@ export function completeOnboarding() {
   localStorage.setItem(STORAGE_KEYS.ONBOARDING, 'true');
 }
 
-// 导出数据备份（修复缺失的导出）
+// 导出数据备份
 export function exportAllData() {
   const data = {
     history: getHistory(),
@@ -97,7 +97,7 @@ export function exportAllData() {
   URL.revokeObjectURL(url);
 }
 
-// 行动力记录（使用频率统计）
+// 行动力记录
 export function saveActionTimestamp(type) {
   const actionKey = `fs_actions_${type}`;
   let actions = JSON.parse(localStorage.getItem(actionKey) || '[]');
@@ -112,7 +112,7 @@ export function getActionTimestamps(type) {
   } catch (e) { return []; }
 }
 
-// 全域清理（保留自定义主题色）
+// 全域清理
 export function clearAllData() {
   const accent = localStorage.getItem('fs_custom_accent');
   localStorage.clear();

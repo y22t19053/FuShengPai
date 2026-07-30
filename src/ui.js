@@ -2,14 +2,14 @@
 import { state, $, $$ } from './state.js';
 import { cacheDom, domCore } from './domCache.js';
 import { injectAnimations } from './ui/ui-anim.js';
-import { renderStep1, renderStep2, renderStep3, renderHistoryPanel, initSettingsPanel, initProfilePanel, updateApiStatus, updateDailySignDisplay } from './ui/ui-render.js';
+import { renderStep1, renderStep2, renderStep3, renderHistoryPanel, initSettingsPanel, initProfilePanel, updateApiStatus, refreshAll } from './ui/ui-render.js'; // 导入 refreshAll
 import { toast, guardMidnight, showOnboarding, showPrivacyWarning } from './ui/ui-modal.js';
-import { startPress, moveDrag, endDrag } from './ui/ui-drag.js';
+import { startPress, moveDrag, endDrag, removeLineSelector } from './ui/ui-drag.js';
 import { bindAll } from './controllers/EventBinder.js';
-import { getApiSettings, saveApiSettings, clearApiSettings, getProfile, saveProfile, hasCompletedOnboarding, completeOnboarding } from './storage.js';
+import { getApiSettings, saveApiSettings, clearApiSettings, getProfile, saveProfile, hasCompletedOnboarding, completeOnboarding, getDrawTimestamps, addDrawTimestamp, saveReading } from './storage.js'; // 导入 getDrawTimestamps 等
 import { requestReading, requestFollowUp, testApiConnection } from './ai.js';
-import { createDeck, shuffle, drawTiYong, calcDiff, detectLines, calcFullBaZi, calcYearPillar } from './engine.js';
-import { API_PROVIDERS, getShengKe, getShengKeLabel, getWangState, getWuxing, getCardValue, GONG_NAMES, GONG_WUXING } from './data.js';
+import { createDeck, shuffle, drawTiYong, calcDiff, detectLines, calcFullBaZi, calcYearPillar, checkUsageFrequency } from './engine.js';
+import { API_PROVIDERS, getShengKe, getShengKeLabel, getWangState, getWuxing, getCardValue, GONG_NAMES, GONG_WUXING, ALL_LINES, TIME_LABELS, GONG_ORDER } from './data.js';
 import { MAX_DAILY_OBSERVATIONS } from './constants.js';
 import { REFUSAL_TEXTS, UI_TEXTS, generateFullReading } from './texts/index.js';
 
@@ -154,7 +154,7 @@ function proceedLazyStart() {
     for (const g of line) state.grid[g] = [remainingDeck.pop()];
     for (const g of GONG_ORDER) if (!state.grid[g] && remainingDeck.length) state.grid[g] = [remainingDeck.pop()];
     state.deck = remainingDeck; state.gongOrder = line.slice();
-    updateStep(3); renderStep3(localInterpretation());
+    updateStep(3); renderStep3(await localInterpretation());
   });
 }
 export function resetStep2() {
@@ -228,6 +228,20 @@ export async function handleTestApiConnection() {
   } catch (e) { toast(`测试失败: ${e.message}`, 4000); } finally { if (btn) { btn.disabled = false; btn.textContent = UI_TEXTS.btnTestApi; } }
 }
 
+// 绑定左右滚动按钮功能
+function bindScrollButtons() {
+  const leftBtn = document.getElementById('scrollLeftBtn');
+  const rightBtn = document.getElementById('scrollRightBtn');
+  const deck = document.getElementById('deckContainer');
+  if (!leftBtn || !rightBtn || !deck) return;
+  leftBtn.addEventListener('click', () => {
+    deck.scrollBy({ left: -200, behavior: 'smooth' });
+  });
+  rightBtn.addEventListener('click', () => {
+    deck.scrollBy({ left: 200, behavior: 'smooth' });
+  });
+}
+
 // 启动初始化（已移除麦克风检测）
 function init() {
   try {
@@ -238,7 +252,9 @@ function init() {
     if (!hasCompletedOnboarding()) showOnboarding();
     injectAnimations();
     bindAll();
-    // 【已移除】import('./environment.js').then(env => env.initEnvironmentMonitor());
+    bindScrollButtons(); // 绑定滚动按钮
+    // 监听动态生成的 deck，每次渲染后重新绑定（但使用事件代理更佳，我们直接在点击时实时查找）
+    // 但为了安全，我们在 renderStep2 后也会调用，但此处先绑定一次。
   } catch (e) { 
     document.body.innerHTML = '<div style="color:#d45050;padding:40px;text-align:center;font-family:sans-serif;"><h2>浮生牌启动失败</h2><p>请检查浏览器控制台（F12）的错误信息，并确认所有文件已正确保存。</p><p style="font-size:0.8rem;">' + e.message + '</p></div>'; console.error(e); 
   }

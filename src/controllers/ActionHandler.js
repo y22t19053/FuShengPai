@@ -1,15 +1,12 @@
 // ===== src/controllers/ActionHandler.js · 动作调度中心 =====
 import { state, $, $$ } from '../state.js';
-// 从 ui.js 导入所需的核心业务函数
 import { 
   resetAll, startQuestion, startManualEntry, lazyStart, generateInterpretation, 
   confirmTiYong, resetGrid, resetStep2, triggerAI, sendFollowUp, 
   handleTestApiConnection, saveApiSettingsFromForm, saveProfileFromForm,
   copyLocalResult, checkEthicalBoundary
 } from '../ui.js';
-// 从各个 UI 模块导入界面控制函数
 import { togglePanel, toast, showDailyFortune, showHistoryDetail, generateShareCode, importShareCode, generateShareImage, saveShareImage, showPrivacyWarning } from '../ui/ui-modal.js';
-// 【关键修复】导入路径修正：updateApiStatus 位于 ui-render.js，而非 storage.js
 import { initSettingsPanel, initProfilePanel, renderHistoryPanel, refreshAll, updateApiStatus } from '../ui/ui-render.js';
 import { getApiSettings, clearApiSettings, exportAllData } from '../storage.js';
 import { UI_TEXTS } from '../texts/index.js';
@@ -42,7 +39,7 @@ export function handleAction(action, dataset) {
     case 'deleteHistoryItem': 
       if (dataset.historyIndex !== undefined) { 
         import('../storage.js').then(s => { s.deleteHistoryItem(parseInt(dataset.historyIndex)); renderHistoryPanel(); });
-        domModal.setAttribute('hidden', ''); 
+        document.getElementById('modal')?.setAttribute('hidden', ''); 
         toast('已删除'); 
       } 
       break;

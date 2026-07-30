@@ -51,7 +51,7 @@ export function placeCardOnTiYong(card, role) {
   return true;
 }
 
-// ---- 天机线相关函数（补齐） ----
+// ---- 天机线相关函数 ----
 export function checkLines() {
   const filled = Object.keys(state.grid).filter(g => state.grid[g] && state.grid[g].length > 0).map(Number);
   state.possible = ALL_LINES.filter(line => line.every(g => filled.includes(g)));
@@ -111,20 +111,20 @@ export function startPress(clientX, clientY, cardEl) {
   const id = cardEl.dataset.cardid; const card = findCardById(id);
   if (!card || isCardPlaced(card)) return;
   
-  if (isTouchDevice) {
-    selectCard(id);
-    return;
-  }
-
+  // 无论设备，点击即选中（移动端点选）
   selectCard(id);
-  isLongPress = false; clearTimeout(longPressTimer);
-  longPressTimer = setTimeout(() => {
-    isLongPress = true; ghostCard = cardEl.cloneNode(true);
-    ghostCard.style.position = 'fixed'; ghostCard.style.zIndex = 1000; ghostCard.style.pointerEvents = 'none';
-    ghostCard.style.opacity = '0.7'; ghostCard.style.width = cardEl.offsetWidth + 'px'; ghostCard.style.height = cardEl.offsetHeight + 'px';
-    document.body.appendChild(ghostCard);
-    if (navigator.vibrate) navigator.vibrate(10);
-  }, 250);
+  
+  // 对非触摸设备启用长按拖拽
+  if (!isTouchDevice) {
+    isLongPress = false; clearTimeout(longPressTimer);
+    longPressTimer = setTimeout(() => {
+      isLongPress = true; ghostCard = cardEl.cloneNode(true);
+      ghostCard.style.position = 'fixed'; ghostCard.style.zIndex = 1000; ghostCard.style.pointerEvents = 'none';
+      ghostCard.style.opacity = '0.7'; ghostCard.style.width = cardEl.offsetWidth + 'px'; ghostCard.style.height = cardEl.offsetHeight + 'px';
+      document.body.appendChild(ghostCard);
+      if (navigator.vibrate) navigator.vibrate(10);
+    }, 250);
+  }
 }
 
 export function moveDrag(clientX, clientY, e) {
