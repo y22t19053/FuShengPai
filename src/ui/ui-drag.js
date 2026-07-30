@@ -53,7 +53,6 @@ export function placeCardOnTiYong(card, role) {
 
 // ---- 天机线相关函数（补齐） ----
 export function checkLines() {
-  // 检查是否有天机线，并存储到 state.possible
   const filled = Object.keys(state.grid).filter(g => state.grid[g] && state.grid[g].length > 0).map(Number);
   state.possible = ALL_LINES.filter(line => line.every(g => filled.includes(g)));
   if (state.possible.length === 1) {
@@ -83,7 +82,6 @@ export function setLine(line) {
 }
 
 export function renderLineSelector(candidates) {
-  // 移除旧的选择器
   removeLineSelector();
   const container = document.createElement('div');
   container.id = 'lineSelector';
