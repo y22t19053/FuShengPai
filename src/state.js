@@ -17,7 +17,8 @@ export const state = {
   gongOrder: [],
   chatHistory: [],      
   selectedProvider: 'deepseek',
-  uid: 0,
+  // 【修复】将 uid 改为时间戳取模，防止每次重置带来的 ID 冲突
+  uid: Date.now() % 1000000,
   editCount: 0,
   currentOnboardStep: 0,
   refinementTags: {},
@@ -27,6 +28,3 @@ export const state = {
 
 export const $ = (sel) => document.querySelector(sel);
 export const $$ = (sel) => document.querySelectorAll(sel);
-
-// 注意：所有 DOM 节点引用已移入 domCache.js
-// 不再包含 domApp, domDynamic 等变量

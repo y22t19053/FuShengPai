@@ -1,8 +1,8 @@
 import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa'; // 需要执行 npm install vite-plugin-pwa -D
 
 export default defineConfig({
-  // 关键：告诉 Vite 你的项目在 GitHub Pages 子路径下！
-  base: '/FuShengPai/', 
+  base: '/FuShengPai/',
   root: '.',
   build: {
     outDir: 'dist',
@@ -10,12 +10,26 @@ export default defineConfig({
     assetsInlineLimit: 0,
   },
   resolve: {
-    alias: {
-      '@': '/src',
-    },
+    alias: { '@': '/src' },
   },
   server: {
     port: 3000,
     open: true,
   },
+  plugins: [
+    VitePWA({
+      registerType: 'autoUpdate',
+      devOptions: {
+        enabled: true // 开发环境也启用PWA
+      },
+      manifest: false, // 因为我们手动管理 sw.js
+      workbox: {
+        globDirectory: 'dist',
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        swDest: 'dist/sw.js',
+        clientsClaim: true,
+        skipWaiting: true,
+      },
+    })
+  ]
 });

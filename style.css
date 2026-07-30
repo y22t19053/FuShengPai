@@ -1,6 +1,4 @@
 /* ===== 浮生牌 · 暗夜金主题与全局样式 ===== */
-
-/* ---------------- 全局变量 ---------------- */
 :root {
   --bg: #14141e;
   --panel: #1b1b2a;
@@ -12,78 +10,77 @@
   --bad: #d45050;
   --gongMin: 22vw;
 }
-
-/* ---------------- 基础重置 ---------------- */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
   background: var(--bg);
   color: var(--text);
   font-family: Georgia, 'Songti SC', serif;
-  font-size: 16px;
-  line-height: 1.6;
-  height: 100%;
-  overflow-x: hidden;
-  /* 【修复 1】禁止 iOS 橡皮筋回弹效果，防止页面整体被拉离 */
-  overscroll-behavior: none;
+  font-size: 16px; line-height: 1.6; height: 100%;
+  overflow-x: hidden; overscroll-behavior: none;
 }
 body { padding: 0 0 2vh; }
 
 /* ---------------- 滚动条与触摸区 ---------------- */
-/* 【修复 2】确保所有交互元素的最小触摸区域符合 44px 铁律 */
 button, .card-back, .card-face-small, .gong, .empty-dash {
-  min-height: 44px;
-  min-width: 44px;
-  touch-action: manipulation; /* 禁止双击缩放干扰 */
+  min-height: 44px; min-width: 44px; touch-action: manipulation;
 }
 button:focus-visible, input:focus-visible, select:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 2px solid var(--accent); outline-offset: 2px;
 }
-
 ::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 4px; }
 
 /* ---------------- 应用容器 ---------------- */
 #appRoot { max-width: 600px; margin: 0 auto; padding: 12px 8px; }
 
-/* ---------------- 面板 ---------------- */
+/* ---------------- 核心网格布局 ---------------- */
+/* 默认移动端单列 */
+#dynamicPanels { display: flex; flex-direction: column; gap: 12px; }
+
+/* 大屏三栏布局 */
+@media (min-width: 1200px) {
+  #appRoot { max-width: 1400px; }
+  #dynamicPanels {
+    display: grid;
+    grid-template-columns: 300px 1fr 400px;
+    gap: 24px;
+    align-items: start;
+  }
+  #tiyongArea { 
+    position: sticky; top: 20px; 
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+  }
+  #resultArea { 
+    position: sticky; top: 20px; 
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+  }
+  .gong { min-height: 80px; } /* 大屏九宫格放大 */
+}
+
+/* ---------------- 面板样式 ---------------- */
 .panel {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 12px;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px; margin-bottom: 12px;
 }
 .panel h3 { color: var(--accent); margin-bottom: 8px; font-weight: normal; }
 .guide-tip { color: var(--dim); font-size: 0.8rem; margin-bottom: 12px; text-align: center; }
 
-/* ---------------- 静态控制区 ---------------- */
 .static-panel[hidden] { display: none; }
 .top-btns { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 12px; }
 .top-btns button { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--dim); font-size: 0.8rem; cursor: pointer; transition: 0.2s; }
 .top-btns button:hover { border-color: var(--accent); color: var(--text); }
 
-/* ---------------- 步骤条 ---------------- */
 .step-row { display: flex; justify-content: center; gap: 4px; padding: 12px 0; }
-.step-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--border); transition: 0.3s;
-}
+.step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: 0.3s; }
 .step-dot.active { background: var(--accent); box-shadow: 0 0 8px rgba(201,160,96,0.3); }
 .step-dot.done { background: var(--good); }
 
 /* ---------------- 九宫格 ---------------- */
-.grid-9 {
-  display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 8px; aspect-ratio: 1; max-width: 400px; margin: 12px auto;
-}
+.grid-9 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; aspect-ratio: 1; max-width: 400px; margin: 12px auto; }
 .gong {
-  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
-  border-radius: 8px; display: flex; flex-direction: column; align-items: center;
-  justify-content: center; position: relative; padding: 4px;
-  cursor: pointer; transition: 0.2s;
-  min-height: 50px; /* 保证 44px */
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative; padding: 4px; cursor: pointer; transition: 0.2s; min-height: 50px;
 }
 .gong .num { font-size: 0.6rem; color: var(--dim); position: absolute; top: 4px; left: 6px; }
 .gong .name { font-size: 0.7rem; font-weight: bold; color: var(--text); }
@@ -94,24 +91,13 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .gong .time-tag { position: absolute; bottom: 2px; right: 4px; font-size: 0.45rem; color: var(--good); }
 .card-stack { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; }
 
-/* ---------------- 牌组（横排滚动） ---------------- */
-.deck-grid {
-  display: flex; flex-wrap: nowrap; gap: 8px;
-  overflow-x: auto; overflow-y: hidden;
-  padding: 8px 12px; margin: 8px 0;
-  border: 1px dashed var(--border); border-radius: 8px;
-  /* 【修复 3】强制水平触摸，阻止上下滚动穿透 */
-  touch-action: pan-x; 
-  scrollbar-width: none; -ms-overflow-style: none;
-}
+/* ---------------- 牌组 ---------------- */
+.deck-grid { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; overflow-y: hidden; padding: 8px 12px; margin: 8px 0; border: 1px dashed var(--border); border-radius: 8px; touch-action: pan-x; scrollbar-width: none; }
 .deck-grid::-webkit-scrollbar { display: none; }
-
 .card-back, .card-face-small {
-  flex-shrink: 0; width: 56px; height: 80px;
-  border-radius: 6px; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; background: #1a1a2a;
-  border: 1px solid var(--border); cursor: pointer; transition: 0.2s;
-  position: relative; user-select: none;
+  flex-shrink: 0; width: 56px; height: 80px; border-radius: 6px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: #1a1a2a; border: 1px solid var(--border); cursor: pointer; transition: 0.2s; user-select: none; position: relative;
 }
 .card-back { background: repeating-linear-gradient(45deg, #22223a, #22223a 6px, #1a1a2a 6px, #1a1a2a 12px); }
 .card-back.selected { border-color: var(--accent); box-shadow: 0 0 12px rgba(201,160,96,0.2); transform: translateY(-4px); }
@@ -125,23 +111,17 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .tiyong-bar { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 6px 0; }
 .tiyong-bar .slot { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--dim); }
 .tiyong-bar .separator { color: var(--accent); font-size: 1.2rem; }
-.mini-card {
-  width: 36px; height: 50px; border-radius: 4px; border: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: center; font-size: 1rem; font-weight: bold;
-  background: #1a1a2a; color: var(--text);
-}
+.mini-card { width: 36px; height: 50px; border-radius: 4px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 1rem; font-weight: bold; background: #1a1a2a; color: var(--text); }
 .empty-dash { border: 1px dashed var(--border); color: var(--dim); font-size: 0.7rem; padding: 0 6px; cursor: pointer; }
 .relation-badge { padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; border: 1px solid var(--border); }
 .relation-badge.good { border-color: var(--good); color: var(--good); }
 .relation-badge.bad { border-color: var(--bad); color: var(--bad); }
 
-/* ---------------- 按钮通用 ---------------- */
+/* ---------------- 按钮 ---------------- */
 .btn-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 8px 0; }
 button {
-  padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border);
-  background: transparent; color: var(--dim); font-size: 0.75rem;
-  cursor: pointer; transition: 0.2s; font-family: inherit;
-  min-height: 44px; /* 【修复 4】硬性满足 44px 铁律 */
+  padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: transparent;
+  color: var(--dim); font-size: 0.75rem; cursor: pointer; transition: 0.2s; font-family: inherit; min-height: 44px;
 }
 button:hover { border-color: var(--accent); color: var(--text); }
 button.primary { background: var(--accent); border-color: var(--accent); color: #14141e; }
@@ -154,7 +134,6 @@ button.small { font-size: 0.65rem; padding: 4px 10px; }
 /* ---------------- 类别网格 ---------------- */
 .category-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 10px 0; }
 .category-grid button { padding: 4px 0; font-size: 0.7rem; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--dim); cursor: pointer; transition: 0.2s; }
-.category-grid button:hover { border-color: var(--accent); color: var(--text); }
 .category-grid button.selected { border-color: var(--accent); color: var(--accent); background: rgba(201,160,96,0.05); }
 
 /* ---------------- Toast / 弹窗 ---------------- */
@@ -163,29 +142,31 @@ button.small { font-size: 0.65rem; padding: 4px 10px; }
 #modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 800; backdrop-filter: blur(2px); }
 #modal[hidden] { display: none; }
 #modalContent { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; max-width: 400px; width: 90%; max-height: 80vh; overflow-y: auto; }
-
-/* ---------------- 分享图预览 ---------------- */
 #sharePreview { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 12px; z-index: 850; }
 #sharePreview[hidden] { display: none; }
 #shareCanvas { display: block; margin: 0 auto; max-width: 90vw; border-radius: 4px; }
-#sharePreview .btn-row { margin-top: 8px; }
 
-/* ---------------- 新手引导蒙层 ---------------- */
+/* ---------------- 环境感知提醒 ---------------- */
+#envNoiseWarning {
+  position: fixed; top: 0; left: 0; width: 100%; background: rgba(201,160,96,0.15);
+  backdrop-filter: blur(4px); color: var(--accent); text-align: center;
+  font-size: 0.75rem; padding: 6px 0; z-index: 9999; transform: translateY(-100%);
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+#envNoiseWarning.visible { transform: translateY(0); }
+
 .onboard-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 999; backdrop-filter: blur(4px); }
 .onboard-card { background: var(--panel); border: 1px solid var(--accent); border-radius: 16px; padding: 24px; max-width: 360px; width: 90%; text-align: center; }
 .onboard-card h3 { color: var(--accent); margin-bottom: 8px; }
-.onboard-card p { color: var(--text); font-size: 0.9rem; line-height: 1.6; margin-bottom: 12px; }
 .onboard-dots { display: flex; justify-content: center; gap: 6px; margin: 12px 0; }
 .onboard-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); }
 .onboard-dot.active { background: var(--accent); }
 
-/* ---------------- AI 解读区 ---------------- */
 #aiResultContainer { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
 .chat-msg { padding: 6px 10px; margin-bottom: 4px; border-radius: 6px; font-size: 0.8rem; line-height: 1.5; }
 .chat-msg.user { background: rgba(201,160,96,0.1); color: var(--accent); }
 .chat-msg.ai { background: rgba(255,255,255,0.03); color: var(--text); }
 
-/* ---------------- 动画 ---------------- */
 @keyframes cardAppear {
   0% { opacity: 0; transform: scale(0.8); }
   100% { opacity: 1; transform: scale(1); }
@@ -197,7 +178,5 @@ button.small { font-size: 0.65rem; padding: 4px 10px; }
 }
 .shuffling { animation: shuffling 0.4s ease-in-out 3; }
 
-/* ---------------- 导入区 ---------------- */
 .import-row { display: flex; gap: 6px; margin: 8px 0; }
 .import-row input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 20px; padding: 6px 12px; color: var(--text); font-family: inherit; font-size: 0.75rem; min-height: 44px; }
-.import-row button { font-size: 0.65rem; }

@@ -1,5 +1,4 @@
 // ===== src/ui/ui-modal.js · 弹窗、Toast、引导与分享 =====
-// 【核心修复】修正 DOM 节点的导入路径，剥离掉 state.js 的旧引用
 import { state, $, $$ } from '../state.js';
 import { domToast, domModal, domModalContent, domSharePreview, domShareCanvas } from '../domCache.js';
 import { SUITS, RANKS, API_PROVIDERS, getWuxing, getCardColor } from '../data.js';
@@ -47,7 +46,6 @@ export function guardMidnight(callback) {
   const h = now.getHours();
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const timeStr = now.toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
-  
   if ((h >= 23 || h < 1) && !localStorage.getItem('fs_midnight_dismiss')) {
     if (!domModal || !domModalContent) { callback(); return; }
     domModalContent.innerHTML = `
@@ -65,6 +63,9 @@ export function guardMidnight(callback) {
 }
 
 export function showPrivacyWarning() {
+  const today = new Date().toDateString();
+  if (localStorage.getItem('fs_privacy_dismiss_today') === today) return;
+
   if (!domModal || !domModalContent) return;
   domModalContent.innerHTML = `
     <div style="text-align:center;">
@@ -84,6 +85,7 @@ export function showPrivacyWarning() {
     domModal.setAttribute('hidden', '');
   });
   document.getElementById('dismissPrivacyBtn')?.addEventListener('click', () => {
+    localStorage.setItem('fs_privacy_dismiss_today', today);
     domModal.setAttribute('hidden', '');
   });
 }
@@ -129,7 +131,80 @@ export function showDailyFortune() {
   });
 }
 
-export function showHistoryDetail(index) { /* 保持原有逻辑 */ }
+// ================================================================
+// 【更新】历史详情弹窗（支持重新观测）
+// ================================================================
+export function showHistoryDetail(index) {
+  const history = getHistory(); const r = history[index]; if (!r) return;
+  const savedLocalText = r.text || '';
+  const buildHistoricalPrompt = (historyRecord, question) => { return `请根据以下浮生牌局象进行详细解读。\n\n历史牌局解读：${historyRecord.text}\n\n用户追问：${question}\n\n规则：纯文本格式，用自然语言。话不说死。`; };
+  let aiBlock = '';
+  if (r.chatHistory && r.chatHistory.length) { aiBlock = '<div class="result-block" style="max-height:150px;margin-top:10px">' + r.chatHistory.map(m => `<div class="chat-msg ${m.role === 'user' ? 'user' : 'ai'}">${m.content.replace(/\n/g, '<br>')}</div>`).join('') + '</div>'; } 
+  else { aiBlock = '<p style="color:var(--dim)">暂无 AI 对话记录</p>'; }
+  
+  domModalContent.innerHTML = `<h3>历史详情</h3>
+    <p><strong>时间：</strong>${new Date(r.time).toLocaleString()}</p>
+    <p><strong>问题：</strong>${r.question || '未提问'}</p>
+    <p><strong>类别：</strong>${r.category || '无'}</p>
+    <div class="result-block">${(r.text || '').replace(/\n/g, '<br>')}</div>
+    <h4 style="margin-top:10px">AI 对话</h4>${aiBlock}
+    <div style="margin-top:10px;display:flex;gap:8px">
+      <input type="text" id="historyFollowUpInput" placeholder="${UI_TEXTS.placeholderFollowUp}" style="flex:1">
+      <button id="historyFollowUpBtn" class="small">发送</button>
+    </div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button data-action="deleteHistoryItem" data-history-index="${index}" class="outline small">删除此条</button>
+      <!-- 【新增】重新观测按钮 -->
+      <button id="reObserveBtn" class="primary small">重新观测</button>
+      <button data-action="closeModal" class="small">${UI_TEXTS.btnClose}</button>
+    </div>
+  `;
+  domModal.removeAttribute('hidden');
+
+  // 【新增】重新观测逻辑
+  document.getElementById('reObserveBtn')?.addEventListener('click', () => {
+    import('../ui.js').then(ui => {
+      // 将历史记录的状态恢复到 state
+      Object.assign(state, {
+        ti: r.ti,
+        yong: r.yong,
+        grid: r.grid,
+        line: r.line,
+        lineOrder: r.lineOrder,
+        chatHistory: [], // 重置 AI 对话
+        step: 3,
+        question: r.question,
+        category: r.category
+      });
+      domModal.setAttribute('hidden', '');
+      ui.updateStep(3);
+      // 重新渲染解读
+      import('../ui/ui-render.js').then(render => {
+        render.renderStep3(r.text || '历史牌局已加载，重新生成解读中...');
+        ui.generateInterpretation();
+      });
+      toast('已加载历史牌局，可重新观测');
+    });
+  });
+
+  // 原有追问逻辑（保持原样）
+  const followInput = $('#historyFollowUpInput'); const followBtn = $('#historyFollowUpBtn');
+  if (followBtn && followInput) {
+    const handler = async () => {
+      const q = followInput.value.trim(); if (!q) return; followInput.value = ''; followBtn.disabled = true; followBtn.textContent = '发送中...';
+      const settings = getApiSettings(); if (!settings || !settings.apiKey) { toast('请先配置 API Key'); followBtn.disabled = false; followBtn.textContent = '发送'; return; }
+      const chatHistory = r.chatHistory ? [...r.chatHistory] : []; chatHistory.push({ role: 'user', content: q });
+      const prompt = buildHistoricalPrompt(r, q);
+      try {
+        const answer = await requestFollowUp({ history: [{ role: 'user', content: prompt }, ...chatHistory], provider: settings.provider, apiKey: settings.apiKey, endpoint: settings.endpoint, model: settings.model });
+        chatHistory.push({ role: 'assistant', content: answer }); r.chatHistory = chatHistory;
+        const allHistory = getHistory(); allHistory[index] = r; localStorage.setItem('fs_history', JSON.stringify(allHistory)); showHistoryDetail(index);
+      } catch (e) { toast(e.message, 3000); } finally { followBtn.disabled = false; followBtn.textContent = '发送'; }
+    };
+    followBtn.addEventListener('click', handler); followInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handler(); });
+  }
+}
+
 export function generateShareCode() { /* 保持原有逻辑 */ }
 export function importShareCode() { /* 保持原有逻辑 */ }
 export function generateShareImage() { /* 保持原有逻辑 */ }

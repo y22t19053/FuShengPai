@@ -1,117 +1,42 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>浮生牌 · 观测者的镜子</title>
-  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-  <link rel="stylesheet" href="/style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+  <title>浮生牌</title>
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <div class="app" id="appRoot">
+  <div id="appRoot">
+    <!-- 顶部导航 -->
+    <div class="top-nav"></div>
+    <!-- 步骤条 -->
+    <div class="step-row" id="stepRow">
+      <div id="sd1" class="step-dot"></div>
+      <div id="sd2" class="step-dot"></div>
+      <div id="sd3" class="step-dot"></div>
+    </div>
 
-    <!-- 头部导航 -->
-    <div class="header">
-      <div class="logo">浮生牌</div>
-      <div class="top-btns">
-        <button data-action="togglePanel" data-panel="teaching">教程</button>
-        <button data-action="togglePanel" data-panel="rules">规则</button>
-        <button data-action="togglePanel" data-panel="settings">AI</button>
-        <button data-action="togglePanel" data-panel="profile">个人</button>
-        <button data-action="togglePanel" data-panel="history">历史</button>
-        <button data-action="resetAll">重开</button>
+    <!-- 主容器：三栏布局的结构基底 -->
+    <div id="dynamicPanels" class="main-grid">
+      <!-- 栏 1：体用信息区（在大屏时固定显示在左侧） -->
+      <div id="tiyongArea" class="grid-col">
+        <div class="tiyong-bar" id="tiyongBar"></div>
       </div>
-    </div>
-
-    <!-- 步骤指示器 -->
-    <div class="step-bar" id="stepBar">
-      <span class="step-dot active" id="sd1">起念</span>
-      <span class="step-dot" id="sd2">立极</span>
-      <span class="step-dot" id="sd3">观象</span>
-    </div>
-
-    <!-- 动态主面板 -->
-    <div id="dynamicPanels"></div>
-
-    <!-- 教程面板 -->
-    <div class="panel static-panel" id="panelTeaching" hidden>
-      <h3>新手教程</h3>
-      <div id="teachingContent"></div>
-    </div>
-
-    <!-- 规则速查面板 -->
-    <div class="panel static-panel" id="panelRules" hidden>
-      <h3>规则速查</h3>
-      <p>♥火 ♦金 ♣木 ♠水 | J/Q/K土 | 大王天(阳) 小王人(阴)<br />生我大吉 克我大凶 同我平 我生小凶 我克小吉</p>
-    </div>
-
-    <!-- AI 设置面板 -->
-    <div class="panel static-panel" id="panelSettings" hidden>
-      <h3>AI设置</h3>
-      <p class="hint">填入API Key后可使用AI深度解读。Key仅存本地。</p>
-      <div class="api-provider-grid" id="providerGrid">
-        <button data-value="deepseek" class="selected">DeepSeek</button>
-        <button data-value="qwen">千问</button>
-        <button data-value="openai">OpenAI</button>
-        <button data-value="claude">Claude</button>
-        <button data-value="gemini">Gemini</button>
-        <button data-value="kimi">Kimi</button>
-        <button data-value="zhipu">智谱</button>
-        <button data-value="custom">自定义</button>
+      <!-- 栏 2：核心交互区（九宫格和牌堆） -->
+      <div id="coreArea" class="grid-col">
+        <!-- 动态内容由 ui-render 注入 -->
       </div>
-      <input type="password" id="apiKey" placeholder="API Key" />
-      <input type="text" id="apiEndpoint" placeholder="API地址（自动填充）" />
-      <select id="aiStyle">
-        <option value="guide">温和引导者</option>
-        <option value="analyst">冷静分析师</option>
-        <option value="sharp">犀利直言者</option>
-      </select>
-      <div class="btn-row">
-        <button data-action="saveApiSettings" class="primary small">保存</button>
-        <button data-action="testApiConnection" class="outline small">测试连接</button>
-        <button data-action="clearApiSettings" class="outline small">清除</button>
-      </div>
-      <span id="apiStatus">未配置</span>
-      <p class="hint" style="margin-top:1vh;font-size:0.7rem;">数据流向：你的问题从浏览器直接发送到所选AI服务商，浮生牌不经过任何中转服务器。</p>
+      <!-- 栏 3：解读与结果区（大屏时固定在右侧） -->
+      <div id="resultArea" class="grid-col"></div>
     </div>
-
-    <!-- 个人信息面板 -->
-    <div class="panel static-panel" id="panelProfile" hidden>
-      <h3>个人信息</h3>
-      <p class="hint">填写出生日期，系统将自动换算四柱，用于解读参考。出生时间可选填。</p>
-      <label>出生日期（公历）</label>
-      <input type="date" id="birthDate" />
-      <label>出生时间（可选）</label>
-      <input type="time" id="birthTime" />
-      <p class="hint" id="baziPreview" style="margin-top:1vh;color:var(--accent);"></p>
-      <button data-action="saveProfile" class="primary small">保存</button>
-    </div>
-
-    <!-- 历史记录面板 -->
-    <div class="panel static-panel" id="panelHistory" hidden>
-      <h3>历史记录</h3>
-      <div id="historyList"></div>
-    </div>
-
-    <!-- 通用模态框 -->
-    <div class="modal" id="modal" hidden>
-      <div class="modal-content" id="modalContent"></div>
-    </div>
-
-    <!-- 分享图预览层 -->
-    <div class="share-image-preview" id="sharePreview" hidden>
-      <canvas id="shareCanvas"></canvas>
-      <div class="share-actions">
-        <button data-action="saveShareImage" class="small primary">保存到相册</button>
-        <button data-action="closeShare" class="outline small">关闭</button>
-      </div>
-    </div>
-
-    <!-- Toast 轻提示 -->
-    <div class="toast" id="toast" hidden></div>
-
   </div>
 
+  <!-- 全局组件 -->
+  <div id="toast" hidden></div>
+  <div id="modal" hidden><div id="modalContent"></div></div>
+  <div id="sharePreview" hidden><canvas id="shareCanvas"></canvas><div class="btn-row"><button data-action="saveShareImage">保存</button><button data-action="closeShare">关闭</button></div></div>
+  
   <script type="module" src="/src/ui.js"></script>
 </body>
 </html>
