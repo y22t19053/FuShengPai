@@ -1,5 +1,4 @@
 // ===== src/ui.js · 业务主控中心 =====
-// 本次重构：引入 domCache 分离 DOM，增加 AI 降级，增加危险操作确认
 import { state, $, $$ } from './state.js';
 import { cacheDom } from './domCache.js';
 import { injectAnimations } from './ui/ui-anim.js';
@@ -109,7 +108,6 @@ function generateInterpretation() { /* 保持原有逻辑 */ }
 function buildAIPrompt() { /* 保持原有逻辑 */ }
 
 export function resetAll() {
-  // 【修复】危险操作二次确认
   if (!confirm('此阵一散，当下映照便消逝，确要重来吗？')) return;
   Object.assign(state, { question: '', category: '', deck: [], ti: null, yong: null, grid: {}, line: null, lineOrder: {}, step: 1, sel: null, possible: [], manualMode: false, gongOrder: [], chatHistory: [], uid: 0, editCount: 0, refinementTags: {}, intent: null });
   updateStep(1); renderStep1(); toast(UI_TEXTS.toastReset);
@@ -128,9 +126,6 @@ function saveApiSettingsFromForm() { /* 保持原有逻辑 */ }
 function saveProfileFromForm() { /* 保持原有逻辑 */ }
 function checkEthicalBoundary(question) { /* 保持原有逻辑 */ }
 
-// ================================================================
-// 【核心修复】AI 调用与降级机制
-// ================================================================
 async function triggerAI() {
   const btn = $('#aiReadBtn'); if (!btn) return; btn.disabled = true; btn.textContent = '思考中...';
   const settings = getApiSettings(); if (!settings || !settings.apiKey) { toast('请先配置 API Key'); btn.disabled = false; btn.textContent = UI_TEXTS.btnAIDeepRead; return; }
@@ -150,7 +145,6 @@ async function triggerAI() {
   } catch (e) {
     const container = $('#aiResultContainer'); if (container) container.style.display = 'block';
     const content = $('#aiResultContent');
-    // 【修复】AI 失败时强制降级到规则引擎
     const fallbackText = localInterpretation();
     if (content) content.innerHTML = `
       <div style="color:#c9a060;border:1px solid #c9a060;padding:8px;border-radius:6px;margin-bottom:8px;font-size:0.8rem;">
@@ -166,7 +160,7 @@ async function sendFollowUp() { /* 保持原有逻辑 */ }
 async function handleTestApiConnection() { /* 保持原有逻辑 */ }
 
 // ================================================================
-// 全局事件监听（点击、触摸、键盘）
+// 全局事件监听
 // ================================================================
 
 document.addEventListener('click', function(e) {
@@ -229,7 +223,6 @@ document.addEventListener('click', function(e) {
   if (e.target === modalEl && modalEl) modalEl.setAttribute('hidden', '');
 });
 
-// 【新增】键盘辅助 ESC 关闭模态框
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') {
     const modal = document.getElementById('modal');
@@ -246,14 +239,12 @@ document.addEventListener('keydown', function(e) {
 // ================================================================
 function init() {
   try {
-    cacheDom(); // 解耦后，统一从这里初始化 DOM
-    // 隐私模式检测 (防止 localStorage 被清空)
+    cacheDom();
     try {
       const testKey = '__fs_test__';
       localStorage.setItem(testKey, '1');
       localStorage.removeItem(testKey);
     } catch (e) {
-      // 触发弹窗
       showPrivacyWarning();
     }
     

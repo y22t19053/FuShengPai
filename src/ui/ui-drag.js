@@ -5,7 +5,6 @@ import { UI_TEXTS } from '../texts/index.js';
 import { toast } from './ui-modal.js';
 import { refreshAll } from './ui-render.js';
 
-// 【核心修复】检测是否为纯触控设备（移动端）
 const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
 
 export function selectCard(cardId) {
@@ -61,13 +60,11 @@ export function startPress(clientX, clientY, cardEl) {
   const id = cardEl.dataset.cardid; const card = findCardById(id);
   if (!card || isCardPlaced(card)) return;
   
-  // 【核心修复】移动端仅触发点选，不触发拖拽
   if (isTouchDevice) {
     selectCard(id);
     return;
   }
 
-  // 桌面端逻辑：保持长按拖拽
   selectCard(id);
   isLongPress = false; clearTimeout(longPressTimer);
   longPressTimer = setTimeout(() => {
@@ -80,7 +77,7 @@ export function startPress(clientX, clientY, cardEl) {
 }
 
 export function moveDrag(clientX, clientY, e) {
-  if (isTouchDevice) return; // 移动端不处理拖拽移动
+  if (isTouchDevice) return;
   
   if (isLongPress && ghostCard) {
     if (e && e.preventDefault) e.preventDefault();
