@@ -1,7 +1,7 @@
 // ===== src/ui/ui-drag.js · 长按、拖拽与放牌逻辑 =====
 import { state, $, $$ } from '../state.js';
 import { ALL_LINES, TIME_LABELS, GONG_NAMES, getCardId } from '../data.js';
-import { calcDiff } from '../engine.js';  // 【修复】补全缺失的导入
+import { calcDiff } from '../engine.js';
 import { UI_TEXTS } from '../texts/index.js';
 import { toast } from './ui-modal.js';
 import { refreshAll } from './ui-render.js';
@@ -33,7 +33,6 @@ export function placeCardOnGong(card, gong) {
   state.deck = state.deck.filter(c => getCardId(c) !== getCardId(card));
   if (!state.gongOrder.includes(gong)) state.gongOrder.push(gong);
   state.sel = null; refreshAll(); checkLines();
-  // 显示差值浮层
   const diff = calcDiff(gong, card);
   const gongName = GONG_NAMES[gong];
   const cardName = card.isJoker ? card.type : card.suit + card.rank;
@@ -52,11 +51,60 @@ export function placeCardOnTiYong(card, role) {
   return true;
 }
 
-export function checkLines() { /* 保持原有逻辑，此处省略（可由原文件补全） */ }
-export function setLine(line) { /* 保持不变 */ }
-export function renderLineSelector(candidates) { /* 保持不变 */ }
-export function removeLineSelector() { /* 保持不变 */ }
+// ---- 天机线相关函数（补齐） ----
+export function checkLines() {
+  // 检查是否有天机线，并存储到 state.possible
+  const filled = Object.keys(state.grid).filter(g => state.grid[g] && state.grid[g].length > 0).map(Number);
+  state.possible = ALL_LINES.filter(line => line.every(g => filled.includes(g)));
+  if (state.possible.length === 1) {
+    setLine(state.possible[0]);
+  } else if (state.possible.length > 1) {
+    renderLineSelector(state.possible);
+  } else {
+    removeLineSelector();
+  }
+}
 
+export function setLine(line) {
+  state.line = line;
+  const key = line.join(',');
+  const tl = TIME_LABELS[key] || {};
+  state.lineOrder = {};
+  state.lineOrder[line[0]] = '起因';
+  state.lineOrder[line[1]] = '经过';
+  state.lineOrder[line[2]] = '结果';
+  for (let g = 1; g <= 9; g++) {
+    if (!state.lineOrder[g]) state.lineOrder[g] = tl[g] || '';
+  }
+  state.possible = [];
+  removeLineSelector();
+  refreshAll();
+  toast(UI_TEXTS.toastLineConfirmed);
+}
+
+export function renderLineSelector(candidates) {
+  // 移除旧的选择器
+  removeLineSelector();
+  const container = document.createElement('div');
+  container.id = 'lineSelector';
+  container.style.cssText = 'display:flex; gap:10px; justify-content:center; margin:10px 0; flex-wrap:wrap;';
+  candidates.forEach(line => {
+    const btn = document.createElement('button');
+    btn.className = 'line-btn small outline';
+    btn.dataset.line = line.join(',');
+    btn.textContent = `天机线：${line.map(g => GONG_NAMES[g]).join('→')}`;
+    container.appendChild(btn);
+  });
+  const gridArea = document.getElementById('gridArea');
+  if (gridArea) gridArea.appendChild(container);
+}
+
+export function removeLineSelector() {
+  const existing = document.getElementById('lineSelector');
+  if (existing) existing.remove();
+}
+
+// ---- 拖拽逻辑 ----
 let longPressTimer = null; let isLongPress = false; let ghostCard = null;
 let touchDragX = 0, touchDragY = 0; let mouseDragX = 0, mouseDragY = 0;
 
