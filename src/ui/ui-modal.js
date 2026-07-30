@@ -3,7 +3,8 @@ import { state, $, $$ } from '../state.js';
 import { domToast, domModal, domModalContent, domSharePreview, domShareCanvas } from '../domCache.js';
 import { SUITS, RANKS, API_PROVIDERS, getWuxing, getCardColor } from '../data.js';
 import { requestReading } from '../ai.js';
-import { getApiSettings, getProfile, getHistory, deleteHistoryItem, exportAllData } from '../storage.js';
+// 【关键修复】补全了缺失的 hasCompletedOnboarding 和 completeOnboarding 导出
+import { getApiSettings, getProfile, getHistory, deleteHistoryItem, exportAllData, hasCompletedOnboarding, completeOnboarding } from '../storage.js';
 import { UI_TEXTS, SHARE_TEXTS, SHARE_QUOTES, TIME_RESTRICTION, ONBOARDING_STEPS, SIGN_LIBRARY } from '../texts/index.js';
 
 export let toastTimer = null;
@@ -131,9 +132,6 @@ export function showDailyFortune() {
   });
 }
 
-// ================================================================
-// 【更新】历史详情弹窗（支持重新观测）
-// ================================================================
 export function showHistoryDetail(index) {
   const history = getHistory(); const r = history[index]; if (!r) return;
   const savedLocalText = r.text || '';
@@ -154,31 +152,27 @@ export function showHistoryDetail(index) {
     </div>
     <div class="btn-row" style="margin-top:10px;">
       <button data-action="deleteHistoryItem" data-history-index="${index}" class="outline small">删除此条</button>
-      <!-- 【新增】重新观测按钮 -->
       <button id="reObserveBtn" class="primary small">重新观测</button>
       <button data-action="closeModal" class="small">${UI_TEXTS.btnClose}</button>
     </div>
   `;
   domModal.removeAttribute('hidden');
 
-  // 【新增】重新观测逻辑
   document.getElementById('reObserveBtn')?.addEventListener('click', () => {
     import('../ui.js').then(ui => {
-      // 将历史记录的状态恢复到 state
       Object.assign(state, {
         ti: r.ti,
         yong: r.yong,
         grid: r.grid,
         line: r.line,
         lineOrder: r.lineOrder,
-        chatHistory: [], // 重置 AI 对话
+        chatHistory: [],
         step: 3,
         question: r.question,
         category: r.category
       });
       domModal.setAttribute('hidden', '');
       ui.updateStep(3);
-      // 重新渲染解读
       import('../ui/ui-render.js').then(render => {
         render.renderStep3(r.text || '历史牌局已加载，重新生成解读中...');
         ui.generateInterpretation();
@@ -187,7 +181,6 @@ export function showHistoryDetail(index) {
     });
   });
 
-  // 原有追问逻辑（保持原样）
   const followInput = $('#historyFollowUpInput'); const followBtn = $('#historyFollowUpBtn');
   if (followBtn && followInput) {
     const handler = async () => {
