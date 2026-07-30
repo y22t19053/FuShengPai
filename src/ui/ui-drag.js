@@ -5,6 +5,9 @@ import { UI_TEXTS } from '../texts/index.js';
 import { toast } from './ui-modal.js';
 import { refreshAll } from './ui-render.js';
 
+// 【核心修复】检测是否为纯触控设备（移动端）
+const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
+
 export function selectCard(cardId) {
   if (!cardId) return;
   if (state.sel === cardId) { state.sel = null; refreshAll(); return; }
@@ -57,6 +60,14 @@ export function startPress(clientX, clientY, cardEl) {
   if (!cardEl) return;
   const id = cardEl.dataset.cardid; const card = findCardById(id);
   if (!card || isCardPlaced(card)) return;
+  
+  // 【核心修复】移动端仅触发点选，不触发拖拽
+  if (isTouchDevice) {
+    selectCard(id);
+    return;
+  }
+
+  // 桌面端逻辑：保持长按拖拽
   selectCard(id);
   isLongPress = false; clearTimeout(longPressTimer);
   longPressTimer = setTimeout(() => {
@@ -69,6 +80,8 @@ export function startPress(clientX, clientY, cardEl) {
 }
 
 export function moveDrag(clientX, clientY, e) {
+  if (isTouchDevice) return; // 移动端不处理拖拽移动
+  
   if (isLongPress && ghostCard) {
     if (e && e.preventDefault) e.preventDefault();
     ghostCard.style.left = (clientX - ghostCard.offsetWidth / 2) + 'px';
@@ -90,6 +103,12 @@ export function moveDrag(clientX, clientY, e) {
 
 export function endDrag(clientX, clientY) {
   clearTimeout(longPressTimer);
+  if (isTouchDevice) {
+    if (ghostCard) ghostCard.remove();
+    isLongPress = false; ghostCard = null;
+    return;
+  }
+  
   if (isLongPress && ghostCard) {
     const dropTarget = document.elementFromPoint(clientX, clientY);
     ghostCard.remove(); ghostCard = null;
