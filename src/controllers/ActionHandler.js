@@ -9,8 +9,9 @@ import {
 } from '../ui.js';
 // 从各个 UI 模块导入界面控制函数
 import { togglePanel, toast, showDailyFortune, showHistoryDetail, generateShareCode, importShareCode, generateShareImage, saveShareImage, showPrivacyWarning } from '../ui/ui-modal.js';
-import { initSettingsPanel, initProfilePanel, renderHistoryPanel, refreshAll } from '../ui/ui-render.js';
-import { getApiSettings, clearApiSettings, updateApiStatus, exportAllData } from '../storage.js';
+// 【关键修复】导入路径修正：updateApiStatus 位于 ui-render.js，而非 storage.js
+import { initSettingsPanel, initProfilePanel, renderHistoryPanel, refreshAll, updateApiStatus } from '../ui/ui-render.js';
+import { getApiSettings, clearApiSettings, exportAllData } from '../storage.js';
 import { UI_TEXTS } from '../texts/index.js';
 
 export function handleAction(action, dataset) {
