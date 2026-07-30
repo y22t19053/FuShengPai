@@ -3,7 +3,7 @@ import { state, $, $$ } from '../state.js';
 import { domToast, domModal, domModalContent, domSharePreview, domShareCanvas } from '../domCache.js';
 import { SUITS, RANKS, API_PROVIDERS, getWuxing, getCardColor } from '../data.js';
 import { requestReading } from '../ai.js';
-// 【关键修复】补全了缺失的 hasCompletedOnboarding 和 completeOnboarding 导出
+// 【绝对修复】确认 hasCompletedOnboarding 和 completeOnboarding 在这里完整导入
 import { getApiSettings, getProfile, getHistory, deleteHistoryItem, exportAllData, hasCompletedOnboarding, completeOnboarding } from '../storage.js';
 import { UI_TEXTS, SHARE_TEXTS, SHARE_QUOTES, TIME_RESTRICTION, ONBOARDING_STEPS, SIGN_LIBRARY } from '../texts/index.js';
 
