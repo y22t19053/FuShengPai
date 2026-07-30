@@ -1,4 +1,4 @@
-// ===== src/state.js · 全局状态与 DOM 引用 =====
+// ===== src/state.js · 仅包含全局业务数据和 DOM 快捷查询 =====
 import { getCardId } from './data.js';
 
 export const state = {
@@ -28,14 +28,5 @@ export const state = {
 export const $ = (sel) => document.querySelector(sel);
 export const $$ = (sel) => document.querySelectorAll(sel);
 
-export let domApp, domDynamic, domToast, domModal, domModalContent, domSharePreview, domShareCanvas;
-
-export function cacheDom() {
-  domApp = $('#appRoot');
-  domDynamic = $('#dynamicPanels');
-  domToast = $('#toast');
-  domModal = $('#modal');
-  domModalContent = $('#modalContent');
-  domSharePreview = $('#sharePreview');
-  domShareCanvas = $('#shareCanvas');
-}
+// 注意：所有 DOM 节点引用已移入 domCache.js
+// 不再包含 domApp, domDynamic 等变量
