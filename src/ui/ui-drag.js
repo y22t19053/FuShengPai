@@ -1,4 +1,4 @@
-// ===== src/ui/ui-drag.js · Pointer 事件处理（重写） =====
+// ===== src/ui/ui-drag.js · Pointer 事件处理 + 拖拽 + 天机线（完整版） =====
 import { state } from '../state.js';
 import { ALL_LINES, TIME_LABELS, GONG_NAMES, getCardId } from '../data.js';
 import { calcDiff } from '../engine.js';
@@ -13,6 +13,7 @@ const pointerState = {
   startX: 0,
   startY: 0,
   cardEl: null,
+  moveTimer: null,
   ghostCard: null,
 };
 
@@ -51,11 +52,11 @@ function onPointerDown(e) {
   pointerState.cardEl = cardEl;
   pointerState.ghostCard = null;
 
-  // 不用长按，直接开始检测移动
+  // 200ms内没移动，视为点击选中
   pointerState.moveTimer = setTimeout(() => {
-    // 200ms内没移动，视为点击
     if (!pointerState.moved && pointerState.down) {
       selectCard(cardEl.dataset.cardid);
+      highlightDropTargets(true);
     }
   }, 200);
 }
@@ -84,10 +85,8 @@ function onPointerUp(e) {
   highlightDropTargets(false);
 
   if (pointerState.ghostCard) {
-    // 拖拽结束 -> 放置
     finishGhostDrag(e.clientX, e.clientY);
   } else if (pointerState.isClick && pointerState.down) {
-    // 点击 -> 选牌
     const el = document.elementFromPoint(e.clientX, e.clientY);
     const cardEl = el?.closest('.card-back, .card-face-small');
     if (cardEl) {
@@ -124,11 +123,11 @@ function finishGhostDrag(clientX, clientY) {
     pointerState.ghostCard.remove();
     pointerState.ghostCard = null;
   }
+
   const dropTarget = document.elementFromPoint(clientX, clientY);
   const gong = dropTarget?.closest('.gong');
   const emptyDash = dropTarget?.closest('.empty-dash');
 
-  // 直接从指针状态取牌，不依赖 state.sel
   const cardId = pointerState.cardEl?.dataset.cardid;
   const card = findCardById(cardId);
   if (!card || isCardPlaced(card)) return;
@@ -148,9 +147,17 @@ function finishGhostDrag(clientX, clientY) {
 // ===== 核心函数 =====
 export function selectCard(cardId) {
   if (!cardId) return;
-  if (state.sel === cardId) { state.sel = null; refreshAll(); return; }
+  if (state.sel === cardId) {
+    state.sel = null;
+    refreshAll();
+    return;
+  }
   const card = findCardById(cardId);
-  if (!card || isCardPlaced(card)) { state.sel = null; refreshAll(); return; }
+  if (!card || isCardPlaced(card)) {
+    state.sel = null;
+    refreshAll();
+    return;
+  }
   state.sel = cardId;
   refreshAll();
   try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) {}
@@ -208,23 +215,20 @@ export function placeCardOnTiYong(card, role) {
   return true;
 }
 
-// ===== 天机线（按放置顺序确定起因） =====
+// ===== 天机线（用户手动选择，不自动生成） =====
 export function checkLines() {
   const filled = Object.keys(state.grid).filter(g => state.grid[g] && state.grid[g].length > 0).map(Number);
   const lines = ALL_LINES.filter(line => line.every(g => filled.includes(g)));
   state.possible = lines;
 
-  if (lines.length === 1) {
-    setLine(lines[0]);
-  } else if (lines.length > 1) {
+  if (lines.length >= 1 && !state.line) {
     renderLineSelector(lines);
-  } else {
+  } else if (!lines.length) {
     removeLineSelector();
   }
 }
 
 export function setLine(line) {
-  // 按放置顺序（gongOrder）调整线路起点
   let orderedLine = line;
   if (state.gongOrder && state.gongOrder.length > 0) {
     const firstGong = state.gongOrder.find(g => line.includes(g));
@@ -251,16 +255,38 @@ export function setLine(line) {
 
 export function renderLineSelector(candidates) {
   removeLineSelector();
+
   const container = document.createElement('div');
   container.id = 'lineSelector';
-  container.style.cssText = 'display:flex; gap:10px; justify-content:center; margin:10px 0; flex-wrap:wrap;';
+  container.style.cssText = 'display:flex; flex-direction:column; align-items:center; gap:6px; margin:10px 0;';
+
+  const hint = document.createElement('div');
+  hint.style.cssText = 'font-size:0.75rem;color:var(--dim);text-align:center;';
+  hint.textContent = '✨ 有宫位连成直线。选择一条作为天机线（可跳过）：';
+  container.appendChild(hint);
+
+  const btnGroup = document.createElement('div');
+  btnGroup.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px; justify-content:center;';
+
   candidates.forEach(line => {
     const btn = document.createElement('button');
     btn.className = 'line-btn small outline';
     btn.dataset.line = line.join(',');
-    btn.textContent = `天机线：${line.map(g => GONG_NAMES[g]).join('→')}`;
-    container.appendChild(btn);
+    btn.textContent = `选：${line.map(g => GONG_NAMES[g]).join('→')}`;
+    btnGroup.appendChild(btn);
   });
+
+  const skipBtn = document.createElement('button');
+  skipBtn.className = 'small';
+  skipBtn.textContent = '跳过（不选天机线）';
+  skipBtn.addEventListener('click', () => {
+    removeLineSelector();
+    toast('未选天机线，按整体九宫解读');
+  });
+  btnGroup.appendChild(skipBtn);
+
+  container.appendChild(btnGroup);
+
   const gridArea = document.getElementById('gridArea');
   if (gridArea) gridArea.appendChild(container);
 }
@@ -270,6 +296,7 @@ export function removeLineSelector() {
   if (existing) existing.remove();
 }
 
+// ===== 封印 =====
 export function sealDeck() {
   if (state.sealed) {
     toast('牌局已封印');
