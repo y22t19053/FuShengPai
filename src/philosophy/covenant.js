@@ -1,5 +1,4 @@
-// ===== src/philosophy/covenant.js · 浮生牌宪章 =====
-// 六条原则作为硬性代码约束，不可绕过
+// ===== src/philosophy/covenant.js · 浮生牌宪章（软性约定） =====
 
 export const COVENANT = {
   disclaimer: true,
@@ -30,7 +29,7 @@ export const COVENANT = {
   closingPool: [
     '牌局到此暂时停下，剩下的时间是你自己的。',
     '这不是结束，是重新开始的起点。',
-    '记住，牌只是一面镜子。',
+    '牌只是镜子，你才是光的来源。',
     '你已经看到了，接下来怎么做，是你自己的事。',
     '一次占卜只管一个问题，当下的结果只对应你刚才问的事。',
     '牌走完了，路还在你脚下。'

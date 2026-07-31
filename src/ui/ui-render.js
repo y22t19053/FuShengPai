@@ -23,7 +23,7 @@ export const escapeHtml = (str) => {
   return div.innerHTML;
 };
 
-// ===== 详细新手教程（不覆盖主界面，只嵌入面板） =====
+// ===== 详细教程 =====
 export function renderTeachingPanel() {
   const container = document.getElementById('teachingContent');
   if (!container) return;
@@ -36,51 +36,48 @@ export function renderTeachingPanel() {
         这个教程会让一个完全没接触过占卜的新手，也能拿一副普通扑克牌在现实中独立完成一次观测。
       </p>
 
-      <!-- ① 准备阶段 -->
       <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px 14px;margin-bottom:12px;">
         <h4 style="color:var(--accent);margin-bottom:8px;">① 准备阶段</h4>
         <ol style="font-size:0.8rem;color:var(--dim);line-height:1.8;padding-left:18px;">
-          <li><strong>找到一副扑克牌</strong>（去掉大小王，共52张）。</li>
+          <li><strong>找到一副扑克牌</strong>（含大小王共54张）。</li>
           <li><strong>找一个安静的环境</strong>，放下手机，深呼吸三次。</li>
           <li><strong>想清楚你要问的问题</strong>。比如“我该不该跳槽？”而不是“我今年运势如何”。</li>
-          <li><strong>选择领域</strong>：感情、事业、财运、健康等（有助于系统更聚焦地解读）。</li>
+          <li><strong>选择领域</strong>：感情、事业、财运、健康等。</li>
         </ol>
       </div>
 
-      <!-- ② 起念 -->
       <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px 14px;margin-bottom:12px;">
         <h4 style="color:var(--accent);margin-bottom:8px;">② 起念（安静下来）</h4>
         <ol style="font-size:0.8rem;color:var(--dim);line-height:1.8;padding-left:18px;">
           <li>把牌放在面前，双手轻按牌背。</li>
-          <li>心里默念你的问题，注意：不要出声，也不要怀疑。</li>
-          <li>如果你现在脑子里一片混乱，就先深呼吸 10 次，等念头清晰了再开始。</li>
+          <li>心里默念你的问题，不要出声，也不要怀疑。</li>
+          <li>如果脑子一片混乱，先深呼吸10次，等念头清晰了再开始。</li>
           <li>确认自己已经准备好，再进入下一步。</li>
         </ol>
         <div style="background:rgba(201,160,96,0.08);border-radius:4px;padding:6px 8px;font-size:0.7rem;color:var(--accent);margin-top:6px;">
-          💡 问题越具体，答案越清晰。我们强烈建议你说出一个明确的问题，而不是“随便看看”。
+          💡 问题越具体，答案越清晰。强烈建议你说出一个明确的问题，而不是“随便看看”。
         </div>
       </div>
 
-      <!-- ③ 立极（体与用） -->
       <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px 14px;margin-bottom:12px;">
         <h4 style="color:var(--accent);margin-bottom:8px;">③ 立极（选出代表你和事情的牌）</h4>
         <p style="font-size:0.8rem;color:var(--dim);margin-bottom:8px;">
-          在浮生牌里，<strong>“体”代表你自己，“用”代表你问的事情</strong>。这是整个占卜的基石。
+          在浮生牌里，<strong>“体”代表你自己，“用”代表你问的事情</strong>。
         </p>
         <ol style="font-size:0.8rem;color:var(--dim);line-height:1.8;padding-left:18px;">
-          <li>洗牌，感受牌背的触感。</li>
-          <li>当你觉得可以了，把牌摊开在桌面上（牌背朝上）。</li>
-          <li>当你内心感觉有一张牌在“召唤”你时，抽出它，这就是你的<strong>体牌</strong>（代表你现在的状态）。</li>
-          <li>不要犹豫，再从剩下的牌中抽出第二张，这就是你的<strong>用牌</strong>（代表你问的事情的状态）。</li>
-          <li>记住这两张牌的数字和花色。</li>
+          <li>从54张牌中先拿出大小王，放在一边。</li>
+          <li>把剩下52张洗匀，牌背朝上摊开。</li>
+          <li>凭直觉抽出第一张，作为<strong>体牌</strong>。</li>
+          <li>再抽出第二张，作为<strong>用牌</strong>。</li>
+          <li>记住这两张牌的点数和花色。</li>
         </ol>
       </div>
 
-      <!-- ④ 布阵（九宫格） -->
       <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px 14px;margin-bottom:12px;">
-        <h4 style="color:var(--accent);margin-bottom:8px;">④ 布阵（把剩下的牌放进九宫格）</h4>
+        <h4 style="color:var(--accent);margin-bottom:8px;">④ 布阵（九宫格）</h4>
         <ol style="font-size:0.8rem;color:var(--dim);line-height:1.8;padding-left:18px;">
-          <li>在纸上画一个 3×3 的九宫格，按洛书顺序标好数字（见下方）</li>
+          <li>把大小王放回剩下的牌中，再洗一遍（共52张）。</li>
+          <li>在纸上画一个3×3九宫格，按洛书标好数字：</li>
           <li style="list-style:none;text-align:center;margin:8px 0;">
             <div style="display:inline-grid;grid-template-columns:repeat(3,40px);gap:4px;">
               <div style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:4px;padding:4px;text-align:center;color:var(--accent);">4</div>
@@ -94,36 +91,31 @@ export function renderTeachingPanel() {
               <div style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:4px;padding:4px;text-align:center;color:var(--accent);">6</div>
             </div>
           </li>
-          <li>把剩下的 50 张牌重新洗匀，然后依次发到九宫格里。</li>
-          <li>可以从1号位开始，也可以从你心里有感觉的宫位开始。</li>
-          <li>每个宫位可以放 1～3 张牌，放满为止。</li>
-          <li>最后观察：哪几个宫位有牌，哪几个是空的。</li>
+          <li>依次发牌到九宫格，每个宫位可放1～3张。</li>
+          <li>观察哪几宫有牌，哪几宫是空的。</li>
         </ol>
       </div>
 
-      <!-- ⑤ 观察天机线 -->
       <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px 14px;margin-bottom:12px;">
-        <h4 style="color:var(--accent);margin-bottom:8px;">⑤ 观察天机线（找出主线）</h4>
+        <h4 style="color:var(--accent);margin-bottom:8px;">⑤ 观察天机线</h4>
         <ol style="font-size:0.8rem;color:var(--dim);line-height:1.8;padding-left:18px;">
-          <li>九宫格中有牌的位置如果连成一条直线（横/竖/斜），这条线就是<strong>天机线</strong>。</li>
+          <li>九宫格中有牌的位置若连成一条直线（横/竖/斜），即为<strong>天机线</strong>。</li>
           <li>天机线代表事情的<strong>起因 → 经过 → 结果</strong>。</li>
-          <li>线上第一个有牌的宫位是“起因”，中间的是“经过”，最后的是“结果”。</li>
-          <li>如果没有直线，说明事情还在混沌期，不好判断方向。</li>
+          <li>线上第一宫为“起因”，中间为“经过”，最后一宫为“结果”。</li>
+          <li>若无直线，说明事情仍在混沌期。</li>
         </ol>
       </div>
 
-      <!-- ⑥ 读数 -->
       <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px 14px;margin-bottom:12px;">
-        <h4 style="color:var(--accent);margin-bottom:8px;">⑥ 解读（看牌与宫位的关系）</h4>
+        <h4 style="color:var(--accent);margin-bottom:8px;">⑥ 解读</h4>
         <ol style="font-size:0.8rem;color:var(--dim);line-height:1.8;padding-left:18px;">
           <li><strong>看五行</strong>：牌的五行 vs 宫位的五行（生我则吉，克我则凶，同我则平）。</li>
-          <li><strong>看差值</strong>：宫位数 - 牌点数。差值越大，说明现实和理想的差距越大。</li>
-          <li><strong>看方位</strong>：每个宫位都有自己的方位和含义（坎北、坤西南、震东等）。</li>
-          <li><strong>综合判断</strong>：结合体用关系和天机线，得出一个整体的判断。</li>
+          <li><strong>看差值</strong>：宫位数 - 牌点数。差值越大，差距越大。</li>
+          <li><strong>看方位</strong>：每个宫有各自的方位和含义。</li>
+          <li><strong>综合判断</strong>：结合体用和天机线，得出整体判断。</li>
         </ol>
       </div>
 
-      <!-- 速查表 -->
       <div style="background:rgba(201,160,96,0.06);border-radius:8px;padding:12px 14px;margin-bottom:12px;">
         <h4 style="color:var(--accent);margin-bottom:8px;">速查表</h4>
         <div style="font-size:0.7rem;color:var(--dim);">
@@ -135,17 +127,14 @@ export function renderTeachingPanel() {
           J/Q/K 为<span style="color:#FF9800;">土</span>。
         </div>
         <div style="font-size:0.7rem;color:var(--dim);margin-top:4px;">
-          <strong>生克关系：</strong>
-          木生火、火生土、土生金、金生水、水生木<br>
+          <strong>生克关系：</strong>木生火、火生土、土生金、金生水、水生木<br>
           木克土、土克水、水克火、火克金、金克木
         </div>
         <div style="font-size:0.7rem;color:var(--dim);margin-top:4px;">
-          <strong>吉凶速断：</strong>
-          生我=吉、同我=平、我生=耗、克我=凶、我克=弱
+          <strong>吉凶速断：</strong>生我=吉、同我=平、我生=耗、克我=凶、我克=弱
         </div>
       </div>
 
-      <!-- 差值速查 -->
       <div style="background:rgba(201,160,96,0.06);border-radius:8px;padding:12px 14px;margin-bottom:12px;">
         <h4 style="color:var(--accent);margin-bottom:8px;">差值速查</h4>
         <div style="font-size:0.7rem;color:var(--dim);">
@@ -153,29 +142,25 @@ export function renderTeachingPanel() {
           A=1、2-10=本身、J=1、Q=2、K=3
         </div>
         <div style="font-size:0.7rem;color:var(--dim);margin-top:4px;">
-          差值 0-1：贴合，事情顺利<br>
-          差值 2-5：偏差，需要调整<br>
-          差值 6-9：脱节，不宜强求
+          差值 0-1：贴合<br>差值 2-5：偏差<br>差值 6-9：脱节
         </div>
       </div>
 
-      <!-- 使用技巧与禁忌 -->
       <div style="background:rgba(0,0,0,0.15);border-radius:8px;padding:12px 14px;">
         <h4 style="color:var(--accent);margin-bottom:8px;">✨ 使用技巧与禁忌</h4>
         <ul style="font-size:0.8rem;color:var(--dim);line-height:1.8;padding-left:18px;">
-          <li><strong>一卦一断</strong>：一个卦只回答一个问题，不要反复占卜。</li>
-          <li><strong>善易者不卜</strong>：不要把占卜当成依赖，它只是辅助决策的工具。</li>
-          <li><strong>不测生死</strong>：不占涉及死亡、疾病诊断等重大问题。</li>
-          <li><strong>不测他人</strong>：不占别人的隐私（比如“他对我怎么想的”）。</li>
-          <li><strong>心态平静</strong>：愤怒或激动时不适合占卜。</li>
+          <li><strong>一卦一断</strong>：一个卦只回答一个问题。</li>
+          <li><strong>善易者不卜</strong>：不要依赖占卜，它只是辅助。</li>
+          <li><strong>不测生死</strong>：不占涉及死亡、重病的问题。</li>
+          <li><strong>不测他人</strong>：不占别人的隐私。</li>
+          <li><strong>心态平静</strong>：愤怒或激动时不占。</li>
         </ul>
       </div>
-
     </div>
   `;
 }
 
-// ===== 牌堆（无闪烁渲染） =====
+// ===== 牌堆 =====
 let deckCache = [];
 let deckCacheIds = '';
 
@@ -321,6 +306,20 @@ export function renderGrid() {
     return `<div class="gong ${cls}" data-gong="${g}">${inner}</div>`;
   }).join('');
 
+  // 天机线引导提示
+  const lineGuide = document.getElementById('lineGuide');
+  if (state.line && state.line.length === 3) {
+    if (!lineGuide) {
+      const guide = document.createElement('div');
+      guide.id = 'lineGuide';
+      guide.style.cssText = 'margin-top:8px;padding:8px 12px;background:rgba(201,160,96,0.08);border-radius:6px;font-size:0.75rem;color:var(--accent);text-align:center;';
+      guide.innerHTML = `⚡ 已连成天机线：${state.line.map(g => GONG_NAMES[g] + '宫').join(' → ')} 代表事情的<strong>起因 → 经过 → 结果</strong>`;
+      el.parentNode.insertBefore(guide, el.nextSibling);
+    }
+  } else {
+    if (lineGuide) lineGuide.remove();
+  }
+
   if (state.mode !== MODES.SIMPLE && Object.keys(state.grid).length > 0) {
     renderTensionMap(el);
   }
@@ -377,9 +376,9 @@ export function renderModeSelector() {
   if (!container) return;
 
   const modes = [
-    { key: 'simple', label: '🌱 简化', desc: '只看天机线' },
-    { key: 'standard', label: '📊 标准', desc: '全部九宫' },
-    { key: 'pro', label: '🔬 专业', desc: '全部+关系链' }
+    { key: 'simple', label: '🃏 三张速览', desc: '只看天机线，最简' },
+    { key: 'standard', label: '🃏🃏 六张详解', desc: '九宫过半，较详' },
+    { key: 'pro', label: '🃏🃏🃏 九宫满阵', desc: '九宫全开，最详' }
   ];
 
   container.innerHTML = `
@@ -459,7 +458,7 @@ function handleScrollButtons(e) {
   }
 }
 
-// ===== Step1：首页 =====
+// ===== Step1 =====
 export function renderStep1() {
   const today = new Date().toDateString();
   const storedDate = localStorage.getItem('fs_todays_sign_date');
@@ -511,7 +510,7 @@ export function renderStep1() {
   `;
 }
 
-// ===== Step2：布阵 =====
+// ===== Step2 =====
 export function renderStep2() {
   const core = document.getElementById('coreArea');
   if (!core) return;
@@ -545,9 +544,10 @@ export function renderStep2() {
   if (btn) btn.disabled = !(state.ti && state.yong);
 }
 
-// ===== Step3：结果 =====
+// ===== Step3 =====
 export function renderStep3(text) {
   const aiSettings = getApiSettings();
+  const hasKey = aiSettings && aiSettings.apiKey;
   const result = document.getElementById('resultArea');
   if (!result) return;
 
@@ -562,7 +562,7 @@ export function renderStep3(text) {
       <button data-action="shareCode" class="outline small">${UI_TEXTS.btnShareCode}</button>
       <button data-action="exportData" class="outline small">完整数据</button>
       <button data-action="timeCapsule" class="outline small">📦 胶囊</button>
-      <button id="aiReadBtn" data-action="triggerAI" class="primary small">✨ AI 深度解读</button>
+      <button id="aiReadBtn" data-action="triggerAI" class="primary small">${hasKey ? 'AI 深度解读' : '✨ 接入 AI 深度解读'}</button>
       <button data-action="resetAll" class="small">${UI_TEXTS.btnNewQuestion}</button>
     </div>
     <div class="ai-guide-card" style="font-size:0.6rem;color:var(--dim);text-align:center;padding:4px 0;">${AI_GUIDE_TEXT}</div>

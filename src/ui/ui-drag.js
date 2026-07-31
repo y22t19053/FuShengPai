@@ -1,4 +1,4 @@
-// ===== src/ui/ui-drag.js · Pointer 事件处理，优化点击/拖拽 =====
+// ===== src/ui/ui-drag.js · Pointer 事件处理 =====
 import { state } from '../state.js';
 import { ALL_LINES, TIME_LABELS, GONG_NAMES, getCardId } from '../data.js';
 import { calcDiff } from '../engine.js';
@@ -31,7 +31,7 @@ export function destroyDrag() {
   document.removeEventListener('pointercancel', onPointerUp);
 }
 
-export function highlightDropTargets(active) {
+function highlightDropTargets(active) {
   document.querySelectorAll('.gong, .empty-dash').forEach(el => {
     el.classList.toggle('drag-highlight', active);
   });
@@ -51,6 +51,7 @@ function onPointerDown(e) {
   pointerState.startY = e.clientY;
   pointerState.cardEl = cardEl;
 
+  // 长按 200ms 后选中（区分点击和拖拽）
   pointerState.timer = setTimeout(() => {
     if (!pointerState.moved && pointerState.down) {
       selectCard(cardEl.dataset.cardid);
@@ -81,16 +82,20 @@ function onPointerMove(e) {
 function onPointerUp(e) {
   clearTimeout(pointerState.timer);
   highlightDropTargets(false);
+
   if (pointerState.isClick && pointerState.down) {
+    // 点击选牌
     const el = document.elementFromPoint(e.clientX, e.clientY);
     const cardEl = el?.closest('.card-back, .card-face-small');
     if (cardEl) {
       selectCard(cardEl.dataset.cardid);
     }
   }
+
   if (pointerState.ghostCard) {
     finishGhostDrag(e.clientX, e.clientY);
   }
+
   pointerState.down = false;
   pointerState.moved = false;
   pointerState.isClick = false;
@@ -122,6 +127,7 @@ function finishGhostDrag(clientX, clientY) {
   const dropTarget = document.elementFromPoint(clientX, clientY);
   const gong = dropTarget?.closest('.gong');
   const emptyDash = dropTarget?.closest('.empty-dash');
+
   if (gong && state.sel) {
     const g = parseInt(gong.dataset.gong);
     const card = findCardById(state.sel);
@@ -140,7 +146,7 @@ function finishGhostDrag(clientX, clientY) {
   }
 }
 
-// ===== 原有函数 =====
+// ===== 核心函数 =====
 export function selectCard(cardId) {
   if (!cardId) return;
   if (state.sel === cardId) { state.sel = null; refreshAll(); return; }
@@ -203,6 +209,7 @@ export function placeCardOnTiYong(card, role) {
   return true;
 }
 
+// ===== 天机线 =====
 export function checkLines() {
   const filled = Object.keys(state.grid).filter(g => state.grid[g] && state.grid[g].length > 0).map(Number);
   state.possible = ALL_LINES.filter(line => line.every(g => filled.includes(g)));

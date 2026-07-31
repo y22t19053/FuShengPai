@@ -1,7 +1,7 @@
 // ===== src/ui/ui-modal.js · 弹窗、Toast、引导与分享 =====
-import { state, $, $$ } from '../state.js';
-import { SUITS, RANKS, API_PROVIDERS, getWuxing, getCardColor, GENDER_OPTIONS } from '../data.js';
-import { requestReading } from '../ai.js';
+import { state } from '../state.js';
+import { SUITS, RANKS, API_PROVIDERS, getWuxing, getCardColor } from '../data.js';
+import { requestReading, requestFollowUp } from '../ai.js';
 import {
   getApiSettings, getProfile, getHistory, deleteHistoryItem,
   exportAllData, hasCompletedOnboarding, completeOnboarding,
@@ -11,8 +11,7 @@ import {
   UI_TEXTS, SHARE_TEXTS, SHARE_QUOTES, TIME_RESTRICTION,
   ONBOARDING_STEPS
 } from '../texts/index.js';
-import { calculateDurianIndex } from '../durian.js';
-import { getSealStatus, removeSeal } from '../philosophy/ethics.js';
+import { getSealStatus } from '../philosophy/ethics.js';
 import { renderTeachingPanel } from './ui-render.js';
 
 export let toastTimer = null;
@@ -75,7 +74,7 @@ export function guardMidnight(callback) {
     if (!modal || !content) { callback(); return; }
     content.innerHTML = `
       <h3 style="text-align:center;">子时提示</h3>
-      <p style="margin:10px 0;color:var(--dim);">当前时间为 ${timeStr} (${timeZone})，正值子时。观测者效应可能衰减，结果仅供参考。</p>
+      <p style="margin:10px 0;color:var(--dim);">当前时间为 ${timeStr} (${timeZone})，正值子时。此时占卜准确率可能下降，建议稍作休息后再试。</p>
       <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">
         <button id="midnightProceedBtn" class="primary">我清楚，继续</button>
         <button id="midnightHideBtn" class="outline">今天别提醒我了</button>
@@ -85,34 +84,6 @@ export function guardMidnight(callback) {
     document.getElementById('midnightProceedBtn').addEventListener('click', () => { modal.setAttribute('hidden', ''); callback(); });
     document.getElementById('midnightHideBtn').addEventListener('click', () => { localStorage.setItem('fs_midnight_dismiss', 'true'); modal.setAttribute('hidden', ''); callback(); });
   } else { callback(); }
-}
-
-export function showPrivacyWarning() {
-  const today = new Date().toDateString();
-  if (localStorage.getItem('fs_privacy_dismiss_today') === today) return;
-  const modal = document.getElementById('modal');
-  const content = document.getElementById('modalContent');
-  if (!modal || !content) return;
-  content.innerHTML = `
-    <div style="text-align:center;">
-      <h3>⚠️ 隐私模式检测</h3>
-      <p style="margin:10px 0;color:var(--dim);">您当前正在使用浏览器的隐私/无痕模式，<strong>所有数据在关闭页面后将自动清除</strong>。<br>建议您立即导出备份，或切换到正常模式使用。</p>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px;">
-        <button id="exportBackupBtn" class="primary small">导出备份</button>
-        <button id="dismissPrivacyBtn" class="outline small">我知道了</button>
-      </div>
-    </div>
-  `;
-  modal.removeAttribute('hidden');
-  document.getElementById('exportBackupBtn')?.addEventListener('click', () => {
-    exportAllData();
-    toast('备份已导出，请妥善保存');
-    modal.setAttribute('hidden', '');
-  });
-  document.getElementById('dismissPrivacyBtn')?.addEventListener('click', () => {
-    localStorage.setItem('fs_privacy_dismiss_today', today);
-    modal.setAttribute('hidden', '');
-  });
 }
 
 export function showDailyFortune() {
@@ -178,7 +149,7 @@ export function showTimeCapsule() {
   modal.removeAttribute('hidden');
 }
 
-// ===== 榴莲报告 =====
+// ===== 榴莲报告（升级版） =====
 export function showDurianReport() {
   const timeline = getTimeline();
   const modal = document.getElementById('modal');
@@ -274,44 +245,23 @@ export function showDurianReport() {
     ctx.lineWidth = 1;
     for (let i = 0; i <= 4; i++) {
       const y = h - 10 - (i / 4) * (h - 20);
-      ctx.beginPath();
-      ctx.moveTo(10, y);
-      ctx.lineTo(w - 10, y);
-      ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,0.2)';
-      ctx.font = '8px sans-serif';
-      ctx.textAlign = 'right';
+      ctx.beginPath(); ctx.moveTo(10, y); ctx.lineTo(w - 10, y); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.font = '8px sans-serif'; ctx.textAlign = 'right';
       ctx.fillText((i / 4 * range + minVal).toFixed(1), 8, y + 3);
     }
     const step = (w - 20) / Math.max(1, data.length - 1);
-    ctx.beginPath();
-    ctx.strokeStyle = '#c9a060';
-    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.strokeStyle = '#c9a060'; ctx.lineWidth = 2;
     for (let i = 0; i < data.length; i++) {
       const x = 10 + i * step;
       const y = h - 10 - ((data[i] - minVal) / range) * (h - 20);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
     ctx.stroke();
     for (let i = 0; i < data.length; i++) {
       const x = 10 + i * step;
       const y = h - 10 - ((data[i] - minVal) / range) * (h - 20);
-      ctx.beginPath();
-      ctx.arc(x, y, 3, 0, Math.PI * 2);
-      ctx.fillStyle = data[i] > 7 ? '#F44336' : data[i] > 5 ? '#FF9800' : '#4CAF50';
-      ctx.fill();
-    }
-    if (data.length > 0) {
-      const lastX = 10 + (data.length - 1) * step;
-      const lastY = h - 10 - ((data[data.length - 1] - minVal) / range) * (h - 20);
-      ctx.beginPath();
-      ctx.arc(lastX, lastY, 5, 0, Math.PI * 2);
-      ctx.fillStyle = '#c9a060';
-      ctx.fill();
-      ctx.strokeStyle = '#c9a060';
-      ctx.lineWidth = 1;
-      ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = data[i] > 7 ? '#F44336' : data[i] > 5 ? '#FF9800' : '#4CAF50'; ctx.fill();
     }
   }, 50);
 
@@ -381,14 +331,11 @@ export function showHistoryDetail(index) {
       const q = followInput.value.trim();
       if (!q) return;
       followInput.value = '';
-      followBtn.disabled = true;
-      followBtn.textContent = '发送中...';
+      followBtn.disabled = true; followBtn.textContent = '发送中...';
       const settings = getApiSettings();
       if (!settings || !settings.apiKey) {
         toast('请先配置 API Key');
-        followBtn.disabled = false;
-        followBtn.textContent = '发送';
-        return;
+        followBtn.disabled = false; followBtn.textContent = '发送'; return;
       }
       const chatHistory = r.chatHistory ? [...r.chatHistory] : [];
       chatHistory.push({ role: 'user', content: q });
@@ -413,25 +360,24 @@ export function showHistoryDetail(index) {
   }
 }
 
-// ============================================
-// AI 引导弹窗
-// ============================================
+// ===== AI 引导弹窗（优化版） =====
 export function showAIGuideModal() {
   const modal = document.getElementById('modal');
   const content = document.getElementById('modalContent');
   if (!modal || !content) { toast('弹窗系统尚未加载'); return; }
   content.innerHTML = `
     <div style="text-align:center;padding:8px;">
-      <h3 style="color:var(--accent);">🤖 AI 解读未就绪</h3>
-      <p style="margin:12px 0;color:var(--dim);font-size:0.9rem;line-height:1.8;">
-        要使用 AI 深度解读功能，请先在 <strong>设置面板</strong> 中配置 API Key。
+      <h3 style="color:var(--accent);">🤖 AI 深度解读</h3>
+      <p style="margin:12px 0;color:var(--dim);font-size:0.85rem;line-height:1.8;">
+        AI 深度解读会基于你当前的牌局，结合你的问题和背景，生成一段更详细、更贴近你个人情况的分析。
         <br><br>
-        支持 DeepSeek、千问、OpenAI、Claude 等多家厂商。
+        要使用这个功能，你需要<strong>自行配置 AI API Key</strong>（支持 DeepSeek、千问、OpenAI 等）。
         <br>
-        <span style="font-size:0.75rem;color:#666;">Key 仅存储在你的本地浏览器中，不会上传。</span>
+        <span style="font-size:0.75rem;color:#666;">Key 只存储在你的浏览器本地，不会上传到任何服务器。</span>
       </p>
       <div class="btn-row">
-        <button id="goToSettingsBtn" class="primary small">前往设置</button>
+        <button id="goToSettingsBtn" class="primary small">去配置 API Key</button>
+        <button id="copyPromptBtn2" class="outline small">📋 复制提示词</button>
         <button data-action="closeModal" class="outline small">稍后再说</button>
       </div>
     </div>
@@ -441,11 +387,17 @@ export function showAIGuideModal() {
     modal.setAttribute('hidden', '');
     togglePanel('settings');
   });
+  document.getElementById('copyPromptBtn2')?.addEventListener('click', async () => {
+    const { buildAIPrompt } = await import('../ui.js');
+    const prompt = await buildAIPrompt();
+    navigator.clipboard.writeText(prompt).then(
+      () => toast('✅ 提示词已复制，可粘贴到任何 AI 工具使用'),
+      () => toast('复制失败')
+    );
+  });
 }
 
-// ============================================
-// 分享功能实现
-// ============================================
+// ===== 分享功能 =====
 export function generateShareCode() {
   const text = document.getElementById('interpretText')?.innerText;
   if (!text) { toast('没有可分享的解读'); return; }
@@ -477,7 +429,7 @@ export function importShareCode() {
   }
 }
 
-// ===== 分享图：朋友圈风格卡片 =====
+// ===== 分享图：朋友圈风格卡片（冲击力强化） =====
 export function generateShareImage() {
   const container = document.getElementById('sharePreview');
   const canvas = document.getElementById('shareCanvas');
@@ -489,7 +441,7 @@ export function generateShareImage() {
   canvas.height = 800;
   const ctx = canvas.getContext('2d');
 
-  // ---- 背景：径向渐变 ----
+  // 背景
   const grad = ctx.createRadialGradient(300, 200, 50, 300, 400, 500);
   grad.addColorStop(0, '#2a2a3e');
   grad.addColorStop(0.5, '#1b1b2a');
@@ -497,67 +449,78 @@ export function generateShareImage() {
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 600, 800);
 
-  // ---- 装饰边框 ----
+  // 边框
   ctx.strokeStyle = 'rgba(201,160,96,0.3)';
   ctx.lineWidth = 2;
   ctx.strokeRect(20, 20, 560, 760);
 
-  // ---- 顶部：Logo 和日期 ----
+  // Logo
   ctx.fillStyle = '#c9a060';
   ctx.font = 'bold 32px "Georgia", "Songti SC", serif';
   ctx.textAlign = 'center';
   ctx.fillText('浮生牌 · 观测者的镜子', 300, 75);
 
+  // 日期 + 指纹
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.font = '14px "Georgia", sans-serif';
-  ctx.fillText(new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }), 300, 105);
+  ctx.fillText(new Date().toLocaleDateString('zh-CN'), 300, 105);
+  if (state.fingerprint) {
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.font = '10px monospace';
+    ctx.fillText(state.fingerprint, 300, 122);
+  }
 
-  // ---- 分割线 ----
+  // 分割线
   ctx.strokeStyle = 'rgba(201,160,96,0.2)';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(60, 125);
-  ctx.lineTo(540, 125);
+  ctx.moveTo(60, 135);
+  ctx.lineTo(540, 135);
   ctx.stroke();
 
-  // ---- 中央信息：体用五行关系 ----
+  // 五行人格标签（大号）
   let tiWx = '?', yongWx = '?', relation = '';
   if (state.ti && state.yong) {
     tiWx = getWuxing(state.ti);
     yongWx = getWuxing(state.yong);
     const rel = getShengKe(tiWx, yongWx);
     relation = rel || '未知';
-    // 使用已有的 getShengKe 函数
   }
-  ctx.fillStyle = '#e0e0e8';
-  ctx.font = '24px "Georgia", "Songti SC", serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(`体 · ${tiWx}  ⚡  ${yongWx} · 用`, 300, 175);
-  ctx.fillStyle = '#c9a060';
-  ctx.font = '20px "Georgia", "Songti SC", serif';
-  ctx.fillText(`【${relation}】`, 300, 210);
+  const wxTags = { '火': '🔥 行动者', '金': '⚔️ 判断者', '木': '🌳 成长者', '水': '🌊 洞察者', '土': '🏔️ 承载者', '天': '☀️ 超越者', '人': '🌙 智谋者' };
+  const tag = wxTags[tiWx] || '🔮 观测者';
 
-  // ---- 榴莲指数（大号显示） ----
+  // 人格标签
+  ctx.fillStyle = 'rgba(201,160,96,0.15)';
+  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(150, 155, 300, 50, 25); ctx.fill(); }
+  else { ctx.fillRect(150, 155, 300, 50); }
+  ctx.fillStyle = '#c9a060';
+  ctx.font = 'bold 26px "Georgia", "Songti SC", serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`✦ ${tag} ✦`, 300, 190);
+
+  // 体用五行
+  ctx.fillStyle = '#e0e0e8';
+  ctx.font = '22px "Georgia", "Songti SC", serif';
+  ctx.fillText(`体 · ${tiWx}  ⚡  ${yongWx} · 用`, 300, 235);
+  ctx.fillStyle = '#c9a060';
+  ctx.font = '18px "Georgia", "Songti SC", serif';
+  ctx.fillText(`【${relation}】`, 300, 265);
+
+  // 榴莲指数
   const durian = state.durianIndex || { score: 0, level: '未知' };
   const scoreColor = durian.score < 3 ? '#4CAF50' : durian.score < 5 ? '#8BC34A' : durian.score < 7 ? '#FFC107' : durian.score < 9 ? '#FF9800' : '#F44336';
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  // 兼容 roundRect
-  if (ctx.roundRect) {
-    ctx.beginPath();
-    ctx.roundRect(180, 235, 240, 70, 12);
-    ctx.fill();
-  } else {
-    ctx.fillRect(180, 235, 240, 70);
-  }
+  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(180, 285, 240, 70, 12); ctx.fill(); }
+  else { ctx.fillRect(180, 285, 240, 70); }
   ctx.fillStyle = scoreColor;
-  ctx.font = 'bold 48px "Georgia", serif';
+  ctx.font = 'bold 44px "Georgia", serif';
   ctx.textAlign = 'center';
-  ctx.fillText(`🍈 ${durian.score}/10`, 300, 295);
+  ctx.fillText(`🍈 ${durian.score}/10`, 300, 340);
   ctx.fillStyle = 'rgba(255,255,255,0.4)';
   ctx.font = '14px "Georgia", "Songti SC", serif';
-  ctx.fillText(durian.level || '', 300, 325);
+  ctx.fillText(durian.level || '', 300, 365);
 
-  // ---- 解读摘要（自动换行） ----
+  // 解读摘要
   const summary = text.split('\n').filter(line => line.trim()).slice(0, 6).join(' ');
   ctx.fillStyle = '#c8c8d8';
   ctx.font = '15px "Georgia", "Songti SC", serif';
@@ -577,22 +540,20 @@ export function generateShareImage() {
   if (current) lines.push(current);
   if (lines.length > 6) lines = lines.slice(0, 6);
 
-  let y = 380;
+  let y = 400;
   for (let line of lines) {
     ctx.fillText(line, 40, y);
     y += 28;
   }
 
-  // ---- 底部哲言 ----
-  const quote = SHARE_QUOTES[Math.floor(Math.random() * SHARE_QUOTES.length)];
-  ctx.fillStyle = 'rgba(255,255,255,0.15)';
-  ctx.font = '13px "Georgia", "Songti SC", serif';
+  // 底部网址
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.font = '14px "Georgia", sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(`「${quote}」`, 300, 740);
-
-  ctx.fillStyle = 'rgba(255,255,255,0.1)';
-  ctx.font = '11px "Georgia", sans-serif';
-  ctx.fillText('—— 浮生牌 · 观测者的镜子 ——', 300, 770);
+  ctx.fillText('开源 · 免费 · 不可迷信', 300, 730);
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.font = '12px "Georgia", sans-serif';
+  ctx.fillText('https://github.com/y22t19053/FuShengPai', 300, 755);
 
   container.removeAttribute('hidden');
   toast('✨ 分享图已生成');
