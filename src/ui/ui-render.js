@@ -1,14 +1,13 @@
-// ===== src/ui/ui-render.js · 所有页面的绘制逻辑（含两级分类 + 周期抽牌 + 模块化解读） =====
+// ===== src/ui/ui-render.js · 全流程渲染 =====
 import { state } from '../state.js';
 import {
   GONG_ORDER, GONG_NAMES, GONG_WUXING, CATEGORIES,
   getShengKe, getShengKeLabel, getWuxing, getCardColor,
-  getCardId, getCardValue, PERIODS, getCurrentPeriodKey
+  getCardId, getCardValue, PERIODS, getCurrentPeriodKey,
+  getPeriodTitle, getPeriodDesc
 } from '../data.js';
-import {
-  calcFullBaZi, calcDiff, getDiffLevel
-} from '../engine.js';
-import { getApiSettings, getProfile, getHistory } from '../storage.js';
+import { calcFullBaZi, calcDiff, getDiffLevel } from '../engine.js';
+import { getApiSettings, getProfile, getHistory, getStoredPeriodCards } from '../storage.js';
 import { UI_TEXTS, HISTORY_EMPTY, AI_GUIDE_TEXT } from '../texts/index.js';
 import { calculateDurianIndex, getDurianIcon } from '../durian.js';
 import { toast } from './ui-modal.js';
@@ -36,7 +35,7 @@ export function renderTeachingPanel() {
         <p>2. 点“开始抽牌”，选体牌（代表你）和用牌（代表事情）。</p>
         <p>3. 将剩余牌放入九宫格（每个宫位最多3张，可留空），点“生成解读”。</p>
         <h4 style="margin-top:16px;">周期运程：</h4>
-        <p>“日/周/月/季/年”是同一个抽牌系统的不同时间尺度。抽取方式与普通占卜完全相同，抽完会挂在页面上，每天/周/月/季/年自动更新。</p>
+        <p>点击“日/周/月/季/年”是同一个抽牌系统的不同时间尺度。抽取方式与普通占卜完全相同——展开牌堆，自己抽一张。抽完会挂在页面上，周期结束自动更新。</p>
         <h4 style="margin-top:16px;">原则</h4>
         <p>· 不测生死，不窥他人。</p>
         <p>· 牌是提示，不是命令。</p>
@@ -46,29 +45,25 @@ export function renderTeachingPanel() {
   `;
 }
 
-// ===== 首页（含两级分类 + 周期运入口） =====
+// ===== 首页 =====
 export function renderStep1() {
   const core = document.getElementById('coreArea');
   if (!core) return;
 
-  // 渲染一级分类
   const renderCatBtns = (curCat, curSub) => {
     let html = '<div class="category-grid">';
     CATEGORIES.forEach(c => {
       html += `<button data-action="selectCategory" data-category="${c.name}" class="${curCat === c.name ? 'selected' : ''}">${c.name}</button>`;
     });
     html += '</div>';
-    // 二级分类（如果有选中）
     if (curCat) {
       const catConfig = CATEGORIES.find(c => c.name === curCat);
       if (catConfig && catConfig.sub && catConfig.sub.length > 0) {
-        html += `<div class="subcategory-grid" style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:6px;">`;
+        html += `<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:6px;">`;
         catConfig.sub.forEach(sub => {
-          html += `<button data-action="selectSubCategory" data-sub="${sub}" class="small ${curSub === sub ? 'primary' : 'outline'}" style="margin:2px;">${sub}</button>`;
+          html += `<button data-action="selectSubCategory" data-sub="${sub}" class="small ${curSub === sub ? 'primary' : 'outline'}">${sub}</button>`;
         });
-        // 清除二级按钮
-        html += `<button data-action="clearSubCategory" class="small outline" style="margin:2px;">清除</button>`;
-        html += `</div>`;
+        html += `<button data-action="clearSubCategory" class="small outline">清除</button></div>`;
       }
     }
     return html;
@@ -86,9 +81,11 @@ export function renderStep1() {
       <button data-action="lazyStart" class="outline">${UI_TEXTS.btnLazy}</button>
     </div>
 
-    <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:8px;">
-      ${Object.entries(PERIODS).map(([key, p]) => `<button data-action="periodDraw" data-period="${key}" class="small outline">${p.label}</button>`).join('')}
+    <!-- 周期运入口 -->
+    <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:12px;">
+      ${Object.entries(PERIODS).map(([key, p]) => `<button data-action="openPeriodDeck" data-period="${key}" class="small outline">${p.label}</button>`).join('')}
     </div>
+    <div style="font-size:0.6rem;color:var(--dim);text-align:center;margin-top:4px;">点击周期运，展开牌堆自己抽一张</div>
 
     <!-- 周期卡显示区 -->
     <div id="periodCardArea" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;"></div>
@@ -99,7 +96,6 @@ export function renderStep1() {
     <div id="clarifyGuide" style="display:none;margin-top:12px;padding:16px;background:rgba(201,160,96,0.05);border:1px solid var(--border);border-radius:8px;font-size:0.8rem;color:var(--dim);"></div>
   `;
 
-  // 周期卡显示
   renderPeriodCards();
 
   document.getElementById('helpClarifyBtn')?.addEventListener('click', (e) => {
@@ -122,7 +118,7 @@ export function renderStep1() {
       <p><strong>W</strong> 劣势：你怕什么？</p>
       <p><strong>O</strong> 机会：什么可能帮你？</p>
       <p><strong>T</strong> 威胁：最坏可能是什么？</p>
-      <button data-action="closeClarify" class="small outline" style="margin-top:8px;">收起</button>
+      <button data-action="closeClarify" class="small outline">收起</button>
     `;
   });
   document.addEventListener('click', function(e) {
@@ -133,18 +129,16 @@ export function renderStep1() {
   });
 }
 
-// ===== 周期卡渲染（挂载在首页） =====
+// ===== 周期卡渲染 =====
 export function renderPeriodCards() {
   const area = document.getElementById('periodCardArea');
   if (!area) return;
   area.innerHTML = '';
-
-  const storedPeriods = JSON.parse(localStorage.getItem('fs_period_cards') || '{}');
+  const storedPeriods = getStoredPeriodCards();
 
   Object.entries(PERIODS).forEach(([key, p]) => {
     const periodKey = getCurrentPeriodKey(key);
     const stored = storedPeriods[key];
-    // 如果当前周期key相同且有一张卡，显示；否则显示“待抽取”
     if (stored && stored.periodKey === periodKey && stored.card) {
       const card = stored.card;
       const colorCls = getCardColor(card);
@@ -152,18 +146,18 @@ export function renderPeriodCards() {
       const suit = card.isJoker ? '' : card.suit;
       const wx = getWuxing(card);
       area.innerHTML += `
-        <div style="padding:8px;background:rgba(0,0,0,0.2);border-radius:8px;text-align:center;min-width:90px;">
-          <div style="font-size:0.65rem;color:var(--dim);">${p.title}</div>
+        <div style="padding:8px;background:rgba(0,0,0,0.2);border-radius:8px;text-align:center;min-width:100px;cursor:pointer;" data-action="openPeriodDetail" data-period="${key}">
+          <div style="font-size:0.65rem;color:var(--dim);">${getPeriodTitle(key)}</div>
           <div class="mini-card ${colorCls}" style="margin:4px auto;">${rank}${suit}</div>
           <div style="font-size:0.6rem;color:var(--accent);">${wx}</div>
-          <div style="font-size:0.55rem;color:var(--dim);">${p.desc}</div>
+          <div style="font-size:0.55rem;color:var(--dim);">点击看解读</div>
         </div>
       `;
     } else {
       area.innerHTML += `
-        <div style="padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;text-align:center;min-width:90px;">
-          <div style="font-size:0.65rem;color:var(--dim);">${p.title}</div>
-          <button data-action="periodDraw" data-period="${key}" class="small outline" style="margin-top:4px;">抽取</button>
+        <div style="padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;text-align:center;min-width:100px;">
+          <div style="font-size:0.65rem;color:var(--dim);">${getPeriodTitle(key)}</div>
+          <button data-action="openPeriodDeck" data-period="${key}" class="small outline">去抽牌</button>
         </div>
       `;
     }
@@ -208,7 +202,6 @@ export function renderFullReport(text, modules = null) {
   const result = document.getElementById('resultArea');
   if (!result) return;
 
-  // 如果有模块数据，渲染成折叠区；否则按纯文本
   let contentHTML = '';
   if (modules && modules.length > 0) {
     modules.forEach(m => {
@@ -257,7 +250,7 @@ export function renderFullReport(text, modules = null) {
   });
 }
 
-// ===== 牌堆渲染（不变） =====
+// ===== 牌堆渲染 =====
 let deckCache = [];
 let deckCacheIds = '';
 
@@ -265,8 +258,7 @@ export function renderDeck() {
   const el = document.getElementById('deckContainer');
   if (!el) return;
   if (!state.deck || state.deck.length === 0) {
-    deckCache = [];
-    deckCacheIds = '';
+    deckCache = []; deckCacheIds = '';
     el.innerHTML = '<span style="color:#666;padding:10px;">镜中牌已尽，可重置。</span>';
     return;
   }
@@ -354,7 +346,8 @@ export function renderGrid() {
     if (recommendedGong === g) inner += `<span class="recommend-tag">⭐</span>`;
     return `<div class="gong ${cls}" data-gong="${g}">${inner}</div>`;
   }).join('');
-  // 天机线提示
+
+  // 天机线提示（只提示，不自动弹选择）
   const lineGuide = document.getElementById('lineGuide');
   const filledGongs = Object.keys(state.grid).filter(g => state.grid[g] && state.grid[g].length > 0).map(Number);
   if (filledGongs.length >= 3 && (state.possible || []).length > 0 && !state.line) {
@@ -362,10 +355,11 @@ export function renderGrid() {
       const guide = document.createElement('div');
       guide.id = 'lineGuide';
       guide.style.cssText = 'margin-top:8px;padding:10px 12px;background:rgba(201,160,96,0.08);border-radius:6px;font-size:0.8rem;color:var(--accent);';
-      guide.innerHTML = `✨ 检测到可连天机线，请在下方选择一条（可选）。`;
+      guide.innerHTML = `✨ 检测到可连天机线，在下方选择一条（可选）。`;
       el.parentNode.insertBefore(guide, el.nextSibling);
     }
   } else if (lineGuide) lineGuide.remove();
+
   if (Object.keys(state.grid).length > 0) renderTensionMap(el);
 }
 
@@ -407,6 +401,7 @@ export function bindScrollButtons() {
   document.removeEventListener('click', handleScrollButtons);
   document.addEventListener('click', handleScrollButtons);
 }
+
 function handleScrollButtons(e) {
   const leftBtn = e.target.closest('#scrollLeftBtn');
   if (leftBtn) { e.stopPropagation(); const deck = document.getElementById('deckContainer'); if (deck) deck.scrollBy({ left: -180, behavior: 'smooth' }); return; }
@@ -422,7 +417,7 @@ export function renderDurianDisplay() {
   const result = calculateDurianIndex(state);
   state.durianIndex = result;
   const icon = getDurianIcon(result.score);
-  container.innerHTML = `<div style="display:flex;align-items:center;gap:12px;padding:8px 12px;background:rgba(0,0,0,0.2);border-radius:8px;margin:4px 0;"><span style="font-size:1.8rem;line-height:1;">${icon}</span><div><div style="font-weight:bold;font-size:1rem;">榴莲指数 ${result.score}/10 <span style="color:${result.score < 3 ? '#4CAF50' : result.score < 5 ? '#8BC34A' : result.score < 7 ? '#FFC107' : result.score < 9 ? '#FF9800' : '#F44336'};font-size:0.75rem;">（${result.level}）</span></div><div style="font-size:0.7rem;color:var(--dim);">${result.description}</div></div></div>`;
+  container.innerHTML = `<div style="display:flex;align-items:center;gap:12px;padding:8px 12px;background:rgba(0,0,0,0.2);border-radius:8px;margin:4px 0;"><span style="font-size:1.8rem;">${icon}</span><div><div style="font-weight:bold;font-size:1rem;">榴莲指数 ${result.score}/10 <span style="color:${result.score < 3 ? '#4CAF50' : result.score < 5 ? '#8BC34A' : result.score < 7 ? '#FFC107' : result.score < 9 ? '#FF9800' : '#F44336'};font-size:0.75rem;">（${result.level}）</span></div><div style="font-size:0.7rem;color:var(--dim);">${result.description}</div></div></div>`;
 }
 
 // ===== 设置面板 =====
@@ -456,15 +451,15 @@ export function updateBaziPreview() {
   const parts = bd.split('-'); if (parts.length !== 3) { preview.textContent = ''; return; }
   const year = parseInt(parts[0]); const month = parseInt(parts[1]); const day = parseInt(parts[2]);
   const tp = bt.split(':'); const hour = tp.length >= 1 ? parseInt(tp[0]) || 12 : 12;
-  try { const bazi = calcFullBaZi(year, month, day, hour); preview.textContent = '四柱预览：' + bazi.fullText + '  |  生肖：' + bazi.yearPillar.shengXiao; } catch (e) { preview.textContent = '日期无效'; }
+  try { const bazi = calcFullBaZi(year, month, day, hour); preview.textContent = '四柱预览：' + bazi.fullText + ' | 生肖：' + bazi.yearPillar.shengXiao; } catch (e) { preview.textContent = '日期无效'; }
 }
 
 // ===== 历史面板 =====
 export function renderHistoryPanel() {
   const list = document.getElementById('historyList'); if (!list) return;
   const history = getHistory();
-  if (!history.length) { list.innerHTML = `<p style="color:var(--dim);font-size:0.85rem;">${HISTORY_EMPTY}</p>`; return; }
-  list.innerHTML = history.map((r, i) => `<div class="history-item" data-index="${i}" style="cursor:pointer;margin:8px 0;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid rgba(255,255,255,0.05);"><strong style="font-size:0.8rem;">${new Date(r.time).toLocaleString()}</strong><span style="font-size:0.75rem;color:var(--dim);margin-left:8px;">${r.question || '未提问'} (${r.category || '无类别'})</span></div>`).join('');
+  if (!history.length) { list.innerHTML = `<p style="color:var(--dim);">${HISTORY_EMPTY}</p>`; return; }
+  list.innerHTML = history.map((r, i) => `<div class="history-item" data-index="${i}" style="cursor:pointer;margin:8px 0;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid rgba(255,255,255,0.05);"><strong>${new Date(r.time).toLocaleString()}</strong><span style="color:var(--dim);margin-left:8px;">${r.question || '未提问'} (${r.category || '无'})</span></div>`).join('');
 }
 
 // ===== 状态提示 =====

@@ -8,16 +8,9 @@ const STORAGE_KEYS = {
   TIMELINE: 'fs_timeline',
   SYMBOL_PROFILE: 'fs_symbol_profile',
   TIME_CAPSULE: 'fs_time_capsule',
+  PERIOD_CARDS: 'fs_period_cards',
+  PERIOD_HISTORY: 'fs_period_history',
 };
-
-function obfuscate(str) {
-  if (!str) return str;
-  return btoa(encodeURIComponent(str));
-}
-function deobfuscate(str) {
-  if (!str) return str;
-  try { return decodeURIComponent(atob(str)); } catch { return null; }
-}
 
 // ===== 历史记录 =====
 export function getHistory() {
@@ -53,17 +46,10 @@ export function getApiSettings() {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.API_SETTINGS);
     if (!raw) return null;
-    const settings = JSON.parse(raw);
-    if (settings.apiKey) {
-      const deobf = deobfuscate(settings.apiKey);
-      if (deobf) settings.apiKey = deobf;
-      else return null;
-    }
-    return settings;
+    return JSON.parse(raw);
   } catch (e) { return null; }
 }
 export function saveApiSettings(settings) {
-  if (settings.apiKey) settings.apiKey = obfuscate(settings.apiKey);
   localStorage.setItem(STORAGE_KEYS.API_SETTINGS, JSON.stringify(settings));
 }
 export function clearApiSettings() {
@@ -75,16 +61,7 @@ export function getProfile() {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.PROFILE);
     if (!raw) return {};
-    const profile = JSON.parse(raw);
-    return {
-      birthDate: profile.birthDate || '',
-      birthTime: profile.birthTime || '',
-      name: profile.name || '',
-      gender: profile.gender || '',
-      birthPlace: profile.birthPlace || '',
-      currentPlace: profile.currentPlace || '',
-      ...profile
-    };
+    return JSON.parse(raw);
   } catch (e) { return {}; }
 }
 export function saveProfile(profile) {
@@ -106,34 +83,21 @@ export function exportAllData() {
     timestamps: getDrawTimestamps(),
     apiSettings: getApiSettings(),
     profile: getProfile(),
-    timeline: getTimeline(),
+    timelime: getTimeline(),
     symbolProfile: getSymbolProfile(),
     timeCapsule: getTimeCapsule(),
+    periodCards: getStoredPeriodCards(),
+    periodHistory: getStoredPeriodHistory(),
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `fushangpai_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.download = `fushangpai_backup_${new Date().toISOString().slice(0, 10)}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-}
-
-// ===== 行动力记录 =====
-export function saveActionTimestamp(type) {
-  const actionKey = `fs_actions_${type}`;
-  let actions = JSON.parse(localStorage.getItem(actionKey) || '[]');
-  actions.push(Date.now());
-  if (actions.length > 100) actions.shift();
-  localStorage.setItem(actionKey, JSON.stringify(actions));
-}
-export function getActionTimestamps(type) {
-  const actionKey = `fs_actions_${type}`;
-  try {
-    return JSON.parse(localStorage.getItem(actionKey) || '[]');
-  } catch (e) { return []; }
 }
 
 // ===== 时间胶囊 =====
@@ -141,9 +105,7 @@ export function saveTimeCapsule(data) {
   localStorage.setItem(STORAGE_KEYS.TIME_CAPSULE, JSON.stringify(data));
 }
 export function getTimeCapsule() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.TIME_CAPSULE));
-  } catch { return null; }
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.TIME_CAPSULE)); } catch { return null; }
 }
 
 // ===== 占卜时间线 =====
@@ -152,13 +114,7 @@ export function getTimeline() {
 }
 export function addTimelineEntry(entry) {
   const timeline = getTimeline();
-  const durianComponents = entry.durianComponents || null;
-  timeline.push({ 
-    ...entry, 
-    timestamp: Date.now(),
-    durianScore: entry.durianScore || 0,
-    durianComponents: durianComponents
-  });
+  timeline.push({ ...entry, timestamp: Date.now(), durianScore: entry.durianScore || 0 });
   localStorage.setItem(STORAGE_KEYS.TIMELINE, JSON.stringify(timeline));
 }
 
@@ -175,9 +131,21 @@ export function updateSymbolProfile(key, value) {
   saveSymbolProfile(profile);
 }
 
-// ===== 全域清理 =====
-export function clearAllData() {
-  const accent = localStorage.getItem('fs_custom_accent');
-  localStorage.clear();
-  if (accent) localStorage.setItem('fs_custom_accent', accent);
+// ===== 周期牌存储 =====
+export function getStoredPeriodCards() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.PERIOD_CARDS)) || {}; } catch { return {}; }
+}
+export function saveStoredPeriodCard(periodType, data) {
+  const all = getStoredPeriodCards();
+  all[periodType] = data;
+  localStorage.setItem(STORAGE_KEYS.PERIOD_CARDS, JSON.stringify(all));
+}
+export function getStoredPeriodHistory() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.PERIOD_HISTORY)) || []; } catch { return []; }
+}
+export function addPeriodHistoryEntry(entry) {
+  const history = getStoredPeriodHistory();
+  history.unshift(entry);
+  if (history.length > 200) history.pop();
+  localStorage.setItem(STORAGE_KEYS.PERIOD_HISTORY, JSON.stringify(history));
 }

@@ -14,7 +14,7 @@ export function injectAnimations() {
     .shuffling { animation: shuffling 0.3s ease-in-out 2; }
     .gong.drag-highlight, .empty-dash.drag-highlight {
       border-color: var(--accent) !important;
-      box-shadow: 0 0 12px rgba(201,160,96,0.3) !important;
+      box-shadow: 0 0 12px rgba(201, 160, 96, 0.3) !important;
     }
     button:active { transform: scale(0.95); transition: transform 0.1s ease; }
   `;
