@@ -8,7 +8,7 @@ import {
 } from './ui/ui-render.js';
 import {
   toast, guardMidnight, showOnboarding, showTimeCapsule, showDurianReport,
-  togglePanel, showDailyFortune, showHistoryDetail,
+  togglePanel, showDailyFortune, showHistoryDetail, generateShareCode,
   importShareCode, generateShareImage, saveShareImage, showAIGuideModal
 } from './ui/ui-modal.js';
 import { initDrag, removeLineSelector, sealDeck, isCardPlaced, findCardById, placeCardOnGong, placeCardOnTiYong, setLine } from './ui/ui-drag.js';
@@ -26,7 +26,7 @@ import {
 } from './engine.js';
 import {
   API_PROVIDERS, getShengKe, getShengKeLabel, getWangState, getWuxing,
-  getCardValue, GONG_NAMES, GONG_WUXING, ALL_LINES, TIME_LABELS, GONG_ORDER,
+  getCardValue, getCardColor, GONG_NAMES, GONG_WUXING, ALL_LINES, TIME_LABELS, GONG_ORDER,
   CATEGORIES, PERIODS, getCurrentPeriodKey, getPeriodLabel, getPeriodTitle, getPeriodDesc
 } from './data.js';
 import { MAX_DAILY_OBSERVATIONS } from './constants.js';
@@ -38,15 +38,18 @@ import { interceptQuestion, checkDependency, getSealStatus } from './philosophy/
 import { applyCovenant } from './philosophy/covenant.js';
 import { generateSingleCardMetaphor } from './metaphor.js';
 
+// --- 基础 ---
 function mulberry32(a) {
   return function() {
-    a |= 0; a = a + 0x6D2B79F5 | 0;
+    a |= 0;
+    a = a + 0x6D2B79F5 | 0;
     var t = Math.imul(a ^ a >>> 15, 1 | a);
     t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
     return ((t ^ t >>> 14) >>> 0) / 4294967296;
   }
 }
 
+// --- 核心 ---
 export function updateStep(n) {
   state.step = n;
   for (let i = 1; i <= 3; i++) {
@@ -64,10 +67,15 @@ export function getBaziFromProfile() {
     if (!profile || !profile.birthDate) return null;
     const parts = profile.birthDate.split('-');
     if (parts.length !== 3) return null;
-    const year = parseInt(parts[0]); const month = parseInt(parts[1]); const day = parseInt(parts[2]);
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]);
+    const day = parseInt(parts[2]);
     if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
     let hour = 12;
-    if (profile.birthTime) { const tp = profile.birthTime.split(':'); if (tp.length >= 1) hour = parseInt(tp[0]) || 12; }
+    if (profile.birthTime) {
+      const tp = profile.birthTime.split(':');
+      if (tp.length >= 1) hour = parseInt(tp[0]) || 12;
+    }
     return calcFullBaZi(year, month, day, hour);
   } catch (e) { return null; }
 }
@@ -76,17 +84,17 @@ export function detectIntent(question, category, subCategory) {
   if (category) return subCategory || category;
   const q = (question || '').toLowerCase();
   const intentMap = {
-    '感情': ['复合','分手','前任','脱单','正缘','桃花','暧昧','他爱','出轨','婚姻','结婚','离婚','心动','爱'],
-    '财运': ['财运','赚钱','项目','投资','破财','工资','偏财','奖金','股票','基金','钱'],
-    '事业': ['工作','跳槽','升职','面试','创业','辞职','老板','同事','裁员'],
-    '健康': ['身体','生病','手术','失眠','焦虑','抑郁','头疼'],
-    '学业': ['考试','考研','考公','成绩','论文','上岸','毕业','升学'],
-    '人际关系': ['小人','贵人','朋友','婆媳','婆婆','媳妇','社交','同事'],
-    '决策': ['该不该','选哪个','要不要','能不能','怎么办','纠结'],
-    '寻物': ['找','丢','东西在哪','不见了','遗失'],
-    '家宅': ['风水','房子','搬家','装修','家里'],
-    '灵异': ['梦','直觉','感应','前世'],
-    '运势': ['运势','今年','日运','周运','月运','年运']
+    '感情': ['复合', '分手', '前任', '脱单', '正缘', '桃花', '暧昧', '他爱', '出轨', '婚姻', '结婚', '离婚', '心动', '爱'],
+    '财运': ['财运', '赚钱', '项目', '投资', '破财', '工资', '偏财', '奖金', '股票', '基金', '钱'],
+    '事业': ['工作', '跳槽', '升职', '面试', '创业', '辞职', '老板', '同事', '裁员'],
+    '健康': ['身体', '生病', '手术', '失眠', '焦虑', '抑郁', '头疼'],
+    '学业': ['考试', '考研', '考公', '成绩', '论文', '上岸', '毕业', '升学'],
+    '人际关系': ['小人', '贵人', '朋友', '婆媳', '婆婆', '媳妇', '社交', '同事'],
+    '决策': ['该不该', '选哪个', '要不要', '能不能', '怎么办', '纠结'],
+    '寻物': ['找', '丢', '东西在哪', '不见了', '遗失'],
+    '家宅': ['风水', '房子', '搬家', '装修', '家里'],
+    '灵异': ['梦', '直觉', '感应', '前世'],
+    '运势': ['运势', '今年', '日运', '周运', '月运', '年运']
   };
   for (const [intent, keywords] of Object.entries(intentMap)) {
     if (keywords.some(k => q.includes(k))) return intent;
@@ -94,6 +102,7 @@ export function detectIntent(question, category, subCategory) {
   return null;
 }
 
+// ===== 本地解读（13维交叉） =====
 export async function localInterpretation() {
   const readings = await import('./texts/texts-readings.js');
   const tiWx = getWuxing(state.ti), yongWx = getWuxing(state.yong);
@@ -171,7 +180,8 @@ export async function localInterpretation() {
     if (!cards.length) continue;
     cards.forEach(card => {
       const diff = calcDiff(g, card);
-      diffSum += diff; diffCount++;
+      diffSum += diff;
+      diffCount++;
       const level = diff <= 1 ? '贴合' : diff <= 3 ? '低偏' : diff <= 5 ? '中偏' : diff <= 7 ? '高偏' : '脱节';
       diffText += `${GONG_NAMES[g]}宫：差值${diff}（${level}）\n`;
     });
@@ -225,7 +235,7 @@ export async function localInterpretation() {
 }
 
 function extractKeywords(text) {
-  const stopWords = ['我','你','他','她','它','的','了','吗','呢','吧','啊','是','在','有','不','想','要','能','会不会','该不该','为什么','什么','怎么'];
+  const stopWords = ['我', '你', '他', '她', '它', '的', '了', '吗', '呢', '吧', '啊', '是', '在', '有', '不', '想', '要', '能', '会不会', '该不该', '为什么', '什么', '怎么'];
   const normalized = text.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, ' ');
   const tokens = normalized.split(/\s+/).filter(t => t.length >= 2 && !stopWords.includes(t));
   return tokens.slice(0, 8);
@@ -440,7 +450,6 @@ export function confirmPeriodPick(periodType, card) {
       <div class="btn-row">
         <button id="periodCopyPromptBtn" class="outline small" style="font-size:0.65rem;">📋 复制提示词</button>
         <button id="periodSaveBtn" class="outline small">保存此牌</button>
-        <button id="periodDetailBtn" class="outline small" style="display:none;">查看保存的解读</button>
       </div>
     </div>
   `;
@@ -733,7 +742,7 @@ export function handleAction(action, dataset) {
     case 'generateInterpretation': generateInterpretation(); break;
     case 'copyLocal': copyLocalResult(); break;
     case 'shareImage': generateShareImage(); break;
-    case 'shareCode': importShareCode ? shareCode() : null; break;
+    case 'shareCode': generateShareCode(); break;
     case 'exportData': exportAllData(); break;
     case 'triggerAI': triggerAI(); break;
     case 'sendFollowUp': sendFollowUp(); break;

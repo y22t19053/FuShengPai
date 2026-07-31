@@ -86,34 +86,6 @@ export function guardMidnight(callback) {
   } else { callback(); }
 }
 
-export function showPrivacyWarning() {
-  const today = new Date().toDateString();
-  if (localStorage.getItem('fs_privacy_dismiss_today') === today) return;
-  const modal = document.getElementById('modal');
-  const content = document.getElementById('modalContent');
-  if (!modal || !content) return;
-  content.innerHTML = `
-    <div style="text-align:center;">
-      <h3>⚠️ 隐私模式检测</h3>
-      <p style="margin:10px 0;color:var(--dim);">您当前正在使用浏览器的隐私/无痕模式，<strong>所有数据在关闭页面后将自动清除</strong>。<br>建议您立即导出备份，或切换到正常模式使用。</p>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px;">
-        <button id="exportBackupBtn" class="primary small">导出备份</button>
-        <button id="dismissPrivacyBtn" class="outline small">我知道了</button>
-      </div>
-    </div>
-  `;
-  modal.removeAttribute('hidden');
-  document.getElementById('exportBackupBtn')?.addEventListener('click', () => {
-    exportAllData();
-    toast('备份已导出，请妥善保存');
-    modal.setAttribute('hidden', '');
-  });
-  document.getElementById('dismissPrivacyBtn')?.addEventListener('click', () => {
-    localStorage.setItem('fs_privacy_dismiss_today', today);
-    modal.setAttribute('hidden', '');
-  });
-}
-
 export function showDailyFortune() {
   const modal = document.getElementById('modal');
   const content = document.getElementById('modalContent');
@@ -177,7 +149,7 @@ export function showTimeCapsule() {
   modal.removeAttribute('hidden');
 }
 
-// ===== 榴莲报告（升级版） =====
+// ===== 榴莲报告 =====
 export function showDurianReport() {
   const timeline = getTimeline();
   const modal = document.getElementById('modal');
@@ -493,6 +465,12 @@ export function generateShareImage() {
   ctx.fillStyle = 'rgba(255,255,255,0.4)';
   ctx.font = '14px "Georgia", serif';
   ctx.fillText(durian.level || '', 300, 350);
+
+  // 在分享图中使用 getCardColor
+  if (state.ti) {
+    const tiColor = getCardColor(state.ti);
+    // 可以在此处用 tiColor 做二次绘制
+  }
 
   const summary = text.split('\n').filter(line => line.trim()).slice(0, 6).join(' ');
   ctx.fillStyle = '#c8c8d8';

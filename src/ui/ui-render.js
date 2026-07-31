@@ -31,11 +31,11 @@ export function renderTeachingPanel() {
       </p>
       <div style="font-size:0.8rem;color:var(--dim);">
         <h4>3步上手：</h4>
-        <p>1. 写下问题，选一个具体领域（可再选二级分类）。</p>
-        <p>2. 点“开始抽牌”，选体牌（代表你）和用牌（代表事情）。</p>
-        <p>3. 将剩余牌放入九宫，点“生成解读”。</p>
+        <p>1. 写下问题，选一个具体领域。</p>
+        <p>2. 点"开始抽牌"，选体牌和用牌。</p>
+        <p>3. 将剩余牌放入九宫，点"生成解读"。</p>
         <h4 style="margin-top:16px;">周期运程：</h4>
-        <p>日/周/月/季/年——同一个抽牌系统的不同时间尺度。展开牌堆自己抽一张，抽完直接挂在首页。</p>
+        <p>日/周/月/季/年——同一套抽牌系统的不同时间尺度，展开牌堆自己抽一张。</p>
         <h4 style="margin-top:16px;">原则</h4>
         <p>· 不测生死，不窥他人。</p>
         <p>· 牌是提示，不是命令。</p>
@@ -127,19 +127,15 @@ export function renderStep1() {
   });
 }
 
-// ===== 周期卡渲染（简化版：只显示牌面，不做外框，带防御） =====
+// ===== 周期卡渲染（移动端适配：可横向滑动） =====
 export function renderPeriodCards() {
   const area = document.getElementById('periodCardArea');
   if (!area) return;
 
-  const safeColor = (card) => {
-    if (typeof getCardColor === 'function') return getCardColor(card);
-    if (!card) return 'black';
-    if (card.isJoker) return 'gold';
-    return (card.suit === '♥' || card.suit === '♦') ? 'red' : 'black';
-  };
-
   area.innerHTML = '';
+  area.style.cssText = 'display:flex;flex-wrap:nowrap;gap:12px;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;padding:8px 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;';
+  area.style.setProperty('::-webkit-scrollbar', 'display:none');
+
   const storedPeriods = getStoredPeriodCards();
 
   Object.entries(PERIODS).forEach(([key, p]) => {
@@ -149,24 +145,23 @@ export function renderPeriodCards() {
 
     if (stored && stored.periodKey === periodKey && stored.card) {
       const card = stored.card;
-      const colorCls = safeColor(card);
+      const colorCls = getCardColor(card);
       const rank = card.isJoker ? card.type : card.rank;
       const suit = card.isJoker ? '' : card.suit;
       const wx = getWuxing(card);
 
       area.innerHTML += `
-        <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;" data-action="openPeriodDetail" data-period="${key}" title="${title}">
-          <div class="mini-card ${colorCls}" style="width:50px;height:70px;font-size:1rem;">
-            ${rank}${suit}
-          </div>
-          <div style="font-size:0.55rem;color:var(--dim);margin-top:2px;">${p.label}</div>
+        <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;flex-shrink:0;min-width:60px;padding:6px;border-radius:8px;touch-action:manipulation;" data-action="openPeriodDetail" data-period="${key}" title="${title}">
+          <div class="mini-card ${colorCls}" style="width:52px;height:72px;font-size:1rem;border-radius:6px;">${rank}${suit}</div>
+          <div style="font-size:0.55rem;color:var(--dim);margin-top:4px;">${p.label}</div>
+          <div style="font-size:0.5rem;color:var(--accent);">${wx}</div>
         </div>
       `;
     } else {
       area.innerHTML += `
-        <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;" data-action="openPeriodDeck" data-period="${key}" title="${title}">
-          <div class="card-back" style="width:50px;height:70px;border-radius:6px;"></div>
-          <div style="font-size:0.55rem;color:var(--dim);margin-top:2px;">${p.label}</div>
+        <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;flex-shrink:0;min-width:60px;padding:6px;border-radius:8px;touch-action:manipulation;" data-action="openPeriodDeck" data-period="${key}" title="${title}">
+          <div class="card-back" style="width:52px;height:72px;border-radius:6px;"></div>
+          <div style="font-size:0.55rem;color:var(--dim);margin-top:4px;">${p.label}</div>
         </div>
       `;
     }
@@ -259,7 +254,7 @@ export function renderFullReport(text, modules = null) {
   });
 }
 
-// ===== 牌堆渲染 =====
+// ===== 牌堆渲染（移动端优化） =====
 let deckCache = [];
 let deckCacheIds = '';
 
@@ -286,7 +281,7 @@ export function renderDeck() {
     });
     return;
   }
-  el.style.cssText = `display:flex;flex-wrap:nowrap;gap:10px;overflow-x:auto;overflow-y:hidden;padding:10px 8px;touch-action:pan-x;scrollbar-width:none;-ms-overflow-style:none;`;
+  el.style.cssText = `display:flex;flex-wrap:nowrap;gap:10px;overflow-x:auto;overflow-y:hidden;padding:10px 8px;touch-action:pan-x;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;`;
   el.innerHTML = '';
   state.deck.forEach((c, index) => {
     const id = getCardId(c);
@@ -299,13 +294,13 @@ export function renderDeck() {
     const div = document.createElement('div');
     if (state.manualMode) {
       div.className = `card-face-small ${colorCls}${sel ? ' selected' : ''}${placed ? ' used' : ''}`;
-      div.style.cssText = `${placed ? 'opacity:0.25;pointer-events:none;' : ''} flex-shrink:0;width:60px;height:84px;`;
+      div.style.cssText = `${placed ? 'opacity:0.25;pointer-events:none;' : ''} flex-shrink:0;width:60px;height:84px;touch-action:manipulation;`;
       div.dataset.cardid = id;
       div.dataset.cardindex = index;
       div.innerHTML = `<span class="rank">${rank}</span><span class="suit">${suit}</span><span class="wx-tag">${wx}</span>`;
     } else {
       div.className = `card-back${sel ? ' selected' : ''}${placed ? ' used' : ''}`;
-      div.style.cssText = `${placed ? 'opacity:0.25;pointer-events:none;' : ''} flex-shrink:0;width:60px;height:84px;`;
+      div.style.cssText = `${placed ? 'opacity:0.25;pointer-events:none;' : ''} flex-shrink:0;width:60px;height:84px;touch-action:manipulation;`;
       div.dataset.cardid = id;
       div.dataset.cardindex = index;
     }
@@ -373,12 +368,7 @@ export function renderGrid() {
 }
 
 function getRecommendedGong(intent) {
-  const map = {
-    '财运': 2, '感情': 7, '事业': 6, '健康': 8,
-    '学业': 4, '决策': 5, '人际关系': 7, '家宅': 8,
-    '运势': 9, '寻物': 1, '官非': 3, '出行': 3,
-    '灵异': 1, '技能': 4
-  };
+  const map = { '财运': 2, '感情': 7, '事业': 6, '健康': 8, '学业': 4, '决策': 5, '人际关系': 7, '家宅': 8, '运势': 9, '寻物': 1, '官非': 3, '出行': 3, '灵异': 1, '技能': 4 };
   return map[intent] || null;
 }
 
@@ -475,15 +465,9 @@ export function updateBaziPreview() {
   if (!preview) return;
   const bd = document.getElementById('birthDate')?.value;
   const bt = document.getElementById('birthTime')?.value || '12:00';
-  if (!bd) {
-    preview.textContent = '';
-    return;
-  }
+  if (!bd) { preview.textContent = ''; return; }
   const parts = bd.split('-');
-  if (parts.length !== 3) {
-    preview.textContent = '';
-    return;
-  }
+  if (parts.length !== 3) { preview.textContent = ''; return; }
   const year = parseInt(parts[0]);
   const month = parseInt(parts[1]);
   const day = parseInt(parts[2]);
@@ -492,9 +476,7 @@ export function updateBaziPreview() {
   try {
     const bazi = calcFullBaZi(year, month, day, hour);
     preview.textContent = '四柱预览：' + bazi.fullText + ' | 生肖：' + bazi.yearPillar.shengXiao;
-  } catch (e) {
-    preview.textContent = '日期无效';
-  }
+  } catch (e) { preview.textContent = '日期无效'; }
 }
 
 // ===== 历史面板 =====
