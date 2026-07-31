@@ -796,6 +796,14 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   font-size: 0.8rem;
 }
 
+.static-panel label {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--dim);
+  margin-top: 8px;
+  margin-bottom: 2px;
+}
+
 /* ===== API提供商网格 ===== */
 .api-provider-grid {
   display: grid;

@@ -1,6 +1,6 @@
 // ===== 浮生牌 · 核心引擎 =====
 import {
-  SUITS, RANKS, GONG_ORDER, ALL_LINES, TIME_LABELS,
+  SUITS, RANKS, GONG_ORDER, ALL_LINES, TIME_LABELS, GONG_WUXING,
   getWuxing, getCardValue, getCardId, getShengKe, getShengKeLabel, getWangState,
 } from './data.js';
 
@@ -112,6 +112,7 @@ export function calcDiff(gongNumber, card) {
   return Math.abs(gongNumber - getCardValue(card));
 }
 
+// ===== 【修正】analyzeGrid：正确传入 GONG_WUXING[g] =====
 export function analyzeGrid(grid, lineOrder, ti) {
   const results = [];
   const tiWx = getWuxing(ti);
@@ -122,7 +123,8 @@ export function analyzeGrid(grid, lineOrder, ti) {
     cards.forEach((card, index) => {
       const cardWx = getWuxing(card);
       const diff = calcDiff(g, card);
-      const wangState = getWangState(cardWx, GONG_ORDER.includes(g) ? cardWx : '土');
+      // 修正：传入宫位五行，而非 cardWx
+      const wangState = getWangState(cardWx, GONG_WUXING[g]);
       const relToTi = getShengKe(tiWx, cardWx);
       const timeRole = lineOrder[g] || '';
       results.push({ gong: g, card, cardWx, diff, wangState, relToTi, timeRole, position: index });

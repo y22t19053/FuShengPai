@@ -72,7 +72,20 @@ export function clearApiSettings() {
 
 // ===== 个人档案 =====
 export function getProfile() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILE)) || {}; } catch (e) { return {}; }
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.PROFILE);
+    if (!raw) return {};
+    const profile = JSON.parse(raw);
+    return {
+      birthDate: profile.birthDate || '',
+      birthTime: profile.birthTime || '',
+      name: profile.name || '',
+      gender: profile.gender || '',
+      birthPlace: profile.birthPlace || '',
+      currentPlace: profile.currentPlace || '',
+      ...profile
+    };
+  } catch (e) { return {}; }
 }
 export function saveProfile(profile) {
   localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
@@ -139,7 +152,13 @@ export function getTimeline() {
 }
 export function addTimelineEntry(entry) {
   const timeline = getTimeline();
-  timeline.push({ ...entry, timestamp: Date.now() });
+  const durianComponents = entry.durianComponents || null;
+  timeline.push({ 
+    ...entry, 
+    timestamp: Date.now(),
+    durianScore: entry.durianScore || 0,
+    durianComponents: durianComponents
+  });
   localStorage.setItem(STORAGE_KEYS.TIMELINE, JSON.stringify(timeline));
 }
 

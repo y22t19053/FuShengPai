@@ -9,6 +9,7 @@ import { refreshAll } from './ui-render.js';
 const pointerState = {
   down: false,
   moved: false,
+  isClick: false,
   startX: 0,
   startY: 0,
   cardEl: null,
@@ -41,11 +42,11 @@ function onPointerDown(e) {
 
   pointerState.down = true;
   pointerState.moved = false;
+  pointerState.isClick = true;
   pointerState.startX = e.clientX;
   pointerState.startY = e.clientY;
   pointerState.cardEl = cardEl;
 
-  // 点击选中（150ms内没移动就算点击）
   pointerState.timer = setTimeout(() => {
     if (!pointerState.moved && pointerState.down) {
       selectCard(cardEl.dataset.cardid);
@@ -59,20 +60,21 @@ function onPointerMove(e) {
   const dy = e.clientY - pointerState.startY;
   if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
     pointerState.moved = true;
+    pointerState.isClick = false;
     clearTimeout(pointerState.timer);
     if (!pointerState.ghostCard) {
       startGhostDrag(e.clientX, e.clientY);
     }
   }
   if (pointerState.ghostCard) {
-    pointerState.ghostCard.style.left = (e.clientX - 35) + 'px';
-    pointerState.ghostCard.style.top = (e.clientY - 50) + 'px';
+    pointerState.ghostCard.style.left = (e.clientX - 30) + 'px';
+    pointerState.ghostCard.style.top = (e.clientY - 40) + 'px';
   }
 }
 
 function onPointerUp(e) {
   clearTimeout(pointerState.timer);
-  if (!pointerState.moved && pointerState.down) {
+  if (pointerState.isClick && pointerState.down) {
     const el = document.elementFromPoint(e.clientX, e.clientY);
     const cardEl = el?.closest('.card-back, .card-face-small');
     if (cardEl) {
@@ -84,6 +86,7 @@ function onPointerUp(e) {
   }
   pointerState.down = false;
   pointerState.moved = false;
+  pointerState.isClick = false;
   pointerState.cardEl = null;
 }
 
@@ -97,8 +100,8 @@ function startGhostDrag(clientX, clientY) {
   ghost.style.opacity = '0.7';
   ghost.style.width = el.offsetWidth + 'px';
   ghost.style.height = el.offsetHeight + 'px';
-  ghost.style.left = (clientX - 35) + 'px';
-  ghost.style.top = (clientY - 50) + 'px';
+  ghost.style.left = (clientX - 30) + 'px';
+  ghost.style.top = (clientY - 40) + 'px';
   document.body.appendChild(ghost);
   pointerState.ghostCard = ghost;
   if (navigator.vibrate) navigator.vibrate(10);

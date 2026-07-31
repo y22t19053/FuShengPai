@@ -89,14 +89,19 @@ export const WANG_STATES = {
 
 // ----- API 厂商配置 -----
 export const API_PROVIDERS = {
-  deepseek: { endpoint: 'https://api.deepseek.com/v1/chat/completions', model: 'deepseek-chat' },
-  qwen: { endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', model: 'qwen-plus' },
-  openai: { endpoint: 'https://api.openai.com/v1/chat/completions', model: 'gpt-3.5-turbo' },
-  claude: { endpoint: 'https://api.anthropic.com/v1/messages', model: 'claude-3-haiku-20240307' },
-  gemini: { endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', model: 'gemini-pro' },
-  kimi: { endpoint: 'https://api.moonshot.cn/v1/chat/completions', model: 'moonshot-v1-8k' },
-  zhipu: { endpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions', model: 'glm-4' },
+  deepseek: { endpoint: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+  qwen: { endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
+  openai: { endpoint: 'https://api.openai.com/v1', model: 'gpt-3.5-turbo' },
+  claude: { endpoint: 'https://api.anthropic.com/v1', model: 'claude-3-haiku-20240307' },
+  gemini: { endpoint: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-pro' },
+  kimi: { endpoint: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k' },
+  zhipu: { endpoint: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4' },
   custom: { endpoint: '', model: '' },
+};
+
+export const API_PATH_MAP = {
+  claude: '/messages',
+  gemini: '/models/gemini-pro:generateContent',
 };
 
 // ----- 问题分类 -----
@@ -104,6 +109,9 @@ export const CATEGORIES = [
   '财运', '感情', '事业', '健康', '学业', '决策',
   '人际关系', '家宅', '运势', '寻物', '官非', '出行', '灵异', '技能',
 ];
+
+// ----- 性别选项 -----
+export const GENDER_OPTIONS = ['男', '女', '其他'];
 
 // ----- 精神力系统常量 -----
 export const SPIRIT_MAX = 100;

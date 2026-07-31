@@ -41,7 +41,7 @@
 
     <!-- 静态面板 -->
     <div class="static-panel" id="panelTeaching" hidden>
-      <h3>新手教程</h3>
+      <h3>📖 新手教程</h3>
       <div id="teachingContent"></div>
     </div>
     <div class="static-panel" id="panelRules" hidden>
@@ -77,12 +77,25 @@
       <p class="hint" style="margin-top:1vh;font-size:0.7rem;">数据流向：你的问题从浏览器直接发送到所选AI服务商，浮生牌不经过任何中转服务器。</p>
     </div>
     <div class="static-panel" id="panelProfile" hidden>
-      <h3>个人信息</h3>
-      <p class="hint">填写出生日期，系统将自动换算四柱，用于解读参考。出生时间可选填。</p>
+      <h3>🧑 个人信息</h3>
+      <p class="hint">填写后将在解读中自动带入，让分析更贴合你。</p>
+      <label>姓名</label>
+      <input type="text" id="profileName" placeholder="你的名字" />
+      <label>性别</label>
+      <select id="profileGender">
+        <option value="">请选择</option>
+        <option value="男">男</option>
+        <option value="女">女</option>
+        <option value="其他">其他</option>
+      </select>
       <label>出生日期（公历）</label>
       <input type="date" id="birthDate" />
       <label>出生时间（可选）</label>
       <input type="time" id="birthTime" />
+      <label>出生地（可选）</label>
+      <input type="text" id="birthPlace" placeholder="城市名，如：北京" />
+      <label>现居地（可选）</label>
+      <input type="text" id="currentPlace" placeholder="城市名，如：上海" />
       <p class="hint" id="baziPreview" style="margin-top:1vh;color:var(--accent);"></p>
       <button data-action="saveProfile" class="primary small">保存</button>
     </div>

@@ -25,23 +25,63 @@ export const escapeHtml = (str) => {
   return div.innerHTML;
 };
 
-// ===== 教程 =====
+// ===== 【重构】教程面板 =====
 export function renderTeachingPanel() {
   const container = document.getElementById('teachingContent');
   if (!container) return;
+
+  const gongTable = Object.entries(GONG_NAMES).map(([num, name]) =>
+    `<span style="display:inline-block;padding:2px 8px;margin:2px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:0.7rem;">${num}${name}</span>`
+  ).join('');
+
   container.innerHTML = `
-    <div style="margin-top:10px;padding:10px;background:rgba(255,255,255,0.02);border-radius:6px;">
-      <p style="color:var(--text);font-size:0.9rem;line-height:1.8;">${TUTORIAL_TEXTS.intro}</p>
-      <ol style="padding-left:1.2rem;margin-bottom:2vh;color:var(--dim);font-size:0.85rem;line-height:2;">
-        ${TUTORIAL_TEXTS.steps.map(s => '<li style="margin-bottom:0.5vh;">' + s + '</li>').join('')}
-      </ol>
-      <p style="font-size:0.75rem;color:var(--accent);margin-bottom:2vh;">${TUTORIAL_TEXTS.offlineHint}</p>
-      <h4 style="color:var(--accent);margin-top:2vh;font-size:0.9rem;">🛠️ 替代占卜的逻辑思维工具</h4>
-      <div class="physical-body" style="font-size:0.85rem;color:#ccc;line-height:1.8;background:rgba(0,0,0,0.15);padding:12px 16px;border-radius:8px;margin:8px 0;">
-        <p><strong>5W2H分析法：</strong><br>Who、What、Where、When、Why、How、How much</p>
-        <p><strong>SWOT分析法：</strong><br>S(优势)、W(劣势)、O(机会)、T(威胁)</p>
+    <div style="padding:8px 0;">
+      <h4 style="color:var(--accent);margin:8px 0 4px;">📖 浮生牌 · 五步观测法</h4>
+      <div style="font-size:0.8rem;color:var(--dim);line-height:2;background:rgba(0,0,0,0.15);padding:12px 16px;border-radius:8px;margin:4px 0;">
+        <p><strong>第一步：</strong>安静下来，默念你的问题（越具体越好）</p>
+        <p><strong>第二步：</strong>从牌堆中选出两张牌 — 体（代表你）、用（代表事情）</p>
+        <p><strong>第三步：</strong>将剩余牌依次放入九宫格（3×3）</p>
+        <p><strong>第四步：</strong>观察天机线（横向/纵向/斜向三宫连线）</p>
+        <p><strong>第五步：</strong>结合差值、五行生克、旺衰阅读解读</p>
       </div>
-      ${PHYSICAL_GUIDE && PHYSICAL_GUIDE.sections ? `<h4 style="color:var(--accent);margin-top:2vh;font-size:0.9rem;">实体牌操作指南</h4>` + PHYSICAL_GUIDE.sections.map(sec => `<h4 style="font-size:0.8rem;color:var(--dim);margin-top:8px;">${sec.heading}</h4><div class="physical-body" style="font-size:0.8rem;color:#aaa;background:rgba(0,0,0,0.1);padding:8px 12px;border-radius:6px;margin:4px 0;">${sec.body}</div>`).join('') : ''}
+
+      <h4 style="color:var(--accent);margin:12px 0 4px;">🗺️ 九宫速查</h4>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-width:300px;margin:4px auto;font-size:0.65rem;">
+        ${[4,9,2,3,5,7,8,1,6].map(g => `
+          <div style="background:rgba(0,0,0,0.2);border-radius:4px;padding:4px;text-align:center;border:1px solid rgba(255,255,255,0.05);">
+            <div style="font-weight:bold;color:var(--accent);">${g}</div>
+            <div style="color:var(--dim);">${GONG_NAMES[g]}</div>
+            <div style="color:#888;font-size:0.5rem;">${GONG_WUXING[g]}</div>
+          </div>
+        `).join('')}
+      </div>
+
+      <h4 style="color:var(--accent);margin:12px 0 4px;">⚡ 天机线</h4>
+      <div style="font-size:0.75rem;color:var(--dim);background:rgba(0,0,0,0.1);padding:8px 12px;border-radius:6px;">
+        当任意三个宫位形成直线（横/竖/斜），即为天机线。<br>
+        线上三宫分别代表：<strong style="color:var(--text);">起因 → 经过 → 结果</strong>
+      </div>
+
+      <h4 style="color:var(--accent);margin:12px 0 4px;">🔢 差值</h4>
+      <div style="font-size:0.75rem;color:var(--dim);background:rgba(0,0,0,0.1);padding:8px 12px;border-radius:6px;">
+        差值 = | 宫位数字 - 牌面点数 |<br>
+        <span style="color:#4CAF50;">0-1 贴合</span> · <span style="color:#FFC107;">2-5 偏差</span> · <span style="color:#F44336;">6-9 脱节</span>
+      </div>
+
+      <h4 style="color:var(--accent);margin:12px 0 4px;">🌿 五行生克</h4>
+      <div style="font-size:0.7rem;color:var(--dim);display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:2px;text-align:center;">
+        <span style="color:#4CAF50;">木</span><span style="color:#F44336;">火</span><span style="color:#FF9800;">土</span><span style="color:#9E9E9E;">金</span><span style="color:#2196F3;">水</span>
+      </div>
+      <div style="font-size:0.6rem;color:#666;text-align:center;margin:2px 0;">
+        木生火 · 火生土 · 土生金 · 金生水 · 水生木<br>
+        木克土 · 土克水 · 水克火 · 火克金 · 金克木
+      </div>
+
+      <div style="margin-top:12px;padding:8px 12px;background:rgba(201,160,96,0.06);border-radius:6px;border:1px solid rgba(201,160,96,0.1);">
+        <div style="font-size:0.7rem;color:var(--dim);">
+          💡 <strong>实体牌操作：</strong>去掉大小王，洗牌后依次抽出即可。网页只是辅助工具。
+        </div>
+      </div>
     </div>
   `;
 }
@@ -308,7 +348,6 @@ export function refreshAll() {
 
 // ===== 滚动按钮绑定（事件委托） =====
 export function bindScrollButtons() {
-  // 使用事件委托，不需要反复获取元素
   document.removeEventListener('click', handleScrollButtons);
   document.addEventListener('click', handleScrollButtons);
 }
@@ -365,7 +404,8 @@ export function renderStep1() {
   core.innerHTML = `
     <div id="dailySignCard" style="margin-bottom:16px;background:rgba(255,255,255,0.02);border-radius:8px;padding:16px;text-align:center;border:1px solid rgba(255,255,255,0.05);">${dailyHTML}</div>
     <h3 style="margin-top:0;">${UI_TEXTS.step1}</h3>
-    <div class="guide-tip">默念问题，选个领域</div>
+    <div class="guide-tip" style="font-size:0.8rem;color:var(--dim);margin-bottom:6px;">默念问题，选个领域</div>
+    <div style="font-size:0.65rem;color:#666;text-align:center;margin-bottom:8px;">💡 问题越具体，答案越清晰</div>
     <input type="text" id="questionInput" placeholder="${UI_TEXTS.placeholderQuestion}" autocomplete="off" value="${escapeHtml(state.question)}">
     <div class="category-grid">${CATEGORIES.map(c => `<button data-action="selectCategory" data-category="${c}" class="${state.category === c ? 'selected' : ''}">${c}</button>`).join('')}</div>
     <div class="btn-row">
@@ -429,14 +469,15 @@ export function renderStep3(text) {
     <div class="result-block" id="interpretText">${text.replace(/\n/g, '<br>')}</div>
     <div class="btn-row">
       <button data-action="copyLocal" class="small">${UI_TEXTS.btnCopy}</button>
+      <button id="copyPromptBtn" class="small outline" style="font-size:0.6rem;">📋 复制提示词</button>
       <button data-action="shareImage" class="outline small">${UI_TEXTS.btnShareImage}</button>
       <button data-action="shareCode" class="outline small">${UI_TEXTS.btnShareCode}</button>
       <button data-action="exportData" class="outline small">完整数据</button>
       <button data-action="timeCapsule" class="outline small">📦 胶囊</button>
-      <button id="aiReadBtn" data-action="triggerAI" class="primary small" ${aiVisible ? '' : 'style="display:none"'}>${UI_TEXTS.btnAIDeepRead}</button>
+      <button id="aiReadBtn" data-action="triggerAI" class="primary small">${UI_TEXTS.btnAIDeepRead}</button>
       <button data-action="resetAll" class="small">${UI_TEXTS.btnNewQuestion}</button>
     </div>
-    <div class="ai-guide-card">${AI_GUIDE_TEXT}</div>
+    <div class="ai-guide-card" style="font-size:0.6rem;color:var(--dim);text-align:center;padding:4px 0;">${AI_GUIDE_TEXT}</div>
     <div id="aiResultContainer" style="display:none;margin-top:10px">
       <div class="result-block" id="aiResultContent"></div>
       <div id="followUpArea" style="display:none;margin-top:8px">
@@ -449,6 +490,15 @@ export function renderStep3(text) {
     </div>
   `;
   renderDurianDisplay();
+
+  // 复制提示词
+  document.getElementById('copyPromptBtn')?.addEventListener('click', async () => {
+    const prompt = await import('../ui.js').then(m => m.buildAIPrompt());
+    navigator.clipboard.writeText(prompt).then(
+      () => toast('✅ 提示词已复制，可粘贴到任何 AI 工具使用'),
+      () => toast('复制失败')
+    );
+  });
 }
 
 // ===== 其他 =====

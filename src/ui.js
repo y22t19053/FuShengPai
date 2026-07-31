@@ -1,6 +1,5 @@
-// ===== src/ui.js · 业务主控中心 =====
+// ===== src/ui.js · 业务主控中心 + 事件绑定 + 动作分发 =====
 import { state, $, $$ } from './state.js';
-import { domCore } from './domCache.js';
 import { injectAnimations } from './ui/ui-anim.js';
 import {
   renderStep1, renderStep2, renderStep3, renderHistoryPanel,
@@ -9,14 +8,16 @@ import {
 } from './ui/ui-render.js';
 import {
   toast, guardMidnight, showOnboarding, showPrivacyWarning,
-  showTimeCapsule, showDurianReport
+  showTimeCapsule, showDurianReport, togglePanel,
+  showDailyFortune, showHistoryDetail, generateShareCode, importShareCode,
+  generateShareImage, saveShareImage, showAIGuideModal
 } from './ui/ui-modal.js';
-import { initDrag, destroyDrag, removeLineSelector, sealDeck } from './ui/ui-drag.js';
-import { bindAll } from './controllers/EventBinder.js';
+import { initDrag, destroyDrag, removeLineSelector, sealDeck, isCardPlaced, findCardById, placeCardOnGong, placeCardOnTiYong, setLine } from './ui/ui-drag.js';
 import {
   getApiSettings, saveApiSettings, clearApiSettings, getProfile, saveProfile,
   hasCompletedOnboarding, completeOnboarding, getDrawTimestamps, addDrawTimestamp,
-  saveReading, addTimelineEntry, saveTimeCapsule, getTimeCapsule
+  saveReading, addTimelineEntry, saveTimeCapsule, getTimeCapsule,
+  deleteHistoryItem, exportAllData
 } from './storage.js';
 import { requestReading, requestFollowUp, testApiConnection } from './ai.js';
 import {
@@ -35,7 +36,7 @@ import {
   generateChaosSeed, seedToX0, chaoticGenerator, chaoticShuffle,
   generateFingerprint, validateFingerprint
 } from './chaos.js';
-import { getEntropyBuffer, resetEntropy } from './entropy.js';
+import { getEntropyBuffer, resetEntropy, startEntropyCollection, stopEntropyCollection } from './entropy.js';
 import { interceptQuestion, checkDependency, getSealStatus } from './philosophy/ethics.js';
 import { applyCovenant } from './philosophy/covenant.js';
 
@@ -48,15 +49,6 @@ function mulberry32(a) {
     t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
     return ((t ^ t >>> 14) >>> 0) / 4294967296;
   }
-}
-function seededShuffle(array, seed) {
-  let arr = [...array];
-  let rng = mulberry32(seed);
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
 }
 
 // --- 核心业务逻辑 ---
@@ -108,14 +100,26 @@ export function detectIntent(question, category) {
   return null;
 }
 
+// ===== 动态加载词库 =====
 export async function localInterpretation() {
   const readings = await import('./texts/texts-readings.js');
-  const tiWx = getWuxing(state.ti),
-    yongWx = getWuxing(state.yong);
+  const tiWx = getWuxing(state.ti), yongWx = getWuxing(state.yong);
   const relation = getShengKe(tiWx, yongWx);
   const intent = detectIntent(state.question, state.category);
   state.intent = intent;
   let result = '';
+
+  // 嵌入个人信息
+  const profile = getProfile();
+  if (profile) {
+    let personalInfo = '';
+    if (profile.name) personalInfo += `【求测人】${profile.name}`;
+    if (profile.gender) personalInfo += `（${profile.gender}）`;
+    if (profile.birthPlace) personalInfo += `，生于${profile.birthPlace}`;
+    if (profile.currentPlace) personalInfo += `，现居${profile.currentPlace}`;
+    if (personalInfo) result += personalInfo + '\n\n';
+  }
+
   if (state.category) result += `【领域：${state.category}】\n\n`;
   const bazi = getBaziFromProfile();
   if (bazi) result += `【四柱】${bazi.fullText}\n\n`;
@@ -223,38 +227,36 @@ export async function generateInterpretation() {
 
 export async function buildAIPrompt() {
   const localText = await localInterpretation();
-  return `请根据以下浮生牌局象进行详细解读。\n\n要求：纯文本格式，严禁使用任何Markdown符号。用自然语言分段。从体用生克、时空推演、宫位差值、旺相休囚、阴阳属性等方面展开。话不说死。\n\n${localText}\n\n规则：红桃火(阳) 方块金(阳) 梅花木(阴) 黑桃水(阴) JQK土 大王天(阳) 小王人(阴)。`;
+  const profile = getProfile();
+  let personalPrefix = '';
+  if (profile) {
+    let parts = [];
+    if (profile.name) parts.push(`姓名：${profile.name}`);
+    if (profile.gender) parts.push(`性别：${profile.gender}`);
+    if (profile.birthPlace) parts.push(`出生地：${profile.birthPlace}`);
+    if (profile.currentPlace) parts.push(`现居地：${profile.currentPlace}`);
+    if (parts.length) personalPrefix = '【求测人信息】' + parts.join('，') + '\n\n';
+  }
+  return `${personalPrefix}请根据以下浮生牌局象进行详细解读。\n\n要求：纯文本格式，严禁使用任何Markdown符号。用自然语言分段。从体用生克、时空推演、宫位差值、旺相休囚、阴阳属性等方面展开。话不说死。\n\n${localText}\n\n规则：红桃火(阳) 方块金(阳) 梅花木(阴) 黑桃水(阴) JQK土 大王天(阳) 小王人(阴)。`;
 }
 
+// ===== 【修正】resetAll：彻底清空残留 =====
 export function resetAll() {
   if (!confirm('此阵一散，当下映照便消逝，确要重来吗？')) return;
   Object.assign(state, {
-    question: '',
-    category: '',
-    deck: [],
-    ti: null,
-    yong: null,
-    grid: {},
-    line: null,
-    lineOrder: {},
-    step: 1,
-    sel: null,
-    possible: [],
-    manualMode: false,
-    gongOrder: [],
-    chatHistory: [],
-    uid: Date.now() % 1000000,
-    editCount: 0,
-    refinementTags: {},
-    intent: null,
-    fingerprint: null,
-    entropyLevel: 0,
-    chaosSeed: null,
-    sealed: false,
-    sealedAt: null,
-    durianIndex: null
+    question: '', category: '', deck: [], ti: null, yong: null,
+    grid: {}, line: null, lineOrder: {}, step: 1, sel: null,
+    possible: [], manualMode: false, gongOrder: [], chatHistory: [],
+    uid: Date.now() % 1000000, editCount: 0, refinementTags: {},
+    intent: null, fingerprint: null, entropyLevel: 0, chaosSeed: null,
+    sealed: false, sealedAt: null, durianIndex: null
   });
   resetEntropy();
+  // 强制清空结果区和体用栏
+  const resultArea = document.getElementById('resultArea');
+  if (resultArea) resultArea.innerHTML = '';
+  const tiyongBar = document.getElementById('tiyongBar');
+  if (tiyongBar) tiyongBar.innerHTML = '';
   updateStep(1);
   renderStep1();
   toast(UI_TEXTS.toastReset);
@@ -262,34 +264,6 @@ export function resetAll() {
 
 export function startQuestion() {
   guardMidnight(() => proceedStartQuestion());
-}
-export function startManualEntry() {
-  guardMidnight(() => {
-    const input = document.getElementById('questionInput');
-    state.question = input?.value?.trim() || '';
-    state.manualMode = true;
-    state.uid = Date.now() % 1000000;
-    state.deck = createDeck(true);
-    state.ti = null;
-    state.yong = null;
-    state.grid = {};
-    state.line = null;
-    state.lineOrder = {};
-    state.sel = null;
-    state.possible = [];
-    state.chatHistory = [];
-    state.gongOrder = [];
-    state.editCount = 0;
-    state.refinementTags = {};
-    state.intent = null;
-    state.fingerprint = null;
-    state.sealed = false;
-    updateStep(2);
-    renderStep2();
-  });
-}
-export function lazyStart() {
-  guardMidnight(() => proceedLazyStart());
 }
 
 function proceedStartQuestion() {
@@ -314,7 +288,11 @@ function proceedStartQuestion() {
   (async () => {
     state.loading = true;
     try {
+      startEntropyCollection();
+      await new Promise(r => setTimeout(r, 300));
       const entropy = getEntropyBuffer();
+      stopEntropyCollection();
+
       const seed = await generateChaosSeed(entropy.length > 0 ? entropy : new Uint8Array([Date.now() % 256]));
       state.chaosSeed = seed;
       const x0 = seedToX0(seed);
@@ -345,11 +323,45 @@ function proceedStartQuestion() {
   })();
 }
 
+export function startManualEntry() {
+  guardMidnight(() => {
+    const input = document.getElementById('questionInput');
+    state.question = input?.value?.trim() || '';
+    state.manualMode = true;
+    state.uid = Date.now() % 1000000;
+    state.deck = createDeck(true);
+    state.ti = null;
+    state.yong = null;
+    state.grid = {};
+    state.line = null;
+    state.lineOrder = {};
+    state.sel = null;
+    state.possible = [];
+    state.chatHistory = [];
+    state.gongOrder = [];
+    state.editCount = 0;
+    state.refinementTags = {};
+    state.intent = null;
+    state.fingerprint = null;
+    state.sealed = false;
+    updateStep(2);
+    renderStep2();
+  });
+}
+
+export function lazyStart() {
+  guardMidnight(() => proceedLazyStart());
+}
+
 async function proceedLazyStart() {
   const input = document.getElementById('questionInput');
   state.question = input?.value?.trim() || '';
   state.manualMode = false;
+  startEntropyCollection();
+  await new Promise(r => setTimeout(r, 300));
   const entropy = getEntropyBuffer();
+  stopEntropyCollection();
+
   const seed = await generateChaosSeed(entropy.length > 0 ? entropy : new Uint8Array([Date.now() % 256]));
   state.chaosSeed = seed;
   const x0 = seedToX0(seed);
@@ -394,23 +406,31 @@ export function resetStep2() {
     toast('牌局已封印，不可重置');
     return;
   }
-  for (const g in state.grid) {
-    state.deck.push(...state.grid[g]);
+  if (state.ti) {
+    state.deck.push(state.ti);
+    state.ti = null;
   }
-  state.grid = {};
-  state.line = null;
-  state.lineOrder = {};
-  state.gongOrder = [];
-  state.sel = null;
-  state.possible = [];
+  if (state.yong) {
+    state.deck.push(state.yong);
+    state.yong = null;
+  }
   state.deck = shuffle(state.deck);
-  removeLineSelector();
+  state.sel = null;
   refreshAll();
-  toast(UI_TEXTS.toastGridCleared);
+  if (state.step === 2) {
+    renderStep2();
+  } else {
+    updateStep(2);
+    renderStep2();
+  }
+  toast('体用已重置，可重新选牌');
 }
 
 export function confirmTiYong() {
-  if (!state.ti || !state.yong) return;
+  if (!state.ti || !state.yong) {
+    toast('请先选好体用牌');
+    return;
+  }
   if (state.sealed) {
     toast('牌局已封印');
     return;
@@ -448,25 +468,15 @@ export function resetGrid() {
   toast(UI_TEXTS.toastGridCleared);
 }
 
-export function sealDeckAction() {
-  sealDeck();
-}
-
+export function sealDeckAction() { sealDeck(); }
 export function switchMode(mode) {
   if (!Object.values(MODES).includes(mode)) return;
   state.mode = mode;
   refreshAll();
   toast(`切换到 ${mode} 模式`);
 }
-
-export function showTimeCapsuleAction() {
-  showTimeCapsule();
-}
-
-export function showDurianReportAction() {
-  showDurianReport();
-}
-
+export function showTimeCapsuleAction() { showTimeCapsule(); }
+export function showDurianReportAction() { showDurianReport(); }
 export function copyLocalResult() {
   const el = document.getElementById('interpretText');
   if (!el) return;
@@ -497,7 +507,11 @@ export function saveApiSettingsFromForm() {
 export function saveProfileFromForm() {
   const bd = document.getElementById('birthDate')?.value || '';
   const bt = document.getElementById('birthTime')?.value || '';
-  saveProfile({ birthDate: bd, birthTime: bt });
+  const name = document.getElementById('profileName')?.value?.trim() || '';
+  const gender = document.getElementById('profileGender')?.value || '';
+  const birthPlace = document.getElementById('birthPlace')?.value?.trim() || '';
+  const currentPlace = document.getElementById('currentPlace')?.value?.trim() || '';
+  saveProfile({ birthDate: bd, birthTime: bt, name, gender, birthPlace, currentPlace });
   toast(UI_TEXTS.toastProfileSaved);
 }
 
@@ -506,18 +520,17 @@ export function checkEthicalBoundary(question) {
   return { blocked: intercept.blocked, message: intercept.message || '' };
 }
 
+// ===== 【修正】triggerAI：未配置时引导弹窗 =====
 export async function triggerAI() {
   const btn = document.getElementById('aiReadBtn');
   if (!btn) return;
-  btn.disabled = true;
-  btn.textContent = '思考中...';
   const settings = getApiSettings();
   if (!settings || !settings.apiKey) {
-    toast('请先配置 API Key');
-    btn.disabled = false;
-    btn.textContent = UI_TEXTS.btnAIDeepRead;
+    showAIGuideModal();
     return;
   }
+  btn.disabled = true;
+  btn.textContent = '思考中...';
   const provider = settings.provider || 'deepseek';
   let endpoint = settings.endpoint || API_PROVIDERS[provider]?.endpoint || '';
   if (endpoint.endsWith('/v1')) endpoint = endpoint.slice(0, -3);
@@ -526,12 +539,8 @@ export async function triggerAI() {
   const prompt = await buildAIPrompt();
   try {
     const result = await requestReading({
-      provider,
-      apiKey: settings.apiKey,
-      endpoint,
-      model,
-      style: settings.aiStyle || 'guide',
-      prompt
+      provider, apiKey: settings.apiKey, endpoint, model,
+      style: settings.aiStyle || 'guide', prompt
     });
     const container = document.getElementById('aiResultContainer');
     const content = document.getElementById('aiResultContent');
@@ -595,10 +604,7 @@ export async function sendFollowUp() {
 
 export async function handleTestApiConnection() {
   const btn = document.querySelector('[data-action="testApiConnection"]');
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = '测试中...';
-  }
+  if (btn) { btn.disabled = true; btn.textContent = '测试中...'; }
   try {
     const provider = state.selectedProvider || 'deepseek';
     let endpoint = document.getElementById('apiEndpoint')?.value?.trim() || '';
@@ -613,13 +619,139 @@ export async function handleTestApiConnection() {
   } catch (e) {
     toast(`测试失败: ${e.message}`, 4000);
   } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = UI_TEXTS.btnTestApi;
-    }
+    if (btn) { btn.disabled = false; btn.textContent = UI_TEXTS.btnTestApi; }
   }
 }
 
+// ============================================
+// 动作分发
+// ============================================
+export function handleAction(action, dataset) {
+  switch (action) {
+    case 'togglePanel': togglePanel(dataset.panel); break;
+    case 'resetAll': resetAll(); break;
+    case 'confirmQuestion': startQuestion(); break;
+    case 'lazyStart': lazyStart(); break;
+    case 'manualEntry': startManualEntry(); break;
+    case 'selectCategory':
+      state.category = state.category === dataset.category ? '' : dataset.category;
+      document.querySelectorAll('[data-action="selectCategory"]').forEach(b => b.classList.toggle('selected', b.dataset.category === state.category));
+      break;
+    case 'confirmTiYong': confirmTiYong(); break;
+    case 'resetStep2': resetStep2(); break;
+    case 'resetGrid': resetGrid(); break;
+    case 'generateInterpretation': generateInterpretation(); break;
+    case 'copyLocal': copyLocalResult(); break;
+    case 'shareImage': generateShareImage(); break;
+    case 'shareCode': generateShareCode(); break;
+    case 'exportData': exportAllData(); break;
+    case 'triggerAI': triggerAI(); break;
+    case 'sendFollowUp': sendFollowUp(); break;
+    case 'saveApiSettings': saveApiSettingsFromForm(); break;
+    case 'clearApiSettings':
+      clearApiSettings();
+      const keyInput = document.getElementById('apiKey');
+      if (keyInput) keyInput.value = '';
+      updateApiStatus();
+      toast(UI_TEXTS.toastCleared);
+      break;
+    case 'testApiConnection': handleTestApiConnection(); break;
+    case 'saveProfile': saveProfileFromForm(); break;
+    case 'deleteHistoryItem':
+      if (dataset.historyIndex !== undefined) {
+        deleteHistoryItem(parseInt(dataset.historyIndex));
+        renderHistoryPanel();
+        document.getElementById('modal')?.setAttribute('hidden', '');
+        toast('已删除');
+      }
+      break;
+    case 'importCode': importShareCode(); break;
+    case 'dailyFortune': showDailyFortune(); break;
+    case 'closeModal': document.getElementById('modal')?.setAttribute('hidden', ''); break;
+    case 'closeShare': document.getElementById('sharePreview')?.setAttribute('hidden', ''); break;
+    case 'saveShareImage': saveShareImage(); break;
+    case 'switchMode': switchMode(dataset.mode); break;
+    case 'sealDeck': sealDeckAction(); break;
+    case 'timeCapsule': showTimeCapsuleAction(); break;
+    case 'durianReport': showDurianReportAction(); break;
+  }
+}
+
+// ============================================
+// 事件绑定
+// ============================================
+function bindAllEvents() {
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('button');
+    if (btn) {
+      const action = btn.dataset.action;
+      if (action) {
+        handleAction(action, btn.dataset);
+        return;
+      }
+    }
+    const historyItem = e.target.closest('.history-item');
+    if (historyItem && historyItem.dataset.index !== undefined) {
+      showHistoryDetail(parseInt(historyItem.dataset.index));
+      return;
+    }
+    const lineBtn = e.target.closest('.line-btn');
+    if (lineBtn && lineBtn.dataset.line) {
+      setLine(lineBtn.dataset.line.split(',').map(Number));
+      return;
+    }
+    const emptyDash = e.target.closest('.empty-dash');
+    if (emptyDash && state.sel) {
+      const card = findCardById(state.sel);
+      if (card && !isCardPlaced(card)) {
+        if (emptyDash.textContent.includes('体')) {
+          placeCardOnTiYong(card, 'ti');
+        } else {
+          placeCardOnTiYong(card, 'yong');
+        }
+      }
+      return;
+    }
+    const gong = e.target.closest('.gong');
+    if (gong && state.sel) {
+      const g = parseInt(gong.dataset.gong);
+      const card = findCardById(state.sel);
+      if (card && !isCardPlaced(card)) {
+        placeCardOnGong(card, g);
+      }
+    }
+  });
+
+  document.addEventListener('click', function(e) {
+    const b = e.target.closest('#providerGrid button');
+    if (b && b.dataset.value) {
+      state.selectedProvider = b.dataset.value;
+      document.querySelectorAll('#providerGrid button').forEach(x => x.classList.toggle('selected', x === b));
+      const info = API_PROVIDERS[state.selectedProvider];
+      if (info) {
+        const ep = document.getElementById('apiEndpoint');
+        if (ep) ep.value = info.endpoint || '';
+      }
+    }
+    const modalEl = document.getElementById('modal');
+    if (e.target === modalEl && modalEl) modalEl.setAttribute('hidden', '');
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      const modal = document.getElementById('modal');
+      if (modal && !modal.hasAttribute('hidden')) modal.setAttribute('hidden', '');
+      const share = document.getElementById('sharePreview');
+      if (share && !share.hasAttribute('hidden')) share.setAttribute('hidden', '');
+      const onboard = document.querySelector('.onboard-overlay');
+      if (onboard) onboard.remove();
+    }
+  });
+}
+
+// ============================================
+// 初始化
+// ============================================
 function init() {
   try {
     updateStep(1);
@@ -629,9 +761,8 @@ function init() {
     if (ep && !ep.value) ep.value = API_PROVIDERS.deepseek.endpoint;
     if (!hasCompletedOnboarding()) showOnboarding();
     injectAnimations();
-    bindAll();
+    bindAllEvents();
     initDrag();
-    // 绑定滚动按钮
     bindScrollButtons();
 
     const seal = getSealStatus();
