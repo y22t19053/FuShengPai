@@ -243,6 +243,8 @@ export async function buildAIPrompt() {
 // ===== 【修正】resetAll：彻底清空残留 =====
 export function resetAll() {
   if (!confirm('此阵一散，当下映照便消逝，确要重来吗？')) return;
+  
+  // 重置所有状态
   Object.assign(state, {
     question: '', category: '', deck: [], ti: null, yong: null,
     grid: {}, line: null, lineOrder: {}, step: 1, sel: null,
@@ -252,12 +254,24 @@ export function resetAll() {
     sealed: false, sealedAt: null, durianIndex: null
   });
   resetEntropy();
-  // 强制清空结果区和体用栏
+
+  // 强制清空所有 UI 区域
   const resultArea = document.getElementById('resultArea');
   if (resultArea) resultArea.innerHTML = '';
+  
   const tiyongBar = document.getElementById('tiyongBar');
   if (tiyongBar) tiyongBar.innerHTML = '';
+  
+  const gridArea = document.getElementById('gridArea');
+  if (gridArea) gridArea.style.display = 'none';
+  
+  const coreArea = document.getElementById('coreArea');
+  if (coreArea) coreArea.innerHTML = '';
+  
+  // 重置步骤条
   updateStep(1);
+  
+  // 重新渲染首页
   renderStep1();
   toast(UI_TEXTS.toastReset);
 }
@@ -474,7 +488,7 @@ export function switchMode(mode) {
   if (!Object.values(MODES).includes(mode)) return;
   state.mode = mode;
   refreshAll();
-  toast(`切换到 ${mode} 模式`);
+  toast(`已切换至「${mode}」模式`);
 }
 
 export function showTimeCapsuleAction() { showTimeCapsule(); }
@@ -565,7 +579,7 @@ export async function triggerAI() {
     toast('AI 不可用，已展示规则解读', 3000);
   } finally {
     btn.disabled = false;
-    btn.textContent = UI_TEXTS.btnAIDeepRead;
+    btn.textContent = '✨ AI 深度解读';
   }
 }
 
@@ -627,7 +641,7 @@ export async function handleTestApiConnection() {
 }
 
 // ============================================
-// 动作分发（已修复 break）
+// 动作分发（所有case已带break）
 // ============================================
 export function handleAction(action, dataset) {
   switch (action) {

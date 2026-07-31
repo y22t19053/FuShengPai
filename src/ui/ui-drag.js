@@ -1,5 +1,5 @@
-// ===== src/ui/ui-drag.js · Pointer 事件统一处理 =====
-import { state, $, $$ } from '../state.js';
+// ===== src/ui/ui-drag.js · Pointer 事件处理，优化点击/拖拽 =====
+import { state } from '../state.js';
 import { ALL_LINES, TIME_LABELS, GONG_NAMES, getCardId } from '../data.js';
 import { calcDiff } from '../engine.js';
 import { UI_TEXTS } from '../texts/index.js';
@@ -31,6 +31,12 @@ export function destroyDrag() {
   document.removeEventListener('pointercancel', onPointerUp);
 }
 
+export function highlightDropTargets(active) {
+  document.querySelectorAll('.gong, .empty-dash').forEach(el => {
+    el.classList.toggle('drag-highlight', active);
+  });
+}
+
 function onPointerDown(e) {
   const cardEl = e.target.closest('.card-back, .card-face-small');
   if (!cardEl) return;
@@ -46,10 +52,11 @@ function onPointerDown(e) {
   pointerState.cardEl = cardEl;
 
   pointerState.timer = setTimeout(() => {
-    if (pointerState.down && !pointerState.moved) {
+    if (!pointerState.moved && pointerState.down) {
       selectCard(cardEl.dataset.cardid);
+      highlightDropTargets(true);
     }
-  }, 150);
+  }, 200);
 }
 
 function onPointerMove(e) {
@@ -60,6 +67,7 @@ function onPointerMove(e) {
     pointerState.moved = true;
     pointerState.isClick = false;
     clearTimeout(pointerState.timer);
+    highlightDropTargets(true);
     if (!pointerState.ghostCard) {
       startGhostDrag(e.clientX, e.clientY);
     }
@@ -72,6 +80,7 @@ function onPointerMove(e) {
 
 function onPointerUp(e) {
   clearTimeout(pointerState.timer);
+  highlightDropTargets(false);
   if (pointerState.isClick && pointerState.down) {
     const el = document.elementFromPoint(e.clientX, e.clientY);
     const cardEl = el?.closest('.card-back, .card-face-small');
@@ -194,7 +203,6 @@ export function placeCardOnTiYong(card, role) {
   return true;
 }
 
-// ===== 天机线 =====
 export function checkLines() {
   const filled = Object.keys(state.grid).filter(g => state.grid[g] && state.grid[g].length > 0).map(Number);
   state.possible = ALL_LINES.filter(line => line.every(g => filled.includes(g)));
@@ -245,7 +253,6 @@ export function removeLineSelector() {
   if (existing) existing.remove();
 }
 
-// ===== 封印 =====
 export function sealDeck() {
   if (state.sealed) {
     toast('牌局已封印');

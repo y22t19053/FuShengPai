@@ -1,6 +1,5 @@
-// ===== src/state.js · 仅包含全局业务数据和 DOM 快捷查询 =====
+// ===== src/state.js · 全局状态管理与 DOM 查询 =====
 export const state = {
-  // --- 原有字段 ---
   question: '',
   category: '',
   deck: [],
@@ -22,8 +21,6 @@ export const state = {
   refinementTags: {},
   userCorpus: [],
   intent: null,
-
-  // --- 新增字段 ---
   fingerprint: null,
   entropyLevel: 0,
   chaosSeed: null,
@@ -33,7 +30,7 @@ export const state = {
   durianIndex: null,
   sealStatus: null,
   timeCapsule: null,
-  loading: false, // 新增：异步操作状态标记
+  loading: false,
 };
 
 export const $ = (sel) => document.querySelector(sel);
