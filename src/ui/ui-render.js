@@ -35,7 +35,7 @@ export function renderTeachingPanel() {
         <p>2. 点"开始抽牌"，选体牌和用牌。</p>
         <p>3. 将剩余牌放入九宫，点"生成解读"。</p>
         <h4 style="margin-top:16px;">周期运程：</h4>
-        <p>日/周/月/季/年——同一套抽牌系统的不同时间尺度，展开牌堆自己抽一张。</p>
+        <p>日/周/月/季/年——同一套抽牌系统的不同时间尺度，抽一次锁定一个周期。</p>
         <h4 style="margin-top:16px;">原则</h4>
         <p>· 不测生死，不窥他人。</p>
         <p>· 牌是提示，不是命令。</p>
@@ -69,6 +69,9 @@ export function renderStep1() {
     return html;
   };
 
+  // 读取已保存的周期牌，决定按钮文字
+  const storedPeriods = getStoredPeriodCards();
+
   core.innerHTML = `
     <div style="margin-bottom:16px;">
       <h3 style="font-size:1.6rem;margin:0;">浮生牌</h3>
@@ -82,9 +85,16 @@ export function renderStep1() {
     </div>
 
     <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:12px;">
-      ${Object.entries(PERIODS).map(([key, p]) => `<button data-action="openPeriodDeck" data-period="${key}" class="small outline">${p.label}</button>`).join('')}
+      ${Object.entries(PERIODS).map(([key, p]) => {
+        const periodKey = getCurrentPeriodKey(key);
+        const stored = storedPeriods[key];
+        const hasCard = stored && stored.periodKey === periodKey && stored.card;
+        const btnText = hasCard ? `${p.label}·查看` : `${p.label}·去抽牌`;
+        const action = hasCard ? 'openPeriodDetail' : 'openPeriodDeck';
+        return `<button data-action="${action}" data-period="${key}" class="small outline">${btnText}</button>`;
+      }).join('')}
     </div>
-    <div style="font-size:0.6rem;color:var(--dim);text-align:center;margin-top:4px;">点击周期运，展开牌堆自己抽一张</div>
+    <div style="font-size:0.6rem;color:var(--dim);text-align:center;margin-top:4px;">周期运抽一次，抽完即锁定</div>
 
     <div id="periodCardArea" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:12px;justify-content:center;"></div>
 
@@ -105,7 +115,7 @@ export function renderStep1() {
       <div style="color:var(--accent);font-weight:bold;margin-bottom:8px;">🤔 理清问题</div>
       <h4 style="color:var(--text);">5W2H</h4>
       <p><strong>What</strong> 你要问的事是什么？</p>
-      <p><strong>Why</strong> 为什么现在问？你真正担心什么？</p>
+      <p><strong>Why</strong> 为什么现在问？</p>
       <p><strong>Who</strong> 这事涉及谁？</p>
       <p><strong>When</strong> 什么时候发生/需要决定？</p>
       <p><strong>Where</strong> 在什么场景下？</p>
@@ -127,7 +137,7 @@ export function renderStep1() {
   });
 }
 
-// ===== 周期卡渲染（移动端适配：可横向滑动） =====
+// ===== 周期卡渲染（移动端适配） =====
 export function renderPeriodCards() {
   const area = document.getElementById('periodCardArea');
   if (!area) return;
@@ -254,7 +264,7 @@ export function renderFullReport(text, modules = null) {
   });
 }
 
-// ===== 牌堆渲染（移动端优化） =====
+// ===== 牌堆渲染 =====
 let deckCache = [];
 let deckCacheIds = '';
 

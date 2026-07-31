@@ -395,11 +395,42 @@ export function openPeriodDeck(periodType) {
   const cfg = PERIODS[periodType];
   if (!cfg) return;
 
+  // 已抽过当前周期 -> 锁定，只查看
+  const stored = getStoredPeriodCards();
+  const periodKey = getCurrentPeriodKey(periodType);
+  if (stored[periodType] && stored[periodType].periodKey === periodKey && stored[periodType].card) {
+    openPeriodDetail(periodType);
+    return;
+  }
+
   const deck = createDeck(true);
   const shuffled = shuffle(deck);
   state.periodType = periodType;
   state.pendingPeriodDeck = shuffled;
 
+  // 判断是否为触摸设备（手机/平板）
+  const isTouch = window.matchMedia('(pointer: coarse)').matches;
+
+  if (isTouch) {
+    // 手机端：按钮选牌，避免滑动冲突
+    content.innerHTML = `
+      <h3 style="text-align:center;">${cfg.label} · 抽一张牌</h3>
+      <p style="text-align:center;font-size:0.75rem;color:var(--dim);margin-bottom:10px;">点击下方按钮，随机抽一张牌。</p>
+      <div style="text-align:center;padding:20px 0;">
+        <button id="periodTouchDraw" class="primary small" style="padding:12px 32px;font-size:1rem;">抽一张</button>
+      </div>
+      <div style="text-align:center;font-size:0.65rem;color:var(--dim);">抽完即锁定，本周期内不可重抽</div>
+    `;
+    modal.removeAttribute('hidden');
+    document.getElementById('periodTouchDraw').addEventListener('click', () => {
+      const idx = Math.floor(Math.random() * shuffled.length);
+      const card = shuffled[idx];
+      confirmPeriodPick(periodType, card);
+    });
+    return;
+  }
+
+  // 桌面端：保留点击牌堆
   let deckHTML = shuffled.map((c, idx) => {
     return `<div class="card-back" data-period-card-idx="${idx}" style="flex-shrink:0;width:60px;height:84px;cursor:pointer;margin:4px;"></div>`;
   }).join('');
@@ -408,6 +439,7 @@ export function openPeriodDeck(periodType) {
     <h3 style="text-align:center;">${cfg.label} · 抽一张牌</h3>
     <p style="text-align:center;font-size:0.75rem;color:var(--dim);margin-bottom:10px;">凭直觉选一张，不要多想。</p>
     <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-height:400px;overflow-y:auto;padding:10px;">${deckHTML}</div>
+    <div style="text-align:center;font-size:0.65rem;color:var(--dim);margin-top:6px;">抽完即锁定，本周期内不可重抽</div>
   `;
   modal.removeAttribute('hidden');
 
@@ -519,10 +551,11 @@ export function savePeriodCard(periodType, card, metaphor) {
     time: Date.now(),
     chatHistory: state.periodAiHistory || [],
   });
-  toast('此牌已保存');
+  toast('此牌已保存，本周期内不可重抽');
   const modal = document.getElementById('modal');
   if (modal) modal.setAttribute('hidden', '');
   renderPeriodCards();
+  renderStep1();
 }
 
 function generateFullPeriodLocal(card, wx, periodType, metaphor) {
@@ -740,6 +773,7 @@ export function handleAction(action, dataset) {
     case 'resetStep2': resetStep2(); break;
     case 'resetGrid': resetGrid(); break;
     case 'generateInterpretation': generateInterpretation(); break;
+    case 'showFullReport': showFullReport(); break;
     case 'copyLocal': copyLocalResult(); break;
     case 'shareImage': generateShareImage(); break;
     case 'shareCode': generateShareCode(); break;
