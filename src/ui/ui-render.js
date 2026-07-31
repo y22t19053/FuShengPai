@@ -81,13 +81,11 @@ export function renderStep1() {
       <button data-action="lazyStart" class="outline">${UI_TEXTS.btnLazy}</button>
     </div>
 
-    <!-- 周期运入口 -->
     <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:12px;">
       ${Object.entries(PERIODS).map(([key, p]) => `<button data-action="openPeriodDeck" data-period="${key}" class="small outline">${p.label}</button>`).join('')}
     </div>
     <div style="font-size:0.6rem;color:var(--dim);text-align:center;margin-top:4px;">点击周期运，展开牌堆自己抽一张</div>
 
-    <!-- 周期卡显示区：只显示牌面，不做外框 -->
     <div id="periodCardArea" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:12px;justify-content:center;"></div>
 
     <div style="text-align:center;font-size:0.7rem;color:var(--dim);margin-top:6px;">
@@ -129,10 +127,18 @@ export function renderStep1() {
   });
 }
 
-// ===== 周期卡渲染(简化版：只显示牌面) =====
+// ===== 周期卡渲染（简化版：只显示牌面，不做外框，带防御） =====
 export function renderPeriodCards() {
   const area = document.getElementById('periodCardArea');
   if (!area) return;
+
+  const safeColor = (card) => {
+    if (typeof getCardColor === 'function') return getCardColor(card);
+    if (!card) return 'black';
+    if (card.isJoker) return 'gold';
+    return (card.suit === '♥' || card.suit === '♦') ? 'red' : 'black';
+  };
+
   area.innerHTML = '';
   const storedPeriods = getStoredPeriodCards();
 
@@ -140,15 +146,14 @@ export function renderPeriodCards() {
     const periodKey = getCurrentPeriodKey(key);
     const stored = storedPeriods[key];
     const title = getPeriodTitle(key);
-    
+
     if (stored && stored.periodKey === periodKey && stored.card) {
       const card = stored.card;
-      const colorCls = getCardColor(card);
+      const colorCls = safeColor(card);
       const rank = card.isJoker ? card.type : card.rank;
       const suit = card.isJoker ? '' : card.suit;
       const wx = getWuxing(card);
-      
-      // 已抽牌：显示牌面 + 周期小标签(悬停可见)
+
       area.innerHTML += `
         <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;" data-action="openPeriodDetail" data-period="${key}" title="${title}">
           <div class="mini-card ${colorCls}" style="width:50px;height:70px;font-size:1rem;">
@@ -158,7 +163,6 @@ export function renderPeriodCards() {
         </div>
       `;
     } else {
-      // 未抽牌：显示牌背 + 周期小标签
       area.innerHTML += `
         <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;" data-action="openPeriodDeck" data-period="${key}" title="${title}">
           <div class="card-back" style="width:50px;height:70px;border-radius:6px;"></div>
