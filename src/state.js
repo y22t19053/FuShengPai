@@ -31,9 +31,6 @@ export const state = {
   sealStatus: null,
   timeCapsule: null,
   loading: false,
-  // 逼问流程
-  questionFlow: null,
-  // 当前待显示的解读文本（比喻/回响之后才显示完整报告）
   pendingFullReport: '',
 };
 
