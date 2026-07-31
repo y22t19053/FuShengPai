@@ -624,7 +624,7 @@ export async function handleTestApiConnection() {
 }
 
 // ============================================
-// 动作分发
+// 动作分发（已修复 break）
 // ============================================
 export function handleAction(action, dataset) {
   switch (action) {

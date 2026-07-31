@@ -9,7 +9,7 @@ import {
   shuffle, drawTiYong, calcFullBaZi, calcYearPillar,
   getTimeLabels, calcDiff, getDiffLevel
 } from '../engine.js';
-import { getApiSettings, getProfile, getHistory } from '../storage.js';
+import { getApiSettings, getProfile, getHistory, deleteHistoryItem } from '../storage.js';
 import {
   UI_TEXTS, TUTORIAL_TEXTS, PHYSICAL_GUIDE,
   HISTORY_EMPTY, AI_GUIDE_TEXT, generateFullReading
@@ -95,13 +95,16 @@ export function renderDeck() {
   if (!el) return;
 
   if (!state.deck || state.deck.length === 0) {
-    el.innerHTML = '<span style="color:#666;padding:10px;display:block;text-align:center;width:100%;font-size:0.9rem;">镜中牌已尽，可重置以重观</span>';
+    // 清空缓存，直接渲染空提示
     deckCache = [];
     deckCacheIds = '';
+    el.innerHTML = '<span style="color:#666;padding:10px;display:block;text-align:center;width:100%;font-size:0.9rem;">镜中牌已尽，可重置以重观</span>';
     return;
   }
 
   const currentIds = state.deck.map(c => getCardId(c)).join(',');
+
+  // 如果牌库相同且 DOM 数量正确，只更新状态类
   if (currentIds === deckCacheIds && el.children.length === state.deck.length) {
     Array.from(el.children).forEach((child, idx) => {
       const card = state.deck[idx];
@@ -116,6 +119,7 @@ export function renderDeck() {
     return;
   }
 
+  // 重新渲染
   el.style.cssText = `
     display: flex; flex-wrap: nowrap; gap: 10px;
     overflow-x: auto; overflow-y: hidden;
@@ -501,12 +505,81 @@ export function renderStep3(text) {
   });
 }
 
-// ===== 其他 =====
-export function renderEntropyDisplay() {}
-export function initSettingsPanel() {}
-export function initProfilePanel() {}
-export function renderHistoryPanel() {}
+// ===== 设置面板（完整实现） =====
+export function initSettingsPanel() {
+  const wrapper = document.querySelector('#panelSettings .api-provider-grid');
+  if (wrapper) {
+    // 基于 UI 的按钮已存在，只需绑定状态
+    const s = getApiSettings();
+    if (s) {
+      const providerBtns = document.querySelectorAll('#providerGrid button');
+      providerBtns.forEach(b => b.classList.toggle('selected', b.dataset.value === s.provider));
+      const keyInput = document.getElementById('apiKey');
+      if (keyInput) keyInput.value = s.apiKey || '';
+      const endpointInput = document.getElementById('apiEndpoint');
+      if (endpointInput) endpointInput.value = s.endpoint || '';
+      const styleSelect = document.getElementById('aiStyle');
+      if (styleSelect) styleSelect.value = s.aiStyle || 'guide';
+    }
+  }
+  updateApiStatus();
+}
 
+export function initProfilePanel() {
+  const p = getProfile();
+  const birthDate = document.getElementById('birthDate');
+  const birthTime = document.getElementById('birthTime');
+  const name = document.getElementById('profileName');
+  const gender = document.getElementById('profileGender');
+  const birthPlace = document.getElementById('birthPlace');
+  const currentPlace = document.getElementById('currentPlace');
+
+  if (birthDate) birthDate.value = p.birthDate || '';
+  if (birthTime) birthTime.value = p.birthTime || '';
+  if (name) name.value = p.name || '';
+  if (gender) gender.value = p.gender || '';
+  if (birthPlace) birthPlace.value = p.birthPlace || '';
+  if (currentPlace) currentPlace.value = p.currentPlace || '';
+  updateBaziPreview();
+}
+
+export function updateBaziPreview() {
+  const preview = document.getElementById('baziPreview');
+  if (!preview) return;
+  const bd = document.getElementById('birthDate')?.value;
+  const bt = document.getElementById('birthTime')?.value || '12:00';
+  if (!bd) { preview.textContent = ''; return; }
+  const parts = bd.split('-');
+  if (parts.length !== 3) { preview.textContent = ''; return; }
+  const year = parseInt(parts[0]);
+  const month = parseInt(parts[1]);
+  const day = parseInt(parts[2]);
+  const tp = bt.split(':');
+  const hour = tp.length >= 1 ? parseInt(tp[0]) || 12 : 12;
+  try {
+    const bazi = calcFullBaZi(year, month, day, hour);
+    preview.textContent = '四柱预览：' + bazi.fullText + '  |  生肖：' + bazi.yearPillar.shengXiao;
+  } catch (e) { preview.textContent = '日期无效'; }
+}
+
+// ===== 历史面板（完整实现） =====
+export function renderHistoryPanel() {
+  const list = document.getElementById('historyList');
+  if (!list) return;
+  const history = getHistory();
+  if (!history.length) {
+    list.innerHTML = `<p style="color:var(--dim)">${HISTORY_EMPTY}</p>`;
+    return;
+  }
+  list.innerHTML = history.map((r, i) => `
+    <div class="history-item" data-index="${i}" style="cursor:pointer;margin:8px 0;padding:8px;background:rgba(255,255,255,0.03);border-radius:6px;">
+      <strong>${new Date(r.time).toLocaleString()}</strong>
+      <span> - ${r.question || '未提问'} (${r.category || '无类别'})</span>
+    </div>
+  `).join('');
+}
+
+// ===== 状态提示 =====
 export function updateApiStatus() {
   const s = getApiSettings();
   const st = document.getElementById('apiStatus');
