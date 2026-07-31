@@ -1,9 +1,12 @@
 // ===== src/entropy.js · 熵采集系统 =====
+// 目的：从用户交互（鼠标移动、触摸）中收集额外熵，增强随机性
+
 let entropyBuffer = [];
 let isCollecting = false;
 let entropyLevel = 0;
 
 export function startEntropyCollection() {
+  if (isCollecting) return;
   isCollecting = true;
   entropyBuffer = [];
   entropyLevel = 0;

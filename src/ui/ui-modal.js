@@ -178,7 +178,7 @@ export function showTimeCapsule() {
   modal.removeAttribute('hidden');
 }
 
-// ===== 【增强】榴莲报告 =====
+// ===== 榴莲报告 =====
 export function showDurianReport() {
   const timeline = getTimeline();
   const modal = document.getElementById('modal');
@@ -195,7 +195,6 @@ export function showDurianReport() {
   const trend = lastThree.length === 3 && lastThree[2] - lastThree[0] > 0.5 ? '📈 上升' :
                 lastThree.length === 3 && lastThree[2] - lastThree[0] < -0.5 ? '📉 下降' : '➡️ 平稳';
 
-  // 计算各维度平均值（如果有存储）
   let avgDiff = 0, avgKe = 0, avgTrend = 0, avgTension = 0;
   let count = 0;
   for (const entry of recent) {
@@ -214,14 +213,12 @@ export function showDurianReport() {
     avgTension = Math.round(avgTension / count);
   }
 
-  // 构建建议
   let advice = '';
   if (avg > 7) advice = '⚠️ 你的观测整体张力偏高，建议暂停几天，让状态沉淀后再试。';
   else if (avg > 5) advice = '📌 当前处于中等张力区间，适合观察但不适合做重大决策。';
   else if (avg > 3) advice = '🌱 状态温和，适合推进日常事务和温和的自我观察。';
   else advice = '✨ 状态良好，如有重要决定，此时是较好的窗口期。';
 
-  // 简单的折线图（用 Canvas 绘制）
   const canvasHTML = `<canvas id="durianChart" width="380" height="120" style="width:100%;height:120px;border-radius:6px;background:rgba(0,0,0,0.2);margin:8px 0;"></canvas>`;
 
   content.innerHTML = `
@@ -262,21 +259,17 @@ export function showDurianReport() {
   `;
   modal.removeAttribute('hidden');
 
-  // 绘制折线图
   setTimeout(() => {
     const canvas = document.getElementById('durianChart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const w = canvas.width, h = canvas.height;
     ctx.clearRect(0, 0, w, h);
-
     const data = scores.slice(-20);
     if (data.length < 2) return;
     const maxVal = Math.max(10, ...data);
     const minVal = Math.min(0, ...data);
     const range = maxVal - minVal || 1;
-
-    // 绘制网格线
     ctx.strokeStyle = 'rgba(255,255,255,0.05)';
     ctx.lineWidth = 1;
     for (let i = 0; i <= 4; i++) {
@@ -290,8 +283,6 @@ export function showDurianReport() {
       ctx.textAlign = 'right';
       ctx.fillText((i / 4 * range + minVal).toFixed(1), 8, y + 3);
     }
-
-    // 绘制折线
     const step = (w - 20) / Math.max(1, data.length - 1);
     ctx.beginPath();
     ctx.strokeStyle = '#c9a060';
@@ -303,8 +294,6 @@ export function showDurianReport() {
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
-
-    // 绘制数据点
     for (let i = 0; i < data.length; i++) {
       const x = 10 + i * step;
       const y = h - 10 - ((data[i] - minVal) / range) * (h - 20);
@@ -313,8 +302,6 @@ export function showDurianReport() {
       ctx.fillStyle = data[i] > 7 ? '#F44336' : data[i] > 5 ? '#FF9800' : '#4CAF50';
       ctx.fill();
     }
-
-    // 标记最近一次
     if (data.length > 0) {
       const lastX = 10 + (data.length - 1) * step;
       const lastY = h - 10 - ((data[data.length - 1] - minVal) / range) * (h - 20);
@@ -358,15 +345,18 @@ export function showHistoryDetail(index) {
   const modal = document.getElementById('modal');
   const content = document.getElementById('modalContent');
   if (!modal || !content || !r) return;
+
   const buildHistoricalPrompt = (historyRecord, question) => {
     return `请根据以下浮生牌局象进行详细解读。\n\n历史牌局解读：${historyRecord.text}\n\n用户追问：${question}\n\n规则：纯文本格式，用自然语言。话不说死。`;
   };
+
   let aiBlock = '';
   if (r.chatHistory && r.chatHistory.length) {
     aiBlock = '<div class="result-block" style="max-height:150px;margin-top:10px;font-size:0.85rem;">' + r.chatHistory.map(m => `<div class="chat-msg ${m.role === 'user' ? 'user' : 'ai'}">${m.content.replace(/\n/g, '<br>')}</div>`).join('') + '</div>';
   } else {
     aiBlock = '<p style="color:var(--dim);font-size:0.85rem;">暂无 AI 对话记录</p>';
   }
+
   content.innerHTML = `<h3>历史详情</h3>
     <p style="font-size:0.85rem;color:var(--dim);"><strong>时间：</strong>${new Date(r.time).toLocaleString()}</p>
     <p style="font-size:0.85rem;color:var(--dim);"><strong>问题：</strong>${r.question || '未提问'}</p>
@@ -379,28 +369,10 @@ export function showHistoryDetail(index) {
     </div>
     <div class="btn-row" style="margin-top:10px;">
       <button data-action="deleteHistoryItem" data-history-index="${index}" class="outline small">删除此条</button>
-      <button id="reObserveBtn" class="primary small">重新观测</button>
       <button data-action="closeModal" class="small">${UI_TEXTS.btnClose}</button>
     </div>
   `;
   modal.removeAttribute('hidden');
-
-  document.getElementById('reObserveBtn')?.addEventListener('click', () => {
-    import('../ui.js').then(ui => {
-      Object.assign(state, {
-        ti: r.ti, yong: r.yong, grid: r.grid, line: r.line,
-        lineOrder: r.lineOrder, chatHistory: [], step: 3,
-        question: r.question, category: r.category
-      });
-      modal.setAttribute('hidden', '');
-      ui.updateStep(3);
-      import('../ui/ui-render.js').then(render => {
-        render.renderStep3(r.text || '历史牌局已加载，重新生成解读中...');
-        ui.generateInterpretation();
-      });
-      toast('已加载历史牌局，可重新观测');
-    });
-  });
 
   const followInput = document.getElementById('historyFollowUpInput');
   const followBtn = document.getElementById('historyFollowUpBtn');
@@ -505,7 +477,7 @@ export function importShareCode() {
   }
 }
 
-// ===== 【升级】分享图：朋友圈风格卡片 =====
+// ===== 分享图：朋友圈风格卡片 =====
 export function generateShareImage() {
   const container = document.getElementById('sharePreview');
   const canvas = document.getElementById('shareCanvas');
@@ -555,6 +527,7 @@ export function generateShareImage() {
     yongWx = getWuxing(state.yong);
     const rel = getShengKe(tiWx, yongWx);
     relation = rel || '未知';
+    // 使用已有的 getShengKe 函数
   }
   ctx.fillStyle = '#e0e0e8';
   ctx.font = '24px "Georgia", "Songti SC", serif';
@@ -584,22 +557,6 @@ export function generateShareImage() {
   ctx.font = '14px "Georgia", "Songti SC", serif';
   ctx.fillText(durian.level || '', 300, 325);
 
-  // ---- 体用五行标签（人格标签） ----
-  const wxMap = { '火': '🔥 火型 · 热烈', '金': '⚔️ 金型 · 决断', '木': '🌳 木型 · 生长', '水': '🌊 水型 · 流动', '土': '🏔️ 土型 · 承载', '天': '☀️ 天型 · 超越', '人': '🌙 人型 · 智谋' };
-  const tag = wxMap[tiWx] || '🔮 观测者';
-  ctx.fillStyle = 'rgba(201,160,96,0.15)';
-  if (ctx.roundRect) {
-    ctx.beginPath();
-    ctx.roundRect(200, 345, 200, 30, 15);
-    ctx.fill();
-  } else {
-    ctx.fillRect(200, 345, 200, 30);
-  }
-  ctx.fillStyle = '#c9a060';
-  ctx.font = '14px "Georgia", "Songti SC", serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(`✦ ${tag} ✦`, 300, 367);
-
   // ---- 解读摘要（自动换行） ----
   const summary = text.split('\n').filter(line => line.trim()).slice(0, 6).join(' ');
   ctx.fillStyle = '#c8c8d8';
@@ -620,7 +577,7 @@ export function generateShareImage() {
   if (current) lines.push(current);
   if (lines.length > 6) lines = lines.slice(0, 6);
 
-  let y = 410;
+  let y = 380;
   for (let line of lines) {
     ctx.fillText(line, 40, y);
     y += 28;

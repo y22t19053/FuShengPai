@@ -1,6 +1,4 @@
 // ===== src/state.js · 仅包含全局业务数据和 DOM 快捷查询 =====
-import { getCardId } from './data.js';
-
 export const state = {
   // --- 原有字段 ---
   question: '',
@@ -24,7 +22,7 @@ export const state = {
   refinementTags: {},
   userCorpus: [],
   intent: null,
-  
+
   // --- 新增字段 ---
   fingerprint: null,
   entropyLevel: 0,
@@ -35,6 +33,7 @@ export const state = {
   durianIndex: null,
   sealStatus: null,
   timeCapsule: null,
+  loading: false, // 新增：异步操作状态标记
 };
 
 export const $ = (sel) => document.querySelector(sel);

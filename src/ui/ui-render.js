@@ -9,10 +9,10 @@ import {
   shuffle, drawTiYong, calcFullBaZi, calcYearPillar,
   getTimeLabels, calcDiff, getDiffLevel
 } from '../engine.js';
-import { getApiSettings, getProfile, getHistory, deleteHistoryItem } from '../storage.js';
+import { getApiSettings, getProfile, getHistory } from '../storage.js';
 import {
   UI_TEXTS, TUTORIAL_TEXTS, PHYSICAL_GUIDE,
-  HISTORY_EMPTY, AI_GUIDE_TEXT, generateFullReading
+  HISTORY_EMPTY, AI_GUIDE_TEXT
 } from '../texts/index.js';
 import { calculateDurianIndex, getDurianIcon } from '../durian.js';
 import { toast } from './ui-modal.js';
@@ -29,10 +29,6 @@ export const escapeHtml = (str) => {
 export function renderTeachingPanel() {
   const container = document.getElementById('teachingContent');
   if (!container) return;
-
-  const gongTable = Object.entries(GONG_NAMES).map(([num, name]) =>
-    `<span style="display:inline-block;padding:2px 8px;margin:2px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:0.7rem;">${num}${name}</span>`
-  ).join('');
 
   container.innerHTML = `
     <div style="padding:8px 0;">
@@ -95,7 +91,6 @@ export function renderDeck() {
   if (!el) return;
 
   if (!state.deck || state.deck.length === 0) {
-    // 清空缓存，直接渲染空提示
     deckCache = [];
     deckCacheIds = '';
     el.innerHTML = '<span style="color:#666;padding:10px;display:block;text-align:center;width:100%;font-size:0.9rem;">镜中牌已尽，可重置以重观</span>';
@@ -119,7 +114,6 @@ export function renderDeck() {
     return;
   }
 
-  // 重新渲染
   el.style.cssText = `
     display: flex; flex-wrap: nowrap; gap: 10px;
     overflow-x: auto; overflow-y: hidden;
@@ -350,7 +344,7 @@ export function refreshAll() {
   renderModeSelector();
 }
 
-// ===== 滚动按钮绑定（事件委托） =====
+// ===== 滚动按钮绑定（事件委托）=====
 export function bindScrollButtons() {
   document.removeEventListener('click', handleScrollButtons);
   document.addEventListener('click', handleScrollButtons);
@@ -507,24 +501,21 @@ export function renderStep3(text) {
 
 // ===== 设置面板（完整实现） =====
 export function initSettingsPanel() {
-  const wrapper = document.querySelector('#panelSettings .api-provider-grid');
-  if (wrapper) {
-    // 基于 UI 的按钮已存在，只需绑定状态
-    const s = getApiSettings();
-    if (s) {
-      const providerBtns = document.querySelectorAll('#providerGrid button');
-      providerBtns.forEach(b => b.classList.toggle('selected', b.dataset.value === s.provider));
-      const keyInput = document.getElementById('apiKey');
-      if (keyInput) keyInput.value = s.apiKey || '';
-      const endpointInput = document.getElementById('apiEndpoint');
-      if (endpointInput) endpointInput.value = s.endpoint || '';
-      const styleSelect = document.getElementById('aiStyle');
-      if (styleSelect) styleSelect.value = s.aiStyle || 'guide';
-    }
+  const s = getApiSettings();
+  if (s) {
+    const providerBtns = document.querySelectorAll('#providerGrid button');
+    providerBtns.forEach(b => b.classList.toggle('selected', b.dataset.value === s.provider));
+    const keyInput = document.getElementById('apiKey');
+    if (keyInput) keyInput.value = s.apiKey || '';
+    const endpointInput = document.getElementById('apiEndpoint');
+    if (endpointInput) endpointInput.value = s.endpoint || '';
+    const styleSelect = document.getElementById('aiStyle');
+    if (styleSelect) styleSelect.value = s.aiStyle || 'guide';
   }
   updateApiStatus();
 }
 
+// ===== 个人面板（完整实现） =====
 export function initProfilePanel() {
   const p = getProfile();
   const birthDate = document.getElementById('birthDate');
@@ -568,13 +559,13 @@ export function renderHistoryPanel() {
   if (!list) return;
   const history = getHistory();
   if (!history.length) {
-    list.innerHTML = `<p style="color:var(--dim)">${HISTORY_EMPTY}</p>`;
+    list.innerHTML = `<p style="color:var(--dim);font-size:0.85rem;">${HISTORY_EMPTY}</p>`;
     return;
   }
   list.innerHTML = history.map((r, i) => `
-    <div class="history-item" data-index="${i}" style="cursor:pointer;margin:8px 0;padding:8px;background:rgba(255,255,255,0.03);border-radius:6px;">
-      <strong>${new Date(r.time).toLocaleString()}</strong>
-      <span> - ${r.question || '未提问'} (${r.category || '无类别'})</span>
+    <div class="history-item" data-index="${i}" style="cursor:pointer;margin:8px 0;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid rgba(255,255,255,0.05);">
+      <strong style="font-size:0.8rem;">${new Date(r.time).toLocaleString()}</strong>
+      <span style="font-size:0.75rem;color:var(--dim);margin-left:8px;">${r.question || '未提问'} (${r.category || '无类别'})</span>
     </div>
   `).join('');
 }

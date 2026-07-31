@@ -1,5 +1,4 @@
-// ===== src/constants.js =====
-// 可调数值常量
+// ===== src/constants.js · 可调数值常量 =====
 
 export const MAX_DAILY_OBSERVATIONS = 8;
 export const LONG_PRESS_DURATION = 300;

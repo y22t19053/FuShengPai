@@ -17,8 +17,6 @@ const pointerState = {
   ghostCard: null,
 };
 
-let isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
-
 export function initDrag() {
   document.addEventListener('pointerdown', onPointerDown);
   document.addEventListener('pointermove', onPointerMove);
@@ -48,7 +46,7 @@ function onPointerDown(e) {
   pointerState.cardEl = cardEl;
 
   pointerState.timer = setTimeout(() => {
-    if (!pointerState.moved && pointerState.down) {
+    if (pointerState.down && !pointerState.moved) {
       selectCard(cardEl.dataset.cardid);
     }
   }, 150);

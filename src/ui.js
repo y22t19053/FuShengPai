@@ -469,14 +469,17 @@ export function resetGrid() {
 }
 
 export function sealDeckAction() { sealDeck(); }
+
 export function switchMode(mode) {
   if (!Object.values(MODES).includes(mode)) return;
   state.mode = mode;
   refreshAll();
   toast(`切换到 ${mode} 模式`);
 }
+
 export function showTimeCapsuleAction() { showTimeCapsule(); }
 export function showDurianReportAction() { showDurianReport(); }
+
 export function copyLocalResult() {
   const el = document.getElementById('interpretText');
   if (!el) return;
@@ -674,6 +677,7 @@ export function handleAction(action, dataset) {
     case 'sealDeck': sealDeckAction(); break;
     case 'timeCapsule': showTimeCapsuleAction(); break;
     case 'durianReport': showDurianReportAction(); break;
+    default: break;
   }
 }
 
