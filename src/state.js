@@ -2,6 +2,7 @@
 export const state = {
   question: '',
   category: '',
+  subCategory: '',
   deck: [],
   ti: null,
   yong: null,
@@ -32,6 +33,11 @@ export const state = {
   timeCapsule: null,
   loading: false,
   pendingFullReport: '',
+  // 周期抽牌
+  periodType: null, // 'daily' | 'weekly' | 'monthly' | 'seasonal' | 'yearly' | null
+  periodKey: null,  // 当前周期的唯一key，用于判断是否需要重新抽
+  periodCard: null, // 抽到的牌
+  periodFortune: '', // 该牌的解读
 };
 
 export const $ = (sel) => document.querySelector(sel);

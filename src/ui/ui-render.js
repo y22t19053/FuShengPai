@@ -1,9 +1,9 @@
-// ===== src/ui/ui-render.js · 全流程渲染（简洁版） =====
+// ===== src/ui/ui-render.js · 所有页面的绘制逻辑（含两级分类 + 周期抽牌 + 模块化解读） =====
 import { state } from '../state.js';
 import {
   GONG_ORDER, GONG_NAMES, GONG_WUXING, CATEGORIES,
   getShengKe, getShengKeLabel, getWuxing, getCardColor,
-  getCardId, getCardValue
+  getCardId, getCardValue, PERIODS, getCurrentPeriodKey
 } from '../data.js';
 import {
   calcFullBaZi, calcDiff, getDiffLevel
@@ -13,7 +13,6 @@ import { UI_TEXTS, HISTORY_EMPTY, AI_GUIDE_TEXT } from '../texts/index.js';
 import { calculateDurianIndex, getDurianIcon } from '../durian.js';
 import { toast } from './ui-modal.js';
 import { isCardPlaced } from './ui-drag.js';
-import { generateMetaphor } from '../metaphor.js';
 
 export const escapeHtml = (str) => {
   const div = document.createElement('div');
@@ -21,57 +20,157 @@ export const escapeHtml = (str) => {
   return div.innerHTML;
 };
 
-// 教程（保留但不重点）
+// ===== 教程 =====
 export function renderTeachingPanel() {
   const container = document.getElementById('teachingContent');
   if (!container) return;
   container.innerHTML = `
-    <div style="max-width:680px;margin:0 auto;padding:8px 0;line-height:1.8;">
+    <div style="max-width:680px;margin:0 auto;padding:8px 0;line-height:1.9;">
       <h3 style="color:var(--accent);margin-bottom:8px;">🃏 浮生牌使用手册</h3>
       <p style="font-size:0.85rem;color:var(--dim);margin-bottom:16px;border-left:3px solid var(--accent);padding-left:10px;">
-        一个帮助你看清不确定状态的小工具。它不算命，只是照镜子。
+        一个帮助你在不确定时看清自己处境的工具。它不算命，只是照镜子。
       </p>
       <div style="font-size:0.8rem;color:var(--dim);">
-        <h4>你是新手？3步：</h4>
-        <p>1. 写下问题。</p>
-        <p>2. 选体用（你 / 事），布九宫（凭直觉放在格子里）。</p>
-        <p>3. 点“生成解读”，看到一句话，然后继续或跳过。</p>
+        <h4>3步上手：</h4>
+        <p>1. 写下问题，选一个具体领域（可再选二级分类）。</p>
+        <p>2. 点“开始抽牌”，选体牌（代表你）和用牌（代表事情）。</p>
+        <p>3. 将剩余牌放入九宫格（每个宫位最多3张，可留空），点“生成解读”。</p>
+        <h4 style="margin-top:16px;">周期运程：</h4>
+        <p>“日/周/月/季/年”是同一个抽牌系统的不同时间尺度。抽取方式与普通占卜完全相同，抽完会挂在页面上，每天/周/月/季/年自动更新。</p>
         <h4 style="margin-top:16px;">原则</h4>
-        <p>· 问题越具体，牌面越清晰。</p>
-        <p>· 牌是提示，不是命令。</p>
         <p>· 不测生死，不窥他人。</p>
+        <p>· 牌是提示，不是命令。</p>
         <p>· 不替你做决定。</p>
       </div>
     </div>
   `;
 }
 
-// 首页（简洁版，无强制逼问，只加一个“理清问题”小按钮，可关闭）
+// ===== 首页（含两级分类 + 周期运入口） =====
 export function renderStep1() {
   const core = document.getElementById('coreArea');
   if (!core) return;
+
+  // 渲染一级分类
+  const renderCatBtns = (curCat, curSub) => {
+    let html = '<div class="category-grid">';
+    CATEGORIES.forEach(c => {
+      html += `<button data-action="selectCategory" data-category="${c.name}" class="${curCat === c.name ? 'selected' : ''}">${c.name}</button>`;
+    });
+    html += '</div>';
+    // 二级分类（如果有选中）
+    if (curCat) {
+      const catConfig = CATEGORIES.find(c => c.name === curCat);
+      if (catConfig && catConfig.sub && catConfig.sub.length > 0) {
+        html += `<div class="subcategory-grid" style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:6px;">`;
+        catConfig.sub.forEach(sub => {
+          html += `<button data-action="selectSubCategory" data-sub="${sub}" class="small ${curSub === sub ? 'primary' : 'outline'}" style="margin:2px;">${sub}</button>`;
+        });
+        // 清除二级按钮
+        html += `<button data-action="clearSubCategory" class="small outline" style="margin:2px;">清除</button>`;
+        html += `</div>`;
+      }
+    }
+    return html;
+  };
+
   core.innerHTML = `
     <div style="margin-bottom:16px;">
       <h3 style="font-size:1.6rem;margin:0;">浮生牌</h3>
       <div style="color:var(--dim);font-size:0.85rem;margin-top:4px;">这里没有答案。只有一面镜子。</div>
     </div>
     <input type="text" id="questionInput" placeholder="${UI_TEXTS.placeholderQuestion}" autocomplete="off" value="${escapeHtml(state.question)}">
-    <div class="category-grid">${CATEGORIES.map(c => `<button data-action="selectCategory" data-category="${c}" class="${state.category === c ? 'selected' : ''}">${c}</button>`).join('')}</div>
+    ${renderCatBtns(state.category, state.subCategory)}
     <div class="btn-row">
       <button data-action="confirmQuestion" class="primary">${UI_TEXTS.btnStartDraw}</button>
       <button data-action="lazyStart" class="outline">${UI_TEXTS.btnLazy}</button>
     </div>
-    <div style="text-align:center;font-size:0.7rem;color:var(--dim);margin-top:6px;">
-      要不要<a href="#" id="helpClarifyBtn" style="color:var(--accent);">理清问题?</a>
+
+    <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:8px;">
+      ${Object.entries(PERIODS).map(([key, p]) => `<button data-action="periodDraw" data-period="${key}" class="small outline">${p.label}</button>`).join('')}
     </div>
+
+    <!-- 周期卡显示区 -->
+    <div id="periodCardArea" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;"></div>
+
+    <div style="text-align:center;font-size:0.7rem;color:var(--dim);margin-top:6px;">
+      <a href="#" id="helpClarifyBtn" style="color:var(--accent);">🤔 感觉自己没问清楚？</a>
+    </div>
+    <div id="clarifyGuide" style="display:none;margin-top:12px;padding:16px;background:rgba(201,160,96,0.05);border:1px solid var(--border);border-radius:8px;font-size:0.8rem;color:var(--dim);"></div>
   `;
+
+  // 周期卡显示
+  renderPeriodCards();
+
   document.getElementById('helpClarifyBtn')?.addEventListener('click', (e) => {
     e.preventDefault();
-    toast('问得越具体，牌面越清晰。比如“我该不该跳槽？”比“我的事业怎么样”更清楚。', 4000);
+    const guide = document.getElementById('clarifyGuide');
+    if (!guide) return;
+    guide.style.display = 'block';
+    guide.innerHTML = `
+      <div style="color:var(--accent);font-weight:bold;margin-bottom:8px;">🤔 理清问题</div>
+      <h4 style="color:var(--text);">5W2H</h4>
+      <p><strong>What</strong> 你要问的事是什么？</p>
+      <p><strong>Why</strong> 为什么现在问？你真正担心什么？</p>
+      <p><strong>Who</strong> 这事涉及谁？</p>
+      <p><strong>When</strong> 什么时候发生/需要决定？</p>
+      <p><strong>Where</strong> 在什么场景下？</p>
+      <p><strong>How</strong> 如果做，打算怎么做？</p>
+      <p><strong>How much</strong> 你愿意付出多少？</p>
+      <h4 style="color:var(--text);margin-top:12px;">SWOT 自检</h4>
+      <p><strong>S</strong> 优势：你手里有什么牌？</p>
+      <p><strong>W</strong> 劣势：你怕什么？</p>
+      <p><strong>O</strong> 机会：什么可能帮你？</p>
+      <p><strong>T</strong> 威胁：最坏可能是什么？</p>
+      <button data-action="closeClarify" class="small outline" style="margin-top:8px;">收起</button>
+    `;
+  });
+  document.addEventListener('click', function(e) {
+    if (e.target.dataset?.action === 'closeClarify') {
+      const guide = document.getElementById('clarifyGuide');
+      if (guide) guide.style.display = 'none';
+    }
   });
 }
 
-// 布阵
+// ===== 周期卡渲染（挂载在首页） =====
+export function renderPeriodCards() {
+  const area = document.getElementById('periodCardArea');
+  if (!area) return;
+  area.innerHTML = '';
+
+  const storedPeriods = JSON.parse(localStorage.getItem('fs_period_cards') || '{}');
+
+  Object.entries(PERIODS).forEach(([key, p]) => {
+    const periodKey = getCurrentPeriodKey(key);
+    const stored = storedPeriods[key];
+    // 如果当前周期key相同且有一张卡，显示；否则显示“待抽取”
+    if (stored && stored.periodKey === periodKey && stored.card) {
+      const card = stored.card;
+      const colorCls = getCardColor(card);
+      const rank = card.isJoker ? card.type : card.rank;
+      const suit = card.isJoker ? '' : card.suit;
+      const wx = getWuxing(card);
+      area.innerHTML += `
+        <div style="padding:8px;background:rgba(0,0,0,0.2);border-radius:8px;text-align:center;min-width:90px;">
+          <div style="font-size:0.65rem;color:var(--dim);">${p.title}</div>
+          <div class="mini-card ${colorCls}" style="margin:4px auto;">${rank}${suit}</div>
+          <div style="font-size:0.6rem;color:var(--accent);">${wx}</div>
+          <div style="font-size:0.55rem;color:var(--dim);">${p.desc}</div>
+        </div>
+      `;
+    } else {
+      area.innerHTML += `
+        <div style="padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;text-align:center;min-width:90px;">
+          <div style="font-size:0.65rem;color:var(--dim);">${p.title}</div>
+          <button data-action="periodDraw" data-period="${key}" class="small outline" style="margin-top:4px;">抽取</button>
+        </div>
+      `;
+    }
+  });
+}
+
+// ===== 布阵 =====
 export function renderStep2() {
   const core = document.getElementById('coreArea');
   if (!core) return;
@@ -102,81 +201,32 @@ export function renderStep2() {
   refreshAll();
 }
 
-// 比喻层（一句话）
-export function renderReveal(metaphor) {
-  const core = document.getElementById('coreArea');
-  if (!core) return;
-  core.innerHTML = `
-    <div style="max-width:480px;margin:0 auto;padding:20px 0;text-align:center;">
-      <div style="font-size:0.8rem;color:var(--dim);margin-bottom:12px;">牌已经翻了。</div>
-      <div style="font-size:1.1rem;line-height:1.8;color:var(--text);margin-bottom:24px;padding:0 10px;">
-        ${metaphor.replace(/\n/g, '<br>')}
-      </div>
-      <div class="btn-row">
-        <button data-action="continueToEcho" class="primary small">继续</button>
-        <button data-action="skipEcho" class="outline small">跳过</button>
-      </div>
-    </div>
-  `;
-}
-
-// 回响层
-export function renderEcho() {
-  const core = document.getElementById('coreArea');
-  if (!core) return;
-  core.innerHTML = `
-    <div style="max-width:480px;margin:0 auto;padding:20px 0;text-align:center;">
-      <div style="font-size:1rem;color:var(--text);margin-bottom:16px;">刚才那句话，哪个字让你心里动了一下？</div>
-      <textarea id="echoInput" rows="2" placeholder="写不写都行……" style="width:100%;background:rgba(0,0,0,0.4);border:2px solid var(--border);color:var(--text);border-radius:8px;padding:10px 12px;font-size:0.9rem;font-family:inherit;"></textarea>
-      <div class="btn-row">
-        <button id="echoSubmit" class="primary small">写下了</button>
-        <button data-action="skipEcho" class="outline small">跳过</button>
-      </div>
-      <div id="echoResponse" style="display:none;margin-top:16px;font-size:0.95rem;color:var(--accent);line-height:1.8;"></div>
-    </div>
-  `;
-  document.getElementById('echoSubmit')?.addEventListener('click', () => {
-    const val = document.getElementById('echoInput')?.value?.trim();
-    const resp = document.getElementById('echoResponse');
-    if (!resp) return;
-    if (!val) {
-      resp.style.display = 'block';
-      resp.textContent = '没关系，沉默也是一句话。';
-      resp.style.color = 'var(--dim)';
-      document.getElementById('echoSubmit').style.display = 'none';
-      // 自动显示完整报告按钮
-      addShowFullReportBtn(resp);
-      return;
-    }
-    resp.style.display = 'block';
-    resp.innerHTML = `“${escapeHtml(val)}”<br><br><span style="font-size:0.75rem;color:var(--dim);">带它离开，过段时间再回来看看。</span>`;
-    document.getElementById('echoInput').disabled = true;
-    document.getElementById('echoSubmit').style.display = 'none';
-    addShowFullReportBtn(resp);
-  });
-}
-
-function addShowFullReportBtn(container) {
-  const existing = container.querySelector('.showFullBtn');
-  if (existing) return;
-  const btn = document.createElement('button');
-  btn.className = 'small primary showFullBtn';
-  btn.style.marginTop = '12px';
-  btn.textContent = '查看完整解读';
-  btn.dataset.action = 'showFullReport';
-  container.appendChild(btn);
-}
-
-// 完整报告层
-export function renderFullReport(text) {
+// ===== 模块化完整报告 =====
+export function renderFullReport(text, modules = null) {
   const aiSettings = getApiSettings();
   const hasKey = aiSettings && aiSettings.apiKey;
   const result = document.getElementById('resultArea');
   if (!result) return;
+
+  // 如果有模块数据，渲染成折叠区；否则按纯文本
+  let contentHTML = '';
+  if (modules && modules.length > 0) {
+    modules.forEach(m => {
+      contentHTML += `
+        <details style="margin-bottom:10px;background:rgba(0,0,0,0.15);border-radius:8px;padding:10px 12px;">
+          <summary style="cursor:pointer;color:var(--accent);font-size:0.85rem;font-weight:bold;user-select:none;">${m.title}</summary>
+          <div style="font-size:0.8rem;color:var(--dim);line-height:1.8;margin-top:8px;">${m.content.replace(/\n/g, '<br>')}</div>
+        </details>
+      `;
+    });
+  } else {
+    contentHTML = text.replace(/\n/g, '<br>');
+  }
+
   result.innerHTML = `
     <h3>${UI_TEXTS.step3}</h3>
     <div id="durianDisplay" style="margin-bottom:8px;"></div>
-    <div class="result-block" id="interpretText" style="font-size:0.9rem;line-height:1.9;">${text.replace(/\n/g, '<br>')}</div>
+    <div class="result-block" id="interpretText" style="font-size:0.9rem;line-height:1.9;">${contentHTML}</div>
     <div class="btn-row">
       <button data-action="copyLocal" class="small">${UI_TEXTS.btnCopy}</button>
       <button id="copyPromptBtn" class="small outline">📋 复制提示词</button>
@@ -207,16 +257,16 @@ export function renderFullReport(text) {
   });
 }
 
-// ===== 以下保留原有渲染函数（牌堆/体用/九宫/刷新/榴莲/设置/历史等）=====
-
-// 牌堆渲染（不变）
+// ===== 牌堆渲染（不变） =====
 let deckCache = [];
 let deckCacheIds = '';
+
 export function renderDeck() {
   const el = document.getElementById('deckContainer');
   if (!el) return;
   if (!state.deck || state.deck.length === 0) {
-    deckCache = []; deckCacheIds = '';
+    deckCache = [];
+    deckCacheIds = '';
     el.innerHTML = '<span style="color:#666;padding:10px;">镜中牌已尽，可重置。</span>';
     return;
   }
@@ -248,12 +298,14 @@ export function renderDeck() {
     if (state.manualMode) {
       div.className = `card-face-small ${colorCls}${sel ? ' selected' : ''}${placed ? ' used' : ''}`;
       div.style.cssText = `${placed ? 'opacity:0.25;pointer-events:none;' : ''} flex-shrink:0;width:60px;height:84px;`;
-      div.dataset.cardid = id; div.dataset.cardindex = index;
+      div.dataset.cardid = id;
+      div.dataset.cardindex = index;
       div.innerHTML = `<span class="rank">${rank}</span><span class="suit">${suit}</span><span class="wx-tag">${wx}</span>`;
     } else {
       div.className = `card-back${sel ? ' selected' : ''}${placed ? ' used' : ''}`;
       div.style.cssText = `${placed ? 'opacity:0.25;pointer-events:none;' : ''} flex-shrink:0;width:60px;height:84px;`;
-      div.dataset.cardid = id; div.dataset.cardindex = index;
+      div.dataset.cardid = id;
+      div.dataset.cardindex = index;
     }
     el.appendChild(div);
   });
@@ -261,6 +313,7 @@ export function renderDeck() {
   deckCacheIds = currentIds;
 }
 
+// ===== 体用栏 =====
 export function renderTiYong() {
   const bar = document.getElementById('tiyongBar');
   if (!bar) return;
@@ -276,6 +329,7 @@ export function renderTiYong() {
   if (btn) btn.disabled = !(state.ti && state.yong);
 }
 
+// ===== 九宫格 =====
 export function renderGrid() {
   const el = document.getElementById('gridContainer');
   if (!el) return;
@@ -287,7 +341,9 @@ export function renderGrid() {
     let inner = `<span class="num">${g}</span><span class="name">${GONG_NAMES[g]}</span><span class="wx">${GONG_WUXING[g]}</span>`;
     if (cards.length) {
       inner += '<div class="card-stack">';
-      cards.forEach(c => { inner += `<div class="mini-card ${getCardColor(c)}">${c.isJoker ? c.type : c.rank}${c.isJoker ? '' : c.suit}</div>`; });
+      cards.forEach(c => {
+        inner += `<div class="mini-card ${getCardColor(c)}">${c.isJoker ? c.type : c.rank}${c.isJoker ? '' : c.suit}</div>`;
+      });
       inner += '</div>';
       const diff = calcDiff(g, cards[cards.length - 1]);
       const cardVal = getCardValue(cards[cards.length - 1]);
@@ -298,7 +354,7 @@ export function renderGrid() {
     if (recommendedGong === g) inner += `<span class="recommend-tag">⭐</span>`;
     return `<div class="gong ${cls}" data-gong="${g}">${inner}</div>`;
   }).join('');
-  // 天机线引导（不再自动弹选择，只显示提示文字）
+  // 天机线提示
   const lineGuide = document.getElementById('lineGuide');
   const filledGongs = Object.keys(state.grid).filter(g => state.grid[g] && state.grid[g].length > 0).map(Number);
   if (filledGongs.length >= 3 && (state.possible || []).length > 0 && !state.line) {
@@ -306,7 +362,7 @@ export function renderGrid() {
       const guide = document.createElement('div');
       guide.id = 'lineGuide';
       guide.style.cssText = 'margin-top:8px;padding:10px 12px;background:rgba(201,160,96,0.08);border-radius:6px;font-size:0.8rem;color:var(--accent);';
-      guide.innerHTML = `✨ 有宫位连成直线。在下方选择天机线（可选，跳过也不影响解读）。`;
+      guide.innerHTML = `✨ 检测到可连天机线，请在下方选择一条（可选）。`;
       el.parentNode.insertBefore(guide, el.nextSibling);
     }
   } else if (lineGuide) lineGuide.remove();
@@ -338,6 +394,7 @@ function renderTensionMap(container) {
   existing.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;"><span style="color:var(--dim);width:100%;text-align:center;margin-bottom:4px;">⚡ 张力分布</span>${tensions.filter(t => t.tension > 0).map(t => { const intensity = maxTension > 0 ? Math.round((t.tension / maxTension) * 100) : 0; const bg = intensity < 20 ? 'rgba(76,175,80,0.2)' : intensity < 40 ? 'rgba(139,195,74,0.4)' : intensity < 60 ? 'rgba(255,193,7,0.6)' : intensity < 80 ? 'rgba(255,152,0,0.8)' : 'rgba(244,67,54,0.9)'; return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:${bg};color:${intensity > 60 ? '#fff' : 'var(--text)'}">${GONG_NAMES[t.gong]} ${t.tension}%</span>`; }).join('')}</div>`;
 }
 
+// ===== 刷新所有 =====
 export function refreshAll() {
   renderDeck();
   renderTiYong();
@@ -345,6 +402,7 @@ export function refreshAll() {
   renderDurianDisplay();
 }
 
+// ===== 滚动按钮 =====
 export function bindScrollButtons() {
   document.removeEventListener('click', handleScrollButtons);
   document.addEventListener('click', handleScrollButtons);
@@ -356,6 +414,7 @@ function handleScrollButtons(e) {
   if (rightBtn) { e.stopPropagation(); const deck = document.getElementById('deckContainer'); if (deck) deck.scrollBy({ left: 180, behavior: 'smooth' }); return; }
 }
 
+// ===== 榴莲指数 =====
 export function renderDurianDisplay() {
   const container = document.getElementById('durianDisplay');
   if (!container) return;
@@ -366,6 +425,7 @@ export function renderDurianDisplay() {
   container.innerHTML = `<div style="display:flex;align-items:center;gap:12px;padding:8px 12px;background:rgba(0,0,0,0.2);border-radius:8px;margin:4px 0;"><span style="font-size:1.8rem;line-height:1;">${icon}</span><div><div style="font-weight:bold;font-size:1rem;">榴莲指数 ${result.score}/10 <span style="color:${result.score < 3 ? '#4CAF50' : result.score < 5 ? '#8BC34A' : result.score < 7 ? '#FFC107' : result.score < 9 ? '#FF9800' : '#F44336'};font-size:0.75rem;">（${result.level}）</span></div><div style="font-size:0.7rem;color:var(--dim);">${result.description}</div></div></div>`;
 }
 
+// ===== 设置面板 =====
 export function initSettingsPanel() {
   const s = getApiSettings();
   if (s) {
@@ -377,6 +437,7 @@ export function initSettingsPanel() {
   updateApiStatus();
 }
 
+// ===== 个人面板 =====
 export function initProfilePanel() {
   const p = getProfile();
   const birthDate = document.getElementById('birthDate'); if (birthDate) birthDate.value = p.birthDate || '';
@@ -398,6 +459,7 @@ export function updateBaziPreview() {
   try { const bazi = calcFullBaZi(year, month, day, hour); preview.textContent = '四柱预览：' + bazi.fullText + '  |  生肖：' + bazi.yearPillar.shengXiao; } catch (e) { preview.textContent = '日期无效'; }
 }
 
+// ===== 历史面板 =====
 export function renderHistoryPanel() {
   const list = document.getElementById('historyList'); if (!list) return;
   const history = getHistory();
@@ -405,23 +467,9 @@ export function renderHistoryPanel() {
   list.innerHTML = history.map((r, i) => `<div class="history-item" data-index="${i}" style="cursor:pointer;margin:8px 0;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid rgba(255,255,255,0.05);"><strong style="font-size:0.8rem;">${new Date(r.time).toLocaleString()}</strong><span style="font-size:0.75rem;color:var(--dim);margin-left:8px;">${r.question || '未提问'} (${r.category || '无类别'})</span></div>`).join('');
 }
 
+// ===== 状态提示 =====
 export function updateApiStatus() {
   const s = getApiSettings(); const st = document.getElementById('apiStatus'); if (!st) return;
   st.textContent = s && s.apiKey ? UI_TEXTS.apiStatusConfigured : UI_TEXTS.apiStatusNotConfigured;
   st.style.color = s && s.apiKey ? '#5a9a6a' : '';
-}
-
-// 提供给 ui.js 的手动流程动作（无逼问，只处理比喻/回响）
-export function handleFlowAction(action, dataset) {
-  switch (action) {
-    case 'continueToEcho':
-      renderEcho();
-      break;
-    case 'skipEcho':
-      import('../ui.js').then(ui => ui.showFullReport());
-      break;
-    case 'showFullReport':
-      import('../ui.js').then(ui => ui.showFullReport());
-      break;
-  }
 }
