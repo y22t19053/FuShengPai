@@ -33,9 +33,9 @@ export function renderTeachingPanel() {
         <h4>3步上手：</h4>
         <p>1. 写下问题，选一个具体领域（可再选二级分类）。</p>
         <p>2. 点“开始抽牌”，选体牌（代表你）和用牌（代表事情）。</p>
-        <p>3. 将剩余牌放入九宫格（每个宫位最多3张，可留空），点“生成解读”。</p>
+        <p>3. 将剩余牌放入九宫，点“生成解读”。</p>
         <h4 style="margin-top:16px;">周期运程：</h4>
-        <p>点击“日/周/月/季/年”是同一个抽牌系统的不同时间尺度。抽取方式与普通占卜完全相同——展开牌堆，自己抽一张。抽完会挂在页面上，周期结束自动更新。</p>
+        <p>日/周/月/季/年——同一个抽牌系统的不同时间尺度。展开牌堆自己抽一张，抽完直接挂在首页。</p>
         <h4 style="margin-top:16px;">原则</h4>
         <p>· 不测生死，不窥他人。</p>
         <p>· 牌是提示，不是命令。</p>
@@ -87,8 +87,8 @@ export function renderStep1() {
     </div>
     <div style="font-size:0.6rem;color:var(--dim);text-align:center;margin-top:4px;">点击周期运，展开牌堆自己抽一张</div>
 
-    <!-- 周期卡显示区 -->
-    <div id="periodCardArea" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;"></div>
+    <!-- 周期卡显示区：只显示牌面，不做外框 -->
+    <div id="periodCardArea" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:12px;justify-content:center;"></div>
 
     <div style="text-align:center;font-size:0.7rem;color:var(--dim);margin-top:6px;">
       <a href="#" id="helpClarifyBtn" style="color:var(--accent);">🤔 感觉自己没问清楚？</a>
@@ -129,7 +129,7 @@ export function renderStep1() {
   });
 }
 
-// ===== 周期卡渲染 =====
+// ===== 周期卡渲染(简化版：只显示牌面) =====
 export function renderPeriodCards() {
   const area = document.getElementById('periodCardArea');
   if (!area) return;
@@ -139,25 +139,30 @@ export function renderPeriodCards() {
   Object.entries(PERIODS).forEach(([key, p]) => {
     const periodKey = getCurrentPeriodKey(key);
     const stored = storedPeriods[key];
+    const title = getPeriodTitle(key);
+    
     if (stored && stored.periodKey === periodKey && stored.card) {
       const card = stored.card;
       const colorCls = getCardColor(card);
       const rank = card.isJoker ? card.type : card.rank;
       const suit = card.isJoker ? '' : card.suit;
       const wx = getWuxing(card);
+      
+      // 已抽牌：显示牌面 + 周期小标签(悬停可见)
       area.innerHTML += `
-        <div style="padding:8px;background:rgba(0,0,0,0.2);border-radius:8px;text-align:center;min-width:100px;cursor:pointer;" data-action="openPeriodDetail" data-period="${key}">
-          <div style="font-size:0.65rem;color:var(--dim);">${getPeriodTitle(key)}</div>
-          <div class="mini-card ${colorCls}" style="margin:4px auto;">${rank}${suit}</div>
-          <div style="font-size:0.6rem;color:var(--accent);">${wx}</div>
-          <div style="font-size:0.55rem;color:var(--dim);">点击看解读</div>
+        <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;" data-action="openPeriodDetail" data-period="${key}" title="${title}">
+          <div class="mini-card ${colorCls}" style="width:50px;height:70px;font-size:1rem;">
+            ${rank}${suit}
+          </div>
+          <div style="font-size:0.55rem;color:var(--dim);margin-top:2px;">${p.label}</div>
         </div>
       `;
     } else {
+      // 未抽牌：显示牌背 + 周期小标签
       area.innerHTML += `
-        <div style="padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;text-align:center;min-width:100px;">
-          <div style="font-size:0.65rem;color:var(--dim);">${getPeriodTitle(key)}</div>
-          <button data-action="openPeriodDeck" data-period="${key}" class="small outline">去抽牌</button>
+        <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;" data-action="openPeriodDeck" data-period="${key}" title="${title}">
+          <div class="card-back" style="width:50px;height:70px;border-radius:6px;"></div>
+          <div style="font-size:0.55rem;color:var(--dim);margin-top:2px;">${p.label}</div>
         </div>
       `;
     }
@@ -182,7 +187,7 @@ export function renderStep2() {
       <button id="scrollRightBtn" class="outline small">›</button>
       ${state.manualMode ? '<button data-action="generateInterpretation" class="small primary">' + UI_TEXTS.btnInterpret + '</button>' : ''}
     </div>
-    <div id="gridArea" ${state.manualMode ? '' : 'style="display:none"'}>
+    <div id="gridArea" ${state.manualMode ? '' : 'style="display:none;"'}>
       <div style="font-size:0.75rem;color:var(--dim);margin:6px 0;">每个宫位最多3张牌，可以留空。</div>
       <div class="grid-9" id="gridContainer"></div>
       <div class="btn-row">
@@ -195,7 +200,7 @@ export function renderStep2() {
   refreshAll();
 }
 
-// ===== 模块化完整报告 =====
+// ===== 完整报告 =====
 export function renderFullReport(text, modules = null) {
   const aiSettings = getApiSettings();
   const hasKey = aiSettings && aiSettings.apiKey;
@@ -258,7 +263,8 @@ export function renderDeck() {
   const el = document.getElementById('deckContainer');
   if (!el) return;
   if (!state.deck || state.deck.length === 0) {
-    deckCache = []; deckCacheIds = '';
+    deckCache = [];
+    deckCacheIds = '';
     el.innerHTML = '<span style="color:#666;padding:10px;">镜中牌已尽，可重置。</span>';
     return;
   }
@@ -347,7 +353,6 @@ export function renderGrid() {
     return `<div class="gong ${cls}" data-gong="${g}">${inner}</div>`;
   }).join('');
 
-  // 天机线提示（只提示，不自动弹选择）
   const lineGuide = document.getElementById('lineGuide');
   const filledGongs = Object.keys(state.grid).filter(g => state.grid[g] && state.grid[g].length > 0).map(Number);
   if (filledGongs.length >= 3 && (state.possible || []).length > 0 && !state.line) {
@@ -364,7 +369,12 @@ export function renderGrid() {
 }
 
 function getRecommendedGong(intent) {
-  const map = { '财运': 2, '感情': 7, '事业': 6, '健康': 8, '学业': 4, '决策': 5, '人际关系': 7, '家宅': 8, '运势': 9, '寻物': 1, '官非': 3, '出行': 3, '灵异': 1, '技能': 4 };
+  const map = {
+    '财运': 2, '感情': 7, '事业': 6, '健康': 8,
+    '学业': 4, '决策': 5, '人际关系': 7, '家宅': 8,
+    '运势': 9, '寻物': 1, '官非': 3, '出行': 3,
+    '灵异': 1, '技能': 4
+  };
   return map[intent] || null;
 }
 
@@ -413,7 +423,10 @@ function handleScrollButtons(e) {
 export function renderDurianDisplay() {
   const container = document.getElementById('durianDisplay');
   if (!container) return;
-  if (!state.ti || !state.yong || Object.keys(state.grid).length === 0) { container.innerHTML = ''; return; }
+  if (!state.ti || !state.yong || Object.keys(state.grid).length === 0) {
+    container.innerHTML = '';
+    return;
+  }
   const result = calculateDurianIndex(state);
   state.durianIndex = result;
   const icon = getDurianIcon(result.score);
@@ -425,9 +438,12 @@ export function initSettingsPanel() {
   const s = getApiSettings();
   if (s) {
     document.querySelectorAll('#providerGrid button').forEach(b => b.classList.toggle('selected', b.dataset.value === s.provider));
-    const keyInput = document.getElementById('apiKey'); if (keyInput) keyInput.value = s.apiKey || '';
-    const endpointInput = document.getElementById('apiEndpoint'); if (endpointInput) endpointInput.value = s.endpoint || '';
-    const styleSelect = document.getElementById('aiStyle'); if (styleSelect) styleSelect.value = s.aiStyle || 'guide';
+    const keyInput = document.getElementById('apiKey');
+    if (keyInput) keyInput.value = s.apiKey || '';
+    const endpointInput = document.getElementById('apiEndpoint');
+    if (endpointInput) endpointInput.value = s.endpoint || '';
+    const styleSelect = document.getElementById('aiStyle');
+    if (styleSelect) styleSelect.value = s.aiStyle || 'guide';
   }
   updateApiStatus();
 }
@@ -435,36 +451,65 @@ export function initSettingsPanel() {
 // ===== 个人面板 =====
 export function initProfilePanel() {
   const p = getProfile();
-  const birthDate = document.getElementById('birthDate'); if (birthDate) birthDate.value = p.birthDate || '';
-  const birthTime = document.getElementById('birthTime'); if (birthTime) birthTime.value = p.birthTime || '';
-  const name = document.getElementById('profileName'); if (name) name.value = p.name || '';
-  const gender = document.getElementById('profileGender'); if (gender) gender.value = p.gender || '';
-  const birthPlace = document.getElementById('birthPlace'); if (birthPlace) birthPlace.value = p.birthPlace || '';
-  const currentPlace = document.getElementById('currentPlace'); if (currentPlace) currentPlace.value = p.currentPlace || '';
+  const birthDate = document.getElementById('birthDate');
+  if (birthDate) birthDate.value = p.birthDate || '';
+  const birthTime = document.getElementById('birthTime');
+  if (birthTime) birthTime.value = p.birthTime || '';
+  const name = document.getElementById('profileName');
+  if (name) name.value = p.name || '';
+  const gender = document.getElementById('profileGender');
+  if (gender) gender.value = p.gender || '';
+  const birthPlace = document.getElementById('birthPlace');
+  if (birthPlace) birthPlace.value = p.birthPlace || '';
+  const currentPlace = document.getElementById('currentPlace');
+  if (currentPlace) currentPlace.value = p.currentPlace || '';
   updateBaziPreview();
 }
 
 export function updateBaziPreview() {
-  const preview = document.getElementById('baziPreview'); if (!preview) return;
-  const bd = document.getElementById('birthDate')?.value; const bt = document.getElementById('birthTime')?.value || '12:00';
-  if (!bd) { preview.textContent = ''; return; }
-  const parts = bd.split('-'); if (parts.length !== 3) { preview.textContent = ''; return; }
-  const year = parseInt(parts[0]); const month = parseInt(parts[1]); const day = parseInt(parts[2]);
-  const tp = bt.split(':'); const hour = tp.length >= 1 ? parseInt(tp[0]) || 12 : 12;
-  try { const bazi = calcFullBaZi(year, month, day, hour); preview.textContent = '四柱预览：' + bazi.fullText + ' | 生肖：' + bazi.yearPillar.shengXiao; } catch (e) { preview.textContent = '日期无效'; }
+  const preview = document.getElementById('baziPreview');
+  if (!preview) return;
+  const bd = document.getElementById('birthDate')?.value;
+  const bt = document.getElementById('birthTime')?.value || '12:00';
+  if (!bd) {
+    preview.textContent = '';
+    return;
+  }
+  const parts = bd.split('-');
+  if (parts.length !== 3) {
+    preview.textContent = '';
+    return;
+  }
+  const year = parseInt(parts[0]);
+  const month = parseInt(parts[1]);
+  const day = parseInt(parts[2]);
+  const tp = bt.split(':');
+  const hour = tp.length >= 1 ? parseInt(tp[0]) || 12 : 12;
+  try {
+    const bazi = calcFullBaZi(year, month, day, hour);
+    preview.textContent = '四柱预览：' + bazi.fullText + ' | 生肖：' + bazi.yearPillar.shengXiao;
+  } catch (e) {
+    preview.textContent = '日期无效';
+  }
 }
 
 // ===== 历史面板 =====
 export function renderHistoryPanel() {
-  const list = document.getElementById('historyList'); if (!list) return;
+  const list = document.getElementById('historyList');
+  if (!list) return;
   const history = getHistory();
-  if (!history.length) { list.innerHTML = `<p style="color:var(--dim);">${HISTORY_EMPTY}</p>`; return; }
+  if (!history.length) {
+    list.innerHTML = `<p style="color:var(--dim);">${HISTORY_EMPTY}</p>`;
+    return;
+  }
   list.innerHTML = history.map((r, i) => `<div class="history-item" data-index="${i}" style="cursor:pointer;margin:8px 0;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid rgba(255,255,255,0.05);"><strong>${new Date(r.time).toLocaleString()}</strong><span style="color:var(--dim);margin-left:8px;">${r.question || '未提问'} (${r.category || '无'})</span></div>`).join('');
 }
 
 // ===== 状态提示 =====
 export function updateApiStatus() {
-  const s = getApiSettings(); const st = document.getElementById('apiStatus'); if (!st) return;
+  const s = getApiSettings();
+  const st = document.getElementById('apiStatus');
+  if (!st) return;
   st.textContent = s && s.apiKey ? UI_TEXTS.apiStatusConfigured : UI_TEXTS.apiStatusNotConfigured;
   st.style.color = s && s.apiKey ? '#5a9a6a' : '';
 }
