@@ -86,6 +86,34 @@ export function guardMidnight(callback) {
   } else { callback(); }
 }
 
+export function showPrivacyWarning() {
+  const today = new Date().toDateString();
+  if (localStorage.getItem('fs_privacy_dismiss_today') === today) return;
+  const modal = document.getElementById('modal');
+  const content = document.getElementById('modalContent');
+  if (!modal || !content) return;
+  content.innerHTML = `
+    <div style="text-align:center;">
+      <h3>⚠️ 隐私模式检测</h3>
+      <p style="margin:10px 0;color:var(--dim);">您当前正在使用浏览器的隐私/无痕模式，<strong>所有数据在关闭页面后将自动清除</strong>。<br>建议您立即导出备份，或切换到正常模式使用。</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px;">
+        <button id="exportBackupBtn" class="primary small">导出备份</button>
+        <button id="dismissPrivacyBtn" class="outline small">我知道了</button>
+      </div>
+    </div>
+  `;
+  modal.removeAttribute('hidden');
+  document.getElementById('exportBackupBtn')?.addEventListener('click', () => {
+    exportAllData();
+    toast('备份已导出，请妥善保存');
+    modal.setAttribute('hidden', '');
+  });
+  document.getElementById('dismissPrivacyBtn')?.addEventListener('click', () => {
+    localStorage.setItem('fs_privacy_dismiss_today', today);
+    modal.setAttribute('hidden', '');
+  });
+}
+
 export function showDailyFortune() {
   const modal = document.getElementById('modal');
   const content = document.getElementById('modalContent');
@@ -301,8 +329,11 @@ export function showHistoryDetail(index) {
   };
 
   let aiBlock = '';
+  let fullText = r.text || '';
   if (r.chatHistory && r.chatHistory.length) {
     aiBlock = '<div class="result-block" style="max-height:150px;margin-top:10px;font-size:0.85rem;">' + r.chatHistory.map(m => `<div class="chat-msg ${m.role === 'user' ? 'user' : 'ai'}">${m.content.replace(/\n/g, '<br>')}</div>`).join('') + '</div>';
+    const chatText = r.chatHistory.map(m => (m.role === 'user' ? '用户：' : 'AI：') + m.content).join('\n\n');
+    fullText += '\n\n===== AI 对话 =====\n' + chatText;
   } else {
     aiBlock = '<p style="color:var(--dim);font-size:0.85rem;">暂无 AI 对话记录</p>';
   }
@@ -313,54 +344,23 @@ export function showHistoryDetail(index) {
     <p style="font-size:0.85rem;color:var(--dim);"><strong>类别：</strong>${r.category || '无'}</p>
     <div class="result-block" style="font-size:0.85rem;">${(r.text || '').replace(/\n/g, '<br>')}</div>
     <h4 style="margin-top:10px;color:var(--accent);font-size:0.9rem;">AI 对话</h4>${aiBlock}
-    <div style="margin-top:10px;display:flex;gap:8px">
-      <input type="text" id="historyFollowUpInput" placeholder="${UI_TEXTS.placeholderFollowUp}" style="flex:1;background:rgba(0,0,0,0.4);border:2px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-size:0.85rem;">
-      <button id="historyFollowUpBtn" class="small">发送</button>
-    </div>
     <div class="btn-row" style="margin-top:10px;">
+      <button id="copyFullBtn" class="small outline">📋 复制全部</button>
       <button data-action="deleteHistoryItem" data-history-index="${index}" class="outline small">删除此条</button>
       <button data-action="closeModal" class="small">${UI_TEXTS.btnClose}</button>
     </div>
   `;
   modal.removeAttribute('hidden');
 
-  const followInput = document.getElementById('historyFollowUpInput');
-  const followBtn = document.getElementById('historyFollowUpBtn');
-  if (followBtn && followInput) {
-    const handler = async () => {
-      const q = followInput.value.trim();
-      if (!q) return;
-      followInput.value = '';
-      followBtn.disabled = true; followBtn.textContent = '发送中...';
-      const settings = getApiSettings();
-      if (!settings || !settings.apiKey) {
-        toast('请先配置 API Key');
-        followBtn.disabled = false; followBtn.textContent = '发送'; return;
-      }
-      const chatHistory = r.chatHistory ? [...r.chatHistory] : [];
-      chatHistory.push({ role: 'user', content: q });
-      const prompt = buildHistoricalPrompt(r, q);
-      try {
-        const answer = await requestFollowUp({
-          history: [{ role: 'user', content: prompt }, ...chatHistory],
-          provider: settings.provider, apiKey: settings.apiKey,
-          endpoint: settings.endpoint, model: settings.model
-        });
-        chatHistory.push({ role: 'assistant', content: answer });
-        r.chatHistory = chatHistory;
-        const allHistory = getHistory();
-        allHistory[index] = r;
-        localStorage.setItem('fs_history', JSON.stringify(allHistory));
-        showHistoryDetail(index);
-      } catch (e) { toast(e.message, 3000); }
-      finally { followBtn.disabled = false; followBtn.textContent = '发送'; }
-    };
-    followBtn.addEventListener('click', handler);
-    followInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handler(); });
-  }
+  document.getElementById('copyFullBtn')?.addEventListener('click', () => {
+    navigator.clipboard.writeText(fullText).then(
+      () => toast('完整记录已复制'),
+      () => toast('复制失败')
+    );
+  });
 }
 
-// ===== AI 引导弹窗（优化版） =====
+// ===== AI 引导弹窗 =====
 export function showAIGuideModal() {
   const modal = document.getElementById('modal');
   const content = document.getElementById('modalContent');
@@ -429,7 +429,7 @@ export function importShareCode() {
   }
 }
 
-// ===== 分享图：朋友圈风格卡片（冲击力强化） =====
+// ===== 分享图 =====
 export function generateShareImage() {
   const container = document.getElementById('sharePreview');
   const canvas = document.getElementById('shareCanvas');
@@ -441,44 +441,25 @@ export function generateShareImage() {
   canvas.height = 800;
   const ctx = canvas.getContext('2d');
 
-  // 背景
-  const grad = ctx.createRadialGradient(300, 200, 50, 300, 400, 500);
-  grad.addColorStop(0, '#2a2a3e');
-  grad.addColorStop(0.5, '#1b1b2a');
+  const grad = ctx.createLinearGradient(0, 0, 600, 800);
+  grad.addColorStop(0, '#1a1a2e');
   grad.addColorStop(1, '#0d0d15');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 600, 800);
 
-  // 边框
-  ctx.strokeStyle = 'rgba(201,160,96,0.3)';
+  ctx.strokeStyle = 'rgba(201,160,96,0.5)';
   ctx.lineWidth = 2;
   ctx.strokeRect(20, 20, 560, 760);
 
-  // Logo
   ctx.fillStyle = '#c9a060';
-  ctx.font = 'bold 32px "Georgia", "Songti SC", serif';
+  ctx.font = 'bold 28px "Georgia", serif';
   ctx.textAlign = 'center';
-  ctx.fillText('浮生牌 · 观测者的镜子', 300, 75);
+  ctx.fillText('浮生牌', 300, 70);
 
-  // 日期 + 指纹
-  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
   ctx.font = '14px "Georgia", sans-serif';
-  ctx.fillText(new Date().toLocaleDateString('zh-CN'), 300, 105);
-  if (state.fingerprint) {
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.font = '10px monospace';
-    ctx.fillText(state.fingerprint, 300, 122);
-  }
+  ctx.fillText(new Date().toLocaleDateString('zh-CN'), 300, 100);
 
-  // 分割线
-  ctx.strokeStyle = 'rgba(201,160,96,0.2)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(60, 135);
-  ctx.lineTo(540, 135);
-  ctx.stroke();
-
-  // 五行人格标签（大号）
   let tiWx = '?', yongWx = '?', relation = '';
   if (state.ti && state.yong) {
     tiWx = getWuxing(state.ti);
@@ -489,41 +470,33 @@ export function generateShareImage() {
   const wxTags = { '火': '🔥 行动者', '金': '⚔️ 判断者', '木': '🌳 成长者', '水': '🌊 洞察者', '土': '🏔️ 承载者', '天': '☀️ 超越者', '人': '🌙 智谋者' };
   const tag = wxTags[tiWx] || '🔮 观测者';
 
-  // 人格标签
   ctx.fillStyle = 'rgba(201,160,96,0.15)';
-  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(150, 155, 300, 50, 25); ctx.fill(); }
-  else { ctx.fillRect(150, 155, 300, 50); }
+  ctx.fillRect(150, 140, 300, 50);
   ctx.fillStyle = '#c9a060';
-  ctx.font = 'bold 26px "Georgia", "Songti SC", serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(`✦ ${tag} ✦`, 300, 190);
+  ctx.font = 'bold 24px "Georgia", serif';
+  ctx.fillText(`✦ ${tag} ✦`, 300, 175);
 
-  // 体用五行
   ctx.fillStyle = '#e0e0e8';
-  ctx.font = '22px "Georgia", "Songti SC", serif';
-  ctx.fillText(`体 · ${tiWx}  ⚡  ${yongWx} · 用`, 300, 235);
+  ctx.font = '20px "Georgia", serif';
+  ctx.fillText(`体 · ${tiWx}  ⚡  ${yongWx} · 用`, 300, 220);
   ctx.fillStyle = '#c9a060';
-  ctx.font = '18px "Georgia", "Songti SC", serif';
-  ctx.fillText(`【${relation}】`, 300, 265);
+  ctx.font = '16px "Georgia", serif';
+  ctx.fillText(`【${relation}】`, 300, 248);
 
-  // 榴莲指数
   const durian = state.durianIndex || { score: 0, level: '未知' };
   const scoreColor = durian.score < 3 ? '#4CAF50' : durian.score < 5 ? '#8BC34A' : durian.score < 7 ? '#FFC107' : durian.score < 9 ? '#FF9800' : '#F44336';
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(180, 285, 240, 70, 12); ctx.fill(); }
-  else { ctx.fillRect(180, 285, 240, 70); }
+  ctx.fillRect(180, 270, 240, 70);
   ctx.fillStyle = scoreColor;
-  ctx.font = 'bold 44px "Georgia", serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(`🍈 ${durian.score}/10`, 300, 340);
+  ctx.font = 'bold 40px "Georgia", serif';
+  ctx.fillText(`🍈 ${durian.score}/10`, 300, 322);
   ctx.fillStyle = 'rgba(255,255,255,0.4)';
-  ctx.font = '14px "Georgia", "Songti SC", serif';
-  ctx.fillText(durian.level || '', 300, 365);
+  ctx.font = '14px "Georgia", serif';
+  ctx.fillText(durian.level || '', 300, 350);
 
-  // 解读摘要
   const summary = text.split('\n').filter(line => line.trim()).slice(0, 6).join(' ');
   ctx.fillStyle = '#c8c8d8';
-  ctx.font = '15px "Georgia", "Songti SC", serif';
+  ctx.font = '15px "Georgia", serif';
   ctx.textAlign = 'left';
   let lines = [];
   let current = '';
@@ -540,13 +513,12 @@ export function generateShareImage() {
   if (current) lines.push(current);
   if (lines.length > 6) lines = lines.slice(0, 6);
 
-  let y = 400;
+  let y = 390;
   for (let line of lines) {
     ctx.fillText(line, 40, y);
     y += 28;
   }
 
-  // 底部网址
   ctx.fillStyle = 'rgba(255,255,255,0.25)';
   ctx.font = '14px "Georgia", sans-serif';
   ctx.textAlign = 'center';

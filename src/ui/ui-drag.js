@@ -1,4 +1,4 @@
-// ===== src/ui/ui-drag.js · Pointer 事件处理 =====
+// ===== src/ui/ui-drag.js · Pointer 事件处理（重写） =====
 import { state } from '../state.js';
 import { ALL_LINES, TIME_LABELS, GONG_NAMES, getCardId } from '../data.js';
 import { calcDiff } from '../engine.js';
@@ -13,7 +13,6 @@ const pointerState = {
   startX: 0,
   startY: 0,
   cardEl: null,
-  timer: null,
   ghostCard: null,
 };
 
@@ -50,12 +49,13 @@ function onPointerDown(e) {
   pointerState.startX = e.clientX;
   pointerState.startY = e.clientY;
   pointerState.cardEl = cardEl;
+  pointerState.ghostCard = null;
 
-  // 长按 200ms 后选中（区分点击和拖拽）
-  pointerState.timer = setTimeout(() => {
+  // 不用长按，直接开始检测移动
+  pointerState.moveTimer = setTimeout(() => {
+    // 200ms内没移动，视为点击
     if (!pointerState.moved && pointerState.down) {
       selectCard(cardEl.dataset.cardid);
-      highlightDropTargets(true);
     }
   }, 200);
 }
@@ -67,7 +67,7 @@ function onPointerMove(e) {
   if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
     pointerState.moved = true;
     pointerState.isClick = false;
-    clearTimeout(pointerState.timer);
+    clearTimeout(pointerState.moveTimer);
     highlightDropTargets(true);
     if (!pointerState.ghostCard) {
       startGhostDrag(e.clientX, e.clientY);
@@ -80,11 +80,14 @@ function onPointerMove(e) {
 }
 
 function onPointerUp(e) {
-  clearTimeout(pointerState.timer);
+  clearTimeout(pointerState.moveTimer);
   highlightDropTargets(false);
 
-  if (pointerState.isClick && pointerState.down) {
-    // 点击选牌
+  if (pointerState.ghostCard) {
+    // 拖拽结束 -> 放置
+    finishGhostDrag(e.clientX, e.clientY);
+  } else if (pointerState.isClick && pointerState.down) {
+    // 点击 -> 选牌
     const el = document.elementFromPoint(e.clientX, e.clientY);
     const cardEl = el?.closest('.card-back, .card-face-small');
     if (cardEl) {
@@ -92,14 +95,11 @@ function onPointerUp(e) {
     }
   }
 
-  if (pointerState.ghostCard) {
-    finishGhostDrag(e.clientX, e.clientY);
-  }
-
   pointerState.down = false;
   pointerState.moved = false;
   pointerState.isClick = false;
   pointerState.cardEl = null;
+  pointerState.ghostCard = null;
 }
 
 function startGhostDrag(clientX, clientY) {
@@ -128,20 +128,19 @@ function finishGhostDrag(clientX, clientY) {
   const gong = dropTarget?.closest('.gong');
   const emptyDash = dropTarget?.closest('.empty-dash');
 
-  if (gong && state.sel) {
+  // 直接从指针状态取牌，不依赖 state.sel
+  const cardId = pointerState.cardEl?.dataset.cardid;
+  const card = findCardById(cardId);
+  if (!card || isCardPlaced(card)) return;
+
+  if (gong) {
     const g = parseInt(gong.dataset.gong);
-    const card = findCardById(state.sel);
-    if (card && !isCardPlaced(card)) {
-      placeCardOnGong(card, g);
-    }
-  } else if (emptyDash && state.sel) {
-    const card = findCardById(state.sel);
-    if (card && !isCardPlaced(card)) {
-      if (emptyDash.textContent.includes('体')) {
-        placeCardOnTiYong(card, 'ti');
-      } else {
-        placeCardOnTiYong(card, 'yong');
-      }
+    placeCardOnGong(card, g);
+  } else if (emptyDash) {
+    if (emptyDash.textContent.includes('体')) {
+      placeCardOnTiYong(card, 'ti');
+    } else {
+      placeCardOnTiYong(card, 'yong');
     }
   }
 }
@@ -187,7 +186,7 @@ export function placeCardOnGong(card, gong) {
   const diff = calcDiff(gong, card);
   const gongName = GONG_NAMES[gong];
   const cardName = card.isJoker ? card.type : card.suit + card.rank;
-  toast(`${gongName}宫(${gong}) - ${cardName} = 差值 ${diff}`, 2000);
+  toast(`${gongName}宫(${gong}) - ${cardName} = 差值 ${diff}`, 1500);
   try { if (navigator.vibrate) navigator.vibrate(10); } catch (e) {}
   return true;
 }
@@ -209,27 +208,38 @@ export function placeCardOnTiYong(card, role) {
   return true;
 }
 
-// ===== 天机线 =====
+// ===== 天机线（按放置顺序确定起因） =====
 export function checkLines() {
   const filled = Object.keys(state.grid).filter(g => state.grid[g] && state.grid[g].length > 0).map(Number);
-  state.possible = ALL_LINES.filter(line => line.every(g => filled.includes(g)));
-  if (state.possible.length === 1) {
-    setLine(state.possible[0]);
-  } else if (state.possible.length > 1) {
-    renderLineSelector(state.possible);
+  const lines = ALL_LINES.filter(line => line.every(g => filled.includes(g)));
+  state.possible = lines;
+
+  if (lines.length === 1) {
+    setLine(lines[0]);
+  } else if (lines.length > 1) {
+    renderLineSelector(lines);
   } else {
     removeLineSelector();
   }
 }
 
 export function setLine(line) {
-  state.line = line;
-  const key = line.join(',');
+  // 按放置顺序（gongOrder）调整线路起点
+  let orderedLine = line;
+  if (state.gongOrder && state.gongOrder.length > 0) {
+    const firstGong = state.gongOrder.find(g => line.includes(g));
+    if (firstGong) {
+      const idx = line.indexOf(firstGong);
+      orderedLine = [...line.slice(idx), ...line.slice(0, idx)];
+    }
+  }
+  state.line = orderedLine;
+  const key = orderedLine.join(',');
   const tl = TIME_LABELS[key] || {};
   state.lineOrder = {};
-  state.lineOrder[line[0]] = '起因';
-  state.lineOrder[line[1]] = '经过';
-  state.lineOrder[line[2]] = '结果';
+  state.lineOrder[orderedLine[0]] = '起因';
+  state.lineOrder[orderedLine[1]] = '经过';
+  state.lineOrder[orderedLine[2]] = '结果';
   for (let g = 1; g <= 9; g++) {
     if (!state.lineOrder[g]) state.lineOrder[g] = tl[g] || '';
   }

@@ -99,11 +99,6 @@ export const API_PROVIDERS = {
   custom: { endpoint: '', model: '' },
 };
 
-export const API_PATH_MAP = {
-  claude: '/messages',
-  gemini: '/models/gemini-pro:generateContent',
-};
-
 // ----- 问题分类 -----
 export const CATEGORIES = [
   '财运', '感情', '事业', '健康', '学业', '决策',
@@ -112,14 +107,6 @@ export const CATEGORIES = [
 
 // ----- 性别选项 -----
 export const GENDER_OPTIONS = ['男', '女', '其他'];
-
-// ----- 精神力系统常量 -----
-export const SPIRIT_MAX = 100;
-export const SPIRIT_DRAIN_PER_DRAW = 5;
-export const SPIRIT_WARN_THRESHOLD = 30;
-export const SPIRIT_BAN_THRESHOLD = 10;
-export const SPIRIT_RECOVER_PER_HOUR = 3;
-export const SPIRIT_BAN_DURATION_HOURS = 4;
 
 // ===== 判定函数 =====
 
@@ -133,7 +120,6 @@ export function getWuxing(card) {
 export function getYinYang(card) {
   if (!card) return null;
   if (card.isJoker) return YIN_YANG[card.type];
-  if (card.rank === 'J' || card.rank === 'Q' || card.rank === 'K') return YIN_YANG[card.suit];
   return YIN_YANG[card.suit];
 }
 
@@ -155,7 +141,8 @@ export function getCardColor(card) {
 }
 
 export function getShengKe(meWx, otherWx) {
-  if (!meWx || !otherWx || meWx === '天' || meWx === '人' || otherWx === '天' || otherWx === '人') return null;
+  if (!meWx || !otherWx) return null;
+  if (meWx === '天' || meWx === '人' || otherWx === '天' || otherWx === '人') return null;
   if (SHENG[otherWx] === meWx) return '生我';
   if (SHENG[meWx] === otherWx) return '我生';
   if (KE[otherWx] === meWx) return '克我';
