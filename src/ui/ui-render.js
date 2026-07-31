@@ -1,4 +1,4 @@
-// ===== src/ui/ui-render.js · 所有页面的绘制逻辑 =====
+// ===== src/ui/ui-render.js · 全流程渲染 =====
 import { state } from '../state.js';
 import {
   GONG_ORDER, GONG_NAMES, GONG_WUXING, CATEGORIES,
@@ -9,13 +9,11 @@ import {
   calcFullBaZi, calcDiff, getDiffLevel
 } from '../engine.js';
 import { getApiSettings, getProfile, getHistory } from '../storage.js';
-import {
-  UI_TEXTS, HISTORY_EMPTY, AI_GUIDE_TEXT
-} from '../texts/index.js';
+import { UI_TEXTS, HISTORY_EMPTY, AI_GUIDE_TEXT } from '../texts/index.js';
 import { calculateDurianIndex, getDurianIcon } from '../durian.js';
 import { toast } from './ui-modal.js';
 import { isCardPlaced } from './ui-drag.js';
-import { MODES } from '../constants.js';
+import { generateMetaphor } from '../metaphor.js';
 
 export const escapeHtml = (str) => {
   const div = document.createElement('div');
@@ -23,174 +21,229 @@ export const escapeHtml = (str) => {
   return div.innerHTML;
 };
 
-// ===== 浮生牌使用手册（新手友好版） =====
+// ===== 教程 =====
 export function renderTeachingPanel() {
   const container = document.getElementById('teachingContent');
   if (!container) return;
-
   container.innerHTML = `
     <div style="max-width:680px;margin:0 auto;padding:8px 0;line-height:1.9;">
-
       <h3 style="color:var(--accent);margin-bottom:8px;">🃏 浮生牌使用手册</h3>
       <p style="font-size:0.85rem;color:var(--dim);margin-bottom:16px;border-left:3px solid var(--accent);padding-left:10px;">
-        这是一个帮助你在不确定时看清自己处境的工具。<br>它不算命，不预言，只是给你一面镜子。
+        这是一个帮助你在不确定时看清自己处境的工具。它不算命，不预言，只是给你一面镜子。
       </p>
-
-      <!-- 0 -->
-      <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px 14px;margin-bottom:12px;">
-        <h4 style="color:var(--accent);margin-bottom:6px;">在最开始</h4>
-        <p style="font-size:0.8rem;color:var(--dim);">
-          这里没有大师。没有人知道你的命运。没有任何牌面可以替你做决定。
-        </p>
-        <p style="font-size:0.8rem;color:var(--dim);margin-top:6px;">
-          浮生牌做的事情很简单：提供一个观察自己处境的角度。
-        </p>
-        <p style="font-size:0.8rem;color:var(--dim);margin-top:6px;">
-          古人创造占卜，是为了面对未知。现代人打开工具，很多时候也是因为犹豫、焦虑、不知道下一步。这很正常。但请记住：
-        </p>
-        <p style="font-size:0.85rem;color:var(--text);margin-top:6px;font-weight:bold;">
-          镜子可以照见你，镜子不能替你走路。
-        </p>
-      </div>
-
-      <!-- 1 -->
       <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px 14px;margin-bottom:12px;">
         <h4 style="color:var(--accent);margin-bottom:6px;">占卜的核心原则</h4>
         <ul style="font-size:0.8rem;color:var(--dim);padding-left:18px;">
-          <li><strong>不是未来机器</strong>：更好的问题是“它有没有帮助我看到之前忽略的东西？”</li>
-          <li><strong>不问错误的问题</strong>：别问“他一定爱我吗？”。改为“我和他之间目前存在什么问题？”</li>
-          <li><strong>一件事不要无限重复问</strong>：一次问题，一次记录，等待现实反馈。</li>
-          <li><strong>牌是提示，不是命令</strong>：“牌说不能去”不如“牌让我想到某个风险，我重新检查一下”。</li>
+          <li><strong>不问笼统的问题</strong>：问题越具体，牌面越清晰。</li>
+          <li><strong>牌是提示，不是命令</strong>：牌面提醒你，决定权在你。</li>
+          <li><strong>一卦一断</strong>：一件事，不要反复问。</li>
+          <li><strong>不测生死，不窥他人</strong>：涉及生命或他人隐私的问题，这里不碰。</li>
         </ul>
       </div>
-
-      <!-- 2 -->
       <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px 14px;margin-bottom:12px;">
         <h4 style="color:var(--accent);margin-bottom:6px;">如何开始</h4>
         <ol style="font-size:0.8rem;color:var(--dim);padding-left:18px;">
-          <li><strong>确定一个问题</strong>：越具体越好。“我该不该跳槽？”优于“我的事业怎么样”。</li>
-          <li><strong>选领域</strong>：感情、事业、财运……只是为了聚焦。</li>
-          <li><strong>抽牌</strong>：系统会从54张牌中随机给你体牌（代表你）和用牌（代表事情）。</li>
-          <li><strong>布九宫</strong>：把剩下的牌放入九个宫位，每个宫位可以放0～3张。</li>
-          <li><strong>看天机线</strong>：如果你愿意，可以选一条三连直线作为主线（起因→经过→结果）。</li>
+          <li>输入一个你想问的问题。</li>
+          <li>系统会先带你确认问题的具体含义。</li>
+          <li>抽牌，看一句“画面”提示。</li>
+          <li>写下自己心里闪过的那句话。</li>
+          <li>带走它，不必做任何决定。</li>
         </ol>
       </div>
-
-      <!-- 3 -->
-      <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px 14px;margin-bottom:12px;">
-        <h4 style="color:var(--accent);margin-bottom:6px;">九宫是什么？</h4>
-        <p style="font-size:0.8rem;color:var(--dim);">
-          九宫就是一张3×3的网格。在浮生牌中，每个宫位有它自己的五行属性：
-        </p>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-width:280px;margin:8px auto;font-size:0.65rem;">
-          ${[4,9,2,3,5,7,8,1,6].map(g => `
-            <div style="background:rgba(0,0,0,0.2);border-radius:4px;padding:4px;text-align:center;border:1px solid rgba(255,255,255,0.05);">
-              <div style="font-weight:bold;color:var(--accent);">${g}</div>
-              <div style="color:var(--dim);">${GONG_NAMES[g]}</div>
-              <div style="color:#888;font-size:0.5rem;">${GONG_WUXING[g]}</div>
-            </div>
-          `).join('')}
-        </div>
-        <p style="font-size:0.75rem;color:var(--dim);margin-top:6px;">
-          你可以把牌放进去，每个宫位最多放3张。放多少、放哪宫，都凭你的感觉。
-        </p>
-        <p style="font-size:0.75rem;color:var(--dim);margin-top:4px;">
-          💡 有纸的话画出来会更直观，但闭上眼睛在脑中想象九宫也可以。
-        </p>
-      </div>
-
-      <!-- 4 -->
-      <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px 14px;margin-bottom:12px;">
-        <h4 style="color:var(--accent);margin-bottom:6px;">天机线是什么？</h4>
-        <p style="font-size:0.8rem;color:var(--dim);">
-          天机线是九宫中的一条直线（横/竖/斜）。如果你选择的三个有牌宫位恰好连成一条直线，就构成了天机线。它可以帮助你梳理事情的：
-        </p>
-        <div style="display:flex;justify-content:center;gap:14px;margin:8px 0;font-size:0.85rem;color:var(--text);">
-          <span style="color:var(--good);">起因</span>
-          <span style="color:#888;">→</span>
-          <span>经过</span>
-          <span style="color:#888;">→</span>
-          <span style="color:var(--accent);">结果</span>
-        </div>
-        <p style="font-size:0.75rem;color:var(--dim);">
-          这并不是一个硬性规则。如果你不想选天机线，完全可以把九宫看作一个整体来观察。你可以自己决定：
-        </p>
-      </div>
-
-      <!-- 5 -->
-      <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px 14px;margin-bottom:12px;">
-        <h4 style="color:var(--accent);margin-bottom:6px;">怎么解牌？</h4>
-        <ol style="font-size:0.8rem;color:var(--dim);padding-left:18px;">
-          <li><strong>第一层，观察</strong>：先看牌面的数字、花色、五行。感觉是什么？</li>
-          <li><strong>第二层，联系宫位</strong>：这牌落在哪一宫？该宫的五行和牌的五行的关系是生还是克？</li>
-          <li><strong>第三层，连接问题</strong>：最重要一步——这和你最初问的有什么关系？</li>
-        </ol>
-        <div style="font-size:0.7rem;color:var(--dim);margin-top:8px;background:rgba(255,255,255,0.03);padding:8px;border-radius:6px;">
-          <strong>速查：</strong><br>
-          牌的五行：♥火 ♦金 ♣木 ♠水；J/Q/K=土；大王=天；小王=人<br>
-          生我=吉（有人帮你），同我=平（用力均衡），我生=耗（你会付出），克我=凶（有压力），我克=弱（你能掌控）
-        </div>
-      </div>
-
-      <!-- 6 -->
-      <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px 14px;margin-bottom:12px;">
-        <h4 style="color:var(--accent);margin-bottom:6px;">榴莲指数是什么？</h4>
-        <p style="font-size:0.8rem;color:var(--dim);">
-          它不是人生难度，也不是倒霉指数。它代表这次解读可能有多“刺”。
-        </p>
-        <div style="display:flex;justify-content:center;gap:14px;margin:8px 0;font-size:0.85rem;">
-          <span>🥭 1-3 温和</span>
-          <span>🍍 4-6 有点扎</span>
-          <span>🍈 7-10 准备好接受难听的话</span>
-        </div>
-        <p style="font-size:0.75rem;color:var(--dim);">
-          榴莲指数高，不代表坏。有时候难听的话比好听的话更有价值。
-        </p>
-      </div>
-
-      <!-- 7 -->
-      <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px 14px;margin-bottom:12px;">
-        <h4 style="color:var(--accent);margin-bottom:6px;">基本规则</h4>
-        <ul style="font-size:0.8rem;color:var(--dim);padding-left:18px;">
-          <li><strong>不测生死</strong>：涉及死亡、重病的问题请寻求专业帮助。</li>
-          <li><strong>不窥探他人</strong>：不要占卜“他是不是出轨了”。未经允许的窥探没有意义。</li>
-          <li><strong>不替代专业意见</strong>：身体问题找医生，法律问题找律师，投资问题做研究。</li>
-          <li><strong>不制造依赖</strong>：如果你发现自己每天必须占卜才能行动，那该暂停一下了。</li>
-        </ul>
-      </div>
-
-      <!-- 8 -->
       <div style="background:rgba(0,0,0,0.15);border-radius:8px;padding:12px 14px;">
         <h4 style="color:var(--accent);margin-bottom:6px;">最后</h4>
         <p style="font-size:0.8rem;color:var(--dim);">
-          浮生牌不认为人生可以被评分，不认为代码可以替代智慧，不认为一副牌可以决定你的命运。
-        </p>
-        <p style="font-size:0.8rem;color:var(--dim);margin-top:6px;">
-          我们只是制作了一面镜子。镜子可能有灰尘，可能有裂纹，但它仍然可以帮助你看见一些东西。
+          浮生牌不认为人生可以被评分，不认为一副牌可以决定你的命运。它只是一面镜子。
         </p>
       </div>
-
     </div>
   `;
 }
 
-// ===== 牌堆渲染 =====
+// ===== 首页 + 逼问流程 =====
+export function renderStep1() {
+  const core = document.getElementById('coreArea');
+  if (!core) return;
+
+  // 逼问流程
+  if (state.questionFlow) {
+    renderQuestionFlow(core);
+    return;
+  }
+
+  // 默认首页
+  core.innerHTML = `
+    <div style="margin-bottom:16px;">
+      <h3 style="font-size:1.6rem;margin:0;">浮生牌</h3>
+      <div style="color:var(--dim);font-size:0.85rem;margin-top:4px;">这里没有答案。只有一面镜子。</div>
+    </div>
+    <input type="text" id="questionInput" placeholder="${UI_TEXTS.placeholderQuestion}" autocomplete="off" value="${escapeHtml(state.question)}">
+    <div class="category-grid">${CATEGORIES.map(c => `<button data-action="selectCategory" data-category="${c}" class="${state.category === c ? 'selected' : ''}">${c}</button>`).join('')}</div>
+    <div class="btn-row">
+      <button data-action="confirmQuestion" class="primary">${UI_TEXTS.btnStartDraw}</button>
+      <button data-action="lazyStart" class="outline">${UI_TEXTS.btnLazy}</button>
+    </div>
+  `;
+}
+
+// ===== 逼问界面 =====
+function renderQuestionFlow(core) {
+  const flow = state.questionFlow;
+  const q = flow.question || '';
+
+  let inner = '';
+  if (flow.stage === 'ask_mirror') {
+    inner = `
+      <h3>先别急</h3>
+      <div style="font-size:1rem;color:var(--text);margin:16px 0;line-height:1.8;">
+        「${escapeHtml(q)}」
+      </div>
+      <div style="font-size:0.9rem;color:var(--dim);line-height:1.8;">
+        你确定你问的是这个吗？
+        <br><br>
+        闭上眼睛三秒钟，想象一下「这件事已经解决了」的那一刻。<br>
+        你看到的是什么画面？
+      </div>
+      <div class="btn-row">
+        <button data-action="flowContinue" class="primary">我想好了</button>
+        <button data-action="flowEdit" class="outline">再想想</button>
+      </div>
+    `;
+  } else if (flow.stage === 'ask_confirm') {
+    const finalQ = flow.finalQuestion || q;
+    inner = `
+      <h3>你真正想问的，其实是：</h3>
+      <div style="font-size:1.2rem;color:var(--accent);margin:16px 0;line-height:1.6;border-left:3px solid var(--accent);padding-left:16px;">
+        ${escapeHtml(finalQ)}
+      </div>
+      <p style="font-size:0.8rem;color:var(--dim);">是这个吗？</p>
+      <div class="btn-row">
+        <button data-action="flowStart" class="primary">是，开始抽牌</button>
+        <button data-action="flowSkip" class="outline">算了，直接抽</button>
+      </div>
+    `;
+  }
+
+  core.innerHTML = `<div style="max-width:420px;margin:0 auto;padding:20px 0;">${inner}</div>`;
+}
+
+// ===== 抽牌后：比喻层 =====
+export function renderReveal(metaphor) {
+  const core = document.getElementById('coreArea');
+  if (!core) return;
+
+  core.innerHTML = `
+    <div style="max-width:480px;margin:0 auto;padding:20px 0;text-align:center;">
+      <div style="font-size:0.8rem;color:var(--dim);margin-bottom:12px;">牌已经翻了。</div>
+      <div style="font-size:1.15rem;line-height:1.9;color:var(--text);margin-bottom:24px;padding:0 10px;">
+        ${metaphor.replace(/\n/g, '<br>')}
+      </div>
+      <button data-action="continueToEcho" class="primary small">继续</button>
+    </div>
+  `;
+}
+
+// ===== 回响层 =====
+export function renderEcho() {
+  const core = document.getElementById('coreArea');
+  if (!core) return;
+
+  core.innerHTML = `
+    <div style="max-width:480px;margin:0 auto;padding:20px 0;text-align:center;">
+      <div style="font-size:1rem;color:var(--text);margin-bottom:16px;">
+        刚才那句话，哪个字让你心里动了一下？
+      </div>
+      <textarea id="echoInput" rows="3" placeholder="不用完整，几个字就行……"
+        style="width:100%;background:rgba(0,0,0,0.4);border:2px solid var(--border);color:var(--text);border-radius:8px;padding:10px 12px;font-size:0.9rem;font-family:inherit;"></textarea>
+      <div class="btn-row">
+        <button id="echoSubmit" class="primary small">写下了</button>
+        <button data-action="skipEcho" class="outline small">跳过</button>
+      </div>
+      <div id="echoResponse" style="display:none;margin-top:16px;font-size:0.95rem;color:var(--accent);line-height:1.8;"></div>
+    </div>
+  `;
+
+  document.getElementById('echoSubmit')?.addEventListener('click', () => {
+    const val = document.getElementById('echoInput')?.value?.trim();
+    const resp = document.getElementById('echoResponse');
+    if (!resp) return;
+    if (!val) {
+      resp.style.display = 'block';
+      resp.textContent = '没关系，沉默也是一句话。';
+      resp.style.color = 'var(--dim)';
+      return;
+    }
+    resp.style.display = 'block';
+    resp.innerHTML = `“${escapeHtml(val)}”<br><br>这句话是你自己写的，不是任何牌说的。<br><span style="font-size:0.75rem;color:var(--dim);">带它离开，过段时间再回来看看。</span>`;
+    document.getElementById('echoInput').disabled = true;
+    document.getElementById('echoSubmit').style.display = 'none';
+    setTimeout(() => {
+      const btn = document.createElement('button');
+      btn.className = 'primary small';
+      btn.textContent = '查看完整解读';
+      btn.dataset.action = 'showFullReport';
+      resp.appendChild(document.createElement('br'));
+      resp.appendChild(btn);
+    }, 1500);
+  });
+}
+
+// ===== 完整报告层 =====
+export function renderFullReport(text) {
+  const aiSettings = getApiSettings();
+  const hasKey = aiSettings && aiSettings.apiKey;
+  const result = document.getElementById('resultArea');
+  if (!result) return;
+
+  result.innerHTML = `
+    <h3>${UI_TEXTS.step3}</h3>
+    <div id="durianDisplay" style="margin-bottom:8px;"></div>
+    <div class="result-block" id="interpretText" style="font-size:0.9rem;line-height:1.9;">${text.replace(/\n/g, '<br>')}</div>
+    <div class="btn-row">
+      <button data-action="copyLocal" class="small">${UI_TEXTS.btnCopy}</button>
+      <button id="copyPromptBtn" class="small outline">📋 复制提示词</button>
+      <button data-action="shareImage" class="outline small">${UI_TEXTS.btnShareImage}</button>
+      <button data-action="shareCode" class="outline small">${UI_TEXTS.btnShareCode}</button>
+      <button data-action="exportData" class="outline small">完整数据</button>
+      <button id="aiReadBtn" data-action="triggerAI" class="primary small">${hasKey ? 'AI 深度解读' : '✨ 接入 AI 深度解读'}</button>
+      <button data-action="resetAll" class="small">${UI_TEXTS.btnNewQuestion}</button>
+    </div>
+    <div id="aiResultContainer" style="display:none;margin-top:10px">
+      <div class="result-block" id="aiResultContent"></div>
+      <div id="followUpArea" style="display:none;margin-top:8px">
+        <div class="btn-row" style="gap:8px">
+          <input type="text" id="followUpInput" placeholder="${UI_TEXTS.placeholderFollowUp}">
+          <button data-action="sendFollowUp" class="small">发送</button>
+        </div>
+        <div class="result-block" id="chatHistoryBlock" style="margin-top:6px;max-height:200px;font-size:0.85rem;"></div>
+      </div>
+    </div>
+  `;
+  renderDurianDisplay();
+
+  document.getElementById('copyPromptBtn')?.addEventListener('click', async () => {
+    const prompt = await import('../ui.js').then(m => m.buildAIPrompt());
+    navigator.clipboard.writeText(prompt).then(
+      () => toast('✅ 提示词已复制'),
+      () => toast('复制失败')
+    );
+  });
+}
+
+// ===== 牌堆渲染（保持原有） =====
 let deckCache = [];
 let deckCacheIds = '';
 
 export function renderDeck() {
   const el = document.getElementById('deckContainer');
   if (!el) return;
-
   if (!state.deck || state.deck.length === 0) {
     deckCache = [];
     deckCacheIds = '';
     el.innerHTML = '<span style="color:#666;padding:10px;display:block;text-align:center;width:100%;font-size:0.9rem;">镜中牌已尽，可重置以重观</span>';
     return;
   }
-
   const currentIds = state.deck.map(c => getCardId(c)).join(',');
-
   if (currentIds === deckCacheIds && el.children.length === state.deck.length) {
     Array.from(el.children).forEach((child, idx) => {
       const card = state.deck[idx];
@@ -204,7 +257,6 @@ export function renderDeck() {
     });
     return;
   }
-
   el.style.cssText = `
     display: flex; flex-wrap: nowrap; gap: 10px;
     overflow-x: auto; overflow-y: hidden;
@@ -213,7 +265,6 @@ export function renderDeck() {
     -webkit-overflow-scrolling: touch; scroll-behavior: smooth;
   `;
   el.innerHTML = '';
-
   state.deck.forEach((c, index) => {
     const id = getCardId(c);
     const placed = isCardPlaced(c);
@@ -222,7 +273,6 @@ export function renderDeck() {
     const rank = c.isJoker ? c.type : c.rank;
     const suit = c.isJoker ? '' : c.suit;
     const wx = getWuxing(c);
-
     const div = document.createElement('div');
     if (state.manualMode) {
       div.className = `card-face-small ${colorCls}${sel ? ' selected' : ''}${placed ? ' used' : ''}`;
@@ -238,7 +288,6 @@ export function renderDeck() {
     }
     el.appendChild(div);
   });
-
   deckCache = [...state.deck];
   deckCacheIds = currentIds;
 }
@@ -247,30 +296,23 @@ export function renderDeck() {
 export function renderTiYong() {
   const bar = document.getElementById('tiyongBar');
   if (!bar) return;
-
   const tiHTML = state.ti
     ? `<div class="mini-card ${getCardColor(state.ti)}">${state.ti.isJoker ? state.ti.type : state.ti.rank}${state.ti.isJoker ? '' : state.ti.suit}</div>`
     : `<div class="empty-dash" data-drop="ti">${UI_TEXTS.labelTi}</div>`;
-
   const yongHTML = state.yong
     ? `<div class="mini-card ${getCardColor(state.yong)}">${state.yong.isJoker ? state.yong.type : state.yong.rank}${state.yong.isJoker ? '' : state.yong.suit}</div>`
     : `<div class="empty-dash" data-drop="yong">${UI_TEXTS.labelYong}</div>`;
-
   let badge = '';
   if (state.ti && state.yong) {
     const rel = getShengKe(getWuxing(state.ti), getWuxing(state.yong));
-    if (rel) {
-      badge = `<span class="relation-badge ${rel === '生我' ? 'good' : rel === '克我' ? 'bad' : ''}">${rel} ${getShengKeLabel(rel)}</span>`;
-    }
+    if (rel) badge = `<span class="relation-badge ${rel === '生我' ? 'good' : rel === '克我' ? 'bad' : ''}">${rel} ${getShengKeLabel(rel)}</span>`;
   }
-
   bar.innerHTML = `
     <div class="slot">${UI_TEXTS.labelTi} ${tiHTML}</div>
     <span class="separator">${UI_TEXTS.labelSeparator}</span>
     <div class="slot">${UI_TEXTS.labelYong} ${yongHTML}</div>
     ${badge}
   `;
-
   const btn = document.getElementById('btnConfirmTY');
   if (btn) btn.disabled = !(state.ti && state.yong);
 }
@@ -279,28 +321,20 @@ export function renderTiYong() {
 export function renderGrid() {
   const el = document.getElementById('gridContainer');
   if (!el) return;
-
   const recommendedGong = state.intent ? getRecommendedGong(state.intent) : null;
-
   el.innerHTML = GONG_ORDER.map(g => {
     const cards = state.grid[g] || [];
     let cls = '';
-    const isOnLine = state.line && state.line.includes(g);
-    if (isOnLine) cls = 'confirmed';
-
+    if (state.line && state.line.includes(g)) cls = 'confirmed';
     let inner = `
       <span class="num">${g}</span>
       <span class="name">${GONG_NAMES[g]}</span>
       <span class="wx">${GONG_WUXING[g]}</span>
     `;
-
     if (cards.length) {
       inner += '<div class="card-stack">';
-      cards.forEach(c => {
-        inner += `<div class="mini-card ${getCardColor(c)}">${c.isJoker ? c.type : c.rank}${c.isJoker ? '' : c.suit}</div>`;
-      });
+      cards.forEach(c => { inner += `<div class="mini-card ${getCardColor(c)}">${c.isJoker ? c.type : c.rank}${c.isJoker ? '' : c.suit}</div>`; });
       inner += '</div>';
-
       const diff = calcDiff(g, cards[cards.length - 1]);
       const cardVal = getCardValue(cards[cards.length - 1]);
       const diffLevel = getDiffLevel(diff);
@@ -308,45 +342,31 @@ export function renderGrid() {
     } else {
       inner += '<span class="empty-label">空</span>';
     }
-
     if (state.lineOrder[g]) inner += `<span class="time-tag">${state.lineOrder[g]}</span>`;
     if (recommendedGong === g) inner += `<span class="recommend-tag">⭐</span>`;
-
     return `<div class="gong ${cls}" data-gong="${g}">${inner}</div>`;
   }).join('');
 
-  // 天机线引导（仅提示，不强制）
+  // 天机线引导
   const lineGuide = document.getElementById('lineGuide');
   const filledGongs = Object.keys(state.grid).filter(g => state.grid[g] && state.grid[g].length > 0).map(Number);
-  if (filledGongs.length >= 3) {
-    const possibleLines = state.possible || [];
-    if (possibleLines.length > 0 && !state.line) {
-      if (!lineGuide) {
-        const guide = document.createElement('div');
-        guide.id = 'lineGuide';
-        guide.style.cssText = 'margin-top:8px;padding:10px 12px;background:rgba(201,160,96,0.08);border-radius:6px;font-size:0.8rem;color:var(--accent);'; 
-        guide.innerHTML = `✨ 检测到可连成天机线。如果你想选一条，点击下方按钮；不想选也没关系，牌局照样有效。`;
-        el.parentNode.insertBefore(guide, el.nextSibling);
-      }
-    } else {
-      if (lineGuide) lineGuide.remove();
+  if (filledGongs.length >= 3 && (state.possible || []).length > 0 && !state.line) {
+    if (!lineGuide) {
+      const guide = document.createElement('div');
+      guide.id = 'lineGuide';
+      guide.style.cssText = 'margin-top:8px;padding:10px 12px;background:rgba(201,160,96,0.08);border-radius:6px;font-size:0.8rem;color:var(--accent);';
+      guide.innerHTML = `✨ 检测到可连成天机线。如果你想选一条，点击下方按钮；不想选也没关系。`;
+      el.parentNode.insertBefore(guide, el.nextSibling);
     }
-  } else {
-    if (lineGuide) lineGuide.remove();
+  } else if (lineGuide) {
+    lineGuide.remove();
   }
 
-  if (Object.keys(state.grid).length > 0) {
-    renderTensionMap(el);
-  }
+  if (Object.keys(state.grid).length > 0) renderTensionMap(el);
 }
 
 function getRecommendedGong(intent) {
-  const map = {
-    '财运': 2, '感情': 7, '事业': 6, '健康': 8,
-    '学业': 4, '决策': 5, '人际关系': 7, '家宅': 8,
-    '运势': 9, '寻物': 1, '官非': 3, '出行': 3,
-    '灵异': 1, '技能': 4
-  };
+  const map = { '财运': 2, '感情': 7, '事业': 6, '健康': 8, '学业': 4, '决策': 5, '人际关系': 7, '家宅': 8, '运势': 9, '寻物': 1, '官非': 3, '出行': 3, '灵异': 1, '技能': 4 };
   return map[intent] || null;
 }
 
@@ -359,7 +379,6 @@ function renderTensionMap(container) {
     container.parentNode.appendChild(map);
     existing = map;
   }
-
   const gongs = state.gongOrder.length ? state.gongOrder : GONG_ORDER;
   const tensions = gongs.map(g => {
     const cards = state.grid[g] || [];
@@ -367,18 +386,13 @@ function renderTensionMap(container) {
     const diff = calcDiff(g, cards[0]);
     return { gong: g, tension: Math.min(100, diff * 10) };
   });
-
   const maxTension = Math.max(1, ...tensions.map(t => t.tension));
-
   existing.innerHTML = `
     <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;">
       <span style="color:var(--dim);width:100%;text-align:center;margin-bottom:4px;">⚡ 张力分布</span>
       ${tensions.filter(t => t.tension > 0).map(t => {
         const intensity = maxTension > 0 ? Math.round((t.tension / maxTension) * 100) : 0;
-        const bg = intensity < 20 ? 'rgba(76,175,80,0.2)' :
-                   intensity < 40 ? 'rgba(139,195,74,0.4)' :
-                   intensity < 60 ? 'rgba(255,193,7,0.6)' :
-                   intensity < 80 ? 'rgba(255,152,0,0.8)' : 'rgba(244,67,54,0.9)';
+        const bg = intensity < 20 ? 'rgba(76,175,80,0.2)' : intensity < 40 ? 'rgba(139,195,74,0.4)' : intensity < 60 ? 'rgba(255,193,7,0.6)' : intensity < 80 ? 'rgba(255,152,0,0.8)' : 'rgba(244,67,54,0.9)';
         return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:${bg};color:${intensity > 60 ? '#fff' : 'var(--text)'}">${GONG_NAMES[t.gong]} ${t.tension}%</span>`;
       }).join('')}
     </div>
@@ -393,7 +407,7 @@ export function refreshAll() {
   renderDurianDisplay();
 }
 
-// ===== 滚动按钮绑定 =====
+// ===== 滚动按钮 =====
 export function bindScrollButtons() {
   document.removeEventListener('click', handleScrollButtons);
   document.addEventListener('click', handleScrollButtons);
@@ -420,78 +434,23 @@ function handleScrollButtons(e) {
 export function renderDurianDisplay() {
   const container = document.getElementById('durianDisplay');
   if (!container) return;
-
   if (!state.ti || !state.yong || Object.keys(state.grid).length === 0) {
     container.innerHTML = '';
     return;
   }
-
   const result = calculateDurianIndex(state);
   state.durianIndex = result;
   const icon = getDurianIcon(result.score);
-
   container.innerHTML = `
     <div style="display:flex;align-items:center;gap:12px;padding:8px 12px;background:rgba(0,0,0,0.2);border-radius:8px;margin:4px 0;">
       <span style="font-size:1.8rem;line-height:1;">${icon}</span>
       <div>
         <div style="font-weight:bold;font-size:1rem;">
           榴莲指数 ${result.score}/10
-          <span style="color:${result.score < 3 ? '#4CAF50' : result.score < 5 ? '#8BC34A' : result.score < 7 ? '#FFC107' : result.score < 9 ? '#FF9800' : '#F44336'};font-size:0.75rem;">
-            （${result.level}）
-          </span>
+          <span style="color:${result.score < 3 ? '#4CAF50' : result.score < 5 ? '#8BC34A' : result.score < 7 ? '#FFC107' : result.score < 9 ? '#FF9800' : '#F44336'};font-size:0.75rem;">（${result.level}）</span>
         </div>
         <div style="font-size:0.7rem;color:var(--dim);">${result.description}</div>
       </div>
-    </div>
-  `;
-}
-
-// ===== Step1：首页 =====
-export function renderStep1() {
-  const today = new Date().toDateString();
-  const storedDate = localStorage.getItem('fs_todays_sign_date');
-  const storedSign = localStorage.getItem('fs_todays_sign');
-  let sign = null;
-  if (storedDate === today && storedSign) {
-    try { sign = JSON.parse(storedSign); } catch(e) {}
-  }
-
-  let dailyHTML = `<div style="color:var(--dim);font-size:0.85rem;">今日状态</div>`;
-  if (sign) {
-    const colorCls = getCardColor(sign);
-    const rank = sign.isJoker ? sign.type : sign.rank;
-    const suit = sign.isJoker ? '' : sign.suit;
-    dailyHTML += `
-      <div class="card-face-small ${colorCls}" style="margin:8px auto;width:60px;height:84px;display:flex;align-items:center;justify-content:center;flex-direction:column;border-radius:6px;border:1px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.3);">
-        <span class="rank" style="font-size:1.6rem;font-weight:bold;">${rank}</span>
-        <span class="suit" style="font-size:1rem;">${suit}</span>
-      </div>
-      <div style="font-size:0.8rem;color:#aaa;margin-bottom:4px;">${sign.quote || '静观其变'}</div>
-      <button data-action="dailyFortune" class="small outline">重新抽牌</button>
-    `;
-  } else {
-    dailyHTML += `
-      <div style="font-size:1.2rem;color:var(--accent);margin:8px 0;">待观测</div>
-      <button data-action="dailyFortune" class="small outline">获取今日状态</button>
-    `;
-  }
-
-  const core = document.getElementById('coreArea');
-  if (!core) return;
-  core.innerHTML = `
-    <div id="dailySignCard" style="margin-bottom:16px;background:rgba(255,255,255,0.02);border-radius:8px;padding:16px;text-align:center;border:1px solid rgba(255,255,255,0.05);">${dailyHTML}</div>
-    <h3 style="margin-top:0;">${UI_TEXTS.step1}</h3>
-    <div style="font-size:0.75rem;color:var(--dim);margin-bottom:8px;">默念一个问题，选择一个领域，然后开始。</div>
-    <input type="text" id="questionInput" placeholder="${UI_TEXTS.placeholderQuestion}" autocomplete="off" value="${escapeHtml(state.question)}">
-    <div class="category-grid">${CATEGORIES.map(c => `<button data-action="selectCategory" data-category="${c}" class="${state.category === c ? 'selected' : ''}">${c}</button>`).join('')}</div>
-    <div class="btn-row">
-      <button data-action="confirmQuestion" class="primary">${UI_TEXTS.btnStartDraw}</button>
-      <button data-action="lazyStart" class="outline">${UI_TEXTS.btnLazy}</button>
-    </div>
-    <div class="import-row">
-      <input type="text" id="importCode" placeholder="${UI_TEXTS.placeholderImport}" autocomplete="off">
-      <button data-action="importCode" class="small outline">${UI_TEXTS.btnImport}</button>
-      <button data-action="dailyFortune" class="small outline">${UI_TEXTS.btnDailyFortune}</button>
     </div>
   `;
 }
@@ -500,7 +459,6 @@ export function renderStep1() {
 export function renderStep2() {
   const core = document.getElementById('coreArea');
   if (!core) return;
-
   core.innerHTML = `
     <h3>${state.manualMode ? '手动录入 · 明牌选阵' : '立极·布阵'}</h3>
     <div style="font-size:0.8rem;color:var(--dim);margin-bottom:8px;">
@@ -517,7 +475,7 @@ export function renderStep2() {
     </div>
     <div id="gridArea" ${state.manualMode ? '' : 'style="display:none"'}>
       <div style="font-size:0.75rem;color:var(--dim);margin:6px 0;">
-        每个宫位最多3张牌。放多少、放哪宫，凭你的直觉。也可以留空。
+        每个宫位最多3张牌。可以留空。
       </div>
       <div class="grid-9" id="gridContainer"></div>
       <div class="btn-row">
@@ -527,54 +485,9 @@ export function renderStep2() {
       </div>
     </div>
   `;
-
   refreshAll();
   const btn = document.getElementById('btnConfirmTY');
   if (btn) btn.disabled = !(state.ti && state.yong);
-}
-
-// ===== Step3：结果 =====
-export function renderStep3(text) {
-  const aiSettings = getApiSettings();
-  const hasKey = aiSettings && aiSettings.apiKey;
-  const result = document.getElementById('resultArea');
-  if (!result) return;
-
-  result.innerHTML = `
-    <h3>${UI_TEXTS.step3}</h3>
-    <div id="durianDisplay" style="margin-bottom:8px;"></div>
-    <div class="result-block" id="interpretText">${text.replace(/\n/g, '<br>')}</div>
-    <div class="btn-row">
-      <button data-action="copyLocal" class="small">${UI_TEXTS.btnCopy}</button>
-      <button id="copyPromptBtn" class="small outline" style="font-size:0.6rem;">📋 复制提示词</button>
-      <button data-action="shareImage" class="outline small">${UI_TEXTS.btnShareImage}</button>
-      <button data-action="shareCode" class="outline small">${UI_TEXTS.btnShareCode}</button>
-      <button data-action="exportData" class="outline small">完整数据</button>
-      <button data-action="timeCapsule" class="outline small">📦 胶囊</button>
-      <button id="aiReadBtn" data-action="triggerAI" class="primary small">${hasKey ? 'AI 深度解读' : '✨ 接入 AI 深度解读'}</button>
-      <button data-action="resetAll" class="small">${UI_TEXTS.btnNewQuestion}</button>
-    </div>
-    <div class="ai-guide-card" style="font-size:0.6rem;color:var(--dim);text-align:center;padding:4px 0;">${AI_GUIDE_TEXT}</div>
-    <div id="aiResultContainer" style="display:none;margin-top:10px">
-      <div class="result-block" id="aiResultContent"></div>
-      <div id="followUpArea" style="display:none;margin-top:8px">
-        <div class="btn-row" style="gap:8px">
-          <input type="text" id="followUpInput" placeholder="${UI_TEXTS.placeholderFollowUp}">
-          <button data-action="sendFollowUp" class="small">发送</button>
-        </div>
-        <div class="result-block" id="chatHistoryBlock" style="margin-top:6px;max-height:200px;font-size:0.85rem;"></div>
-      </div>
-    </div>
-  `;
-  renderDurianDisplay();
-
-  document.getElementById('copyPromptBtn')?.addEventListener('click', async () => {
-    const prompt = await import('../ui.js').then(m => m.buildAIPrompt());
-    navigator.clipboard.writeText(prompt).then(
-      () => toast('✅ 提示词已复制，可粘贴到任何 AI 工具使用'),
-      () => toast('复制失败')
-    );
-  });
 }
 
 // ===== 设置面板 =====
@@ -602,7 +515,6 @@ export function initProfilePanel() {
   const gender = document.getElementById('profileGender');
   const birthPlace = document.getElementById('birthPlace');
   const currentPlace = document.getElementById('currentPlace');
-
   if (birthDate) birthDate.value = p.birthDate || '';
   if (birthTime) birthTime.value = p.birthTime || '';
   if (name) name.value = p.name || '';
@@ -655,4 +567,45 @@ export function updateApiStatus() {
   if (!st) return;
   st.textContent = s && s.apiKey ? UI_TEXTS.apiStatusConfigured : UI_TEXTS.apiStatusNotConfigured;
   st.style.color = s && s.apiKey ? '#5a9a6a' : '';
+}
+
+// ===== 逼问流程动作（供 ui.js 调用） =====
+export function handleFlowAction(action, dataset) {
+  const flow = state.questionFlow;
+  if (!flow && action !== 'flowStart') return;
+
+  switch (action) {
+    case 'flowContinue':
+      flow.stage = 'ask_confirm';
+      if (!flow.finalQuestion) flow.finalQuestion = flow.question;
+      renderStep1();
+      break;
+    case 'flowEdit':
+      state.questionFlow = null;
+      renderStep1();
+      break;
+    case 'flowSkip':
+    case 'flowStart': {
+      import('../ui.js').then(ui => {
+        if (action === 'flowSkip') {
+          state.questionFlow = null;
+          ui.proceedStartQuestion();
+        } else {
+          state.question = flow.finalQuestion || flow.question;
+          state.questionFlow = null;
+          ui.proceedStartQuestion();
+        }
+      });
+      break;
+    }
+    case 'continueToEcho':
+      renderEcho();
+      break;
+    case 'skipEcho':
+      import('../ui.js').then(ui => ui.showFullReport());
+      break;
+    case 'showFullReport':
+      import('../ui.js').then(ui => ui.showFullReport());
+      break;
+  }
 }

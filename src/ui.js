@@ -1,28 +1,27 @@
-// ===== src/ui.js · 业务主控中心 + 事件绑定 + 动作分发 =====
-import { state, $, $$ } from './state.js';
+// ===== src/ui.js · 业务主控 =====
+import { state } from './state.js';
 import { injectAnimations } from './ui/ui-anim.js';
 import {
-  renderStep1, renderStep2, renderStep3, renderHistoryPanel,
+  renderStep1, renderStep2, renderStep3, renderFullReport, renderHistoryPanel,
   initSettingsPanel, initProfilePanel, updateApiStatus, refreshAll,
-  renderModeSelector, renderDurianDisplay, bindScrollButtons
+  handleFlowAction, bindScrollButtons
 } from './ui/ui-render.js';
 import {
-  toast, guardMidnight, showOnboarding, showPrivacyWarning,
-  showTimeCapsule, showDurianReport, togglePanel,
-  showDailyFortune, showHistoryDetail, generateShareCode, importShareCode,
-  generateShareImage, saveShareImage, showAIGuideModal
+  toast, guardMidnight, showOnboarding, showTimeCapsule, showDurianReport,
+  togglePanel, showDailyFortune, showHistoryDetail, generateShareCode,
+  importShareCode, generateShareImage, saveShareImage, showAIGuideModal
 } from './ui/ui-modal.js';
-import { initDrag, destroyDrag, removeLineSelector, sealDeck, isCardPlaced, findCardById, placeCardOnGong, placeCardOnTiYong, setLine } from './ui/ui-drag.js';
+import { initDrag, removeLineSelector, sealDeck, isCardPlaced, findCardById, placeCardOnGong, placeCardOnTiYong, setLine } from './ui/ui-drag.js';
 import {
   getApiSettings, saveApiSettings, clearApiSettings, getProfile, saveProfile,
-  hasCompletedOnboarding, completeOnboarding, getDrawTimestamps, addDrawTimestamp,
+  hasCompletedOnboarding, getDrawTimestamps, addDrawTimestamp,
   saveReading, addTimelineEntry, saveTimeCapsule, getTimeCapsule,
   deleteHistoryItem, exportAllData
 } from './storage.js';
 import { requestReading, requestFollowUp, testApiConnection } from './ai.js';
 import {
-  createDeck, shuffle, drawTiYong, calcDiff, detectLines, calcFullBaZi,
-  calcYearPillar, checkUsageFrequency, getDiffLevel
+  createDeck, shuffle, drawTiYong, calcDiff, calcFullBaZi,
+  checkUsageFrequency, getDiffLevel
 } from './engine.js';
 import {
   API_PROVIDERS, getShengKe, getShengKeLabel, getWangState, getWuxing,
@@ -34,24 +33,24 @@ import { UI_TEXTS } from './texts/index.js';
 import { calculateDurianIndex } from './durian.js';
 import {
   generateChaosSeed, seedToX0, chaoticGenerator, chaoticShuffle,
-  generateFingerprint, validateFingerprint
+  generateFingerprint
 } from './chaos.js';
 import { getEntropyBuffer, resetEntropy, startEntropyCollection, stopEntropyCollection } from './entropy.js';
 import { interceptQuestion, checkDependency, getSealStatus } from './philosophy/ethics.js';
 import { applyCovenant } from './philosophy/covenant.js';
+import { generateMetaphor } from './metaphor.js';
 
-// --- 基础函数 ---
+// --- 基础 ---
 function mulberry32(a) {
   return function() {
-    a |= 0;
-    a = a + 0x6D2B79F5 | 0;
+    a |= 0; a = a + 0x6D2B79F5 | 0;
     var t = Math.imul(a ^ a >>> 15, 1 | a);
     t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
     return ((t ^ t >>> 14) >>> 0) / 4294967296;
   }
 }
 
-// --- 核心业务逻辑 ---
+// --- 核心 ---
 export function updateStep(n) {
   state.step = n;
   for (let i = 1; i <= 3; i++) {
@@ -100,7 +99,7 @@ export function detectIntent(question, category) {
   return null;
 }
 
-// ===== 动态加载词库 =====
+// ===== 本地解读（生成完整文本） =====
 export async function localInterpretation() {
   const readings = await import('./texts/texts-readings.js');
   const tiWx = getWuxing(state.ti), yongWx = getWuxing(state.yong);
@@ -109,7 +108,6 @@ export async function localInterpretation() {
   state.intent = intent;
   let result = '';
 
-  // 嵌入个人信息
   const profile = getProfile();
   if (profile) {
     let personalInfo = '';
@@ -164,38 +162,59 @@ export async function localInterpretation() {
   return result.trim();
 }
 
+// ===== 生成解读（比喻层 + 回响层 + 准备完整报告） =====
 export async function generateInterpretation() {
   const seal = getSealStatus();
-  if (seal && seal.sealed) {
-    toast(`🔒 封卦中，剩余 ${seal.daysRemaining} 天`);
-    return;
-  }
+  if (seal && seal.sealed) { toast(`🔒 封卦中，剩余 ${seal.daysRemaining} 天`); return; }
 
   const timestamps = getDrawTimestamps();
   const depCheck = checkDependency(timestamps);
-  if (depCheck.level === 'blocked') {
-    toast(depCheck.message, 4000);
-    return;
-  }
-  if (depCheck.level === 'warning') {
-    toast(depCheck.message, 4000);
-  }
+  if (depCheck.level === 'blocked') { toast(depCheck.message, 4000); return; }
 
   const todayCount = timestamps.filter(ts => new Date(ts).toDateString() === new Date().toDateString()).length;
   const usage = checkUsageFrequency(timestamps);
   if (!state.userCorpus.includes(state.question)) state.userCorpus.push(state.question);
-  const text = await localInterpretation();
+
+  // 生成完整报告文本（供完整报告层使用）
+  const fullText = await localInterpretation();
+  state.pendingFullReport = fullText;
+
+  // 生成比喻（从牌局信息抽取 context）
+  const tiWx = getWuxing(state.ti), yongWx = getWuxing(state.yong);
+  const relation = getShengKe(tiWx, yongWx);
+  const firstGong = state.gongOrder?.[0] || Object.keys(state.grid)[0];
+  const firstCards = firstGong ? (state.grid[firstGong] || []) : [];
+  const diff = firstCards.length ? calcDiff(Number(firstGong), firstCards[0]) : 0;
+  const wangState = firstCards.length ? getWangState(getWuxing(firstCards[0]), GONG_WUXING[firstGong]) : '平';
+  const metaphorContext = {
+    tiYongRelation: relation || '同我',
+    gong: { id: Number(firstGong), name: GONG_NAMES[firstGong], element: GONG_WUXING[firstGong] },
+    diff,
+    wangState,
+  };
+  const metaphor = generateMetaphor(metaphorContext);
+
+  // 显示比喻层
+  const { renderReveal } = await import('./ui/ui-render.js');
+  renderReveal(metaphor);
+  updateStep(2); // 保持在布阵步骤，让用户觉得还在牌局中
+
+  // 保存时间戳（不立即保存历史，等完整报告后保存）
+  addDrawTimestamp(Date.now());
+}
+
+// ===== 显示完整报告 =====
+export function showFullReport() {
+  const text = state.pendingFullReport || '';
+  if (!text) { toast('没有可显示的解读'); return; }
+
+  const { renderFullReport } = require ? {} : {}; // 保证正确导入
+  // 由于我们已经在顶部静态导入了 renderFullReport，直接调用
+  renderFullReport(text);
+
   updateStep(3);
-  renderStep3(text);
 
-  const interpretEl = document.getElementById('interpretText');
-  if (interpretEl && todayCount >= MAX_DAILY_OBSERVATIONS && !localStorage.getItem('fs_limit_alert_today')) {
-    const alertHTML = `<div style="margin-top:15px;font-size:0.75rem;color:var(--dim);border-top:1px solid rgba(255,255,255,0.05);padding-top:10px;">※ 今日已观测 ${MAX_DAILY_OBSERVATIONS} 次以上，镜面易起雾，请注意休息。</div>`;
-    interpretEl.innerHTML += alertHTML;
-    localStorage.setItem('fs_limit_alert_today', 'true');
-  }
-  if (usage.level !== 'normal') toast(usage.message, 4000);
-
+  // 保存历史记录
   try {
     const readingData = {
       time: Date.now(),
@@ -214,7 +233,6 @@ export async function generateInterpretation() {
     saveReading(readingData);
     addTimelineEntry(readingData);
   } catch (e) { toast('历史记录保存失败，但解读仍然有效'); }
-  addDrawTimestamp(Date.now());
 
   if (!getTimeCapsule()) {
     saveTimeCapsule({
@@ -223,8 +241,19 @@ export async function generateInterpretation() {
       timestamp: Date.now()
     });
   }
+
+  // 触发精神力预警
+  const timestamps = getDrawTimestamps();
+  const todayCount = timestamps.filter(ts => new Date(ts).toDateString() === new Date().toDateString()).length;
+  const interpretEl = document.getElementById('interpretText');
+  if (interpretEl && todayCount >= MAX_DAILY_OBSERVATIONS && !localStorage.getItem('fs_limit_alert_today')) {
+    const alertHTML = `<div style="margin-top:15px;font-size:0.75rem;color:var(--dim);border-top:1px solid rgba(255,255,255,0.05);padding-top:10px;">※ 今日已观测 ${MAX_DAILY_OBSERVATIONS} 次以上，镜面易起雾，请注意休息。</div>`;
+    interpretEl.innerHTML += alertHTML;
+    localStorage.setItem('fs_limit_alert_today', 'true');
+  }
 }
 
+// ===== AI 提示词 =====
 export async function buildAIPrompt() {
   const localText = await localInterpretation();
   const profile = getProfile();
@@ -240,60 +269,46 @@ export async function buildAIPrompt() {
   return `${personalPrefix}请根据以下浮生牌局象进行详细解读。\n\n要求：纯文本格式，严禁使用任何Markdown符号。用自然语言分段。从体用生克、时空推演、宫位差值、旺相休囚、阴阳属性等方面展开。话不说死。\n\n${localText}\n\n规则：红桃火(阳) 方块金(阳) 梅花木(阴) 黑桃水(阴) JQK土 大王天(阳) 小王人(阴)。`;
 }
 
-// ===== 【修正】resetAll：彻底清空残留 =====
+// ===== 重置 =====
 export function resetAll() {
   if (!confirm('此阵一散，当下映照便消逝，确要重来吗？')) return;
-  
-  // 重置所有状态
   Object.assign(state, {
     question: '', category: '', deck: [], ti: null, yong: null,
     grid: {}, line: null, lineOrder: {}, step: 1, sel: null,
     possible: [], manualMode: false, gongOrder: [], chatHistory: [],
     uid: Date.now() % 1000000, editCount: 0, refinementTags: {},
     intent: null, fingerprint: null, entropyLevel: 0, chaosSeed: null,
-    sealed: false, sealedAt: null, durianIndex: null
+    sealed: false, sealedAt: null, durianIndex: null,
+    questionFlow: null, pendingFullReport: ''
   });
   resetEntropy();
-
-  // 强制清空所有 UI 区域
   const resultArea = document.getElementById('resultArea');
   if (resultArea) resultArea.innerHTML = '';
-  
   const tiyongBar = document.getElementById('tiyongBar');
   if (tiyongBar) tiyongBar.innerHTML = '';
-  
   const gridArea = document.getElementById('gridArea');
   if (gridArea) gridArea.style.display = 'none';
-  
-  const coreArea = document.getElementById('coreArea');
-  if (coreArea) coreArea.innerHTML = '';
-  
-  // 重置步骤条
   updateStep(1);
-  
-  // 重新渲染首页
   renderStep1();
   toast(UI_TEXTS.toastReset);
 }
 
+// ===== 起卦（逼问入口） =====
 export function startQuestion() {
-  guardMidnight(() => proceedStartQuestion());
-}
-
-function proceedStartQuestion() {
   const input = document.getElementById('questionInput');
   const q = input?.value?.trim() || '';
   if (q) {
     const intercept = interceptQuestion(q);
-    if (intercept.blocked) {
-      const core = document.getElementById('coreArea');
-      if (core) {
-        core.innerHTML = `<div class="panel"><h3>提示</h3><p style="color:var(--dim);font-size:0.9rem;">${intercept.message}</p><button data-action="resetAll" class="small">返回</button></div>`;
-      }
-      return;
-    }
+    if (intercept.blocked) { toast(intercept.message, 4000); return; }
   }
   state.question = q;
+  state.questionFlow = { question: q, stage: 'ask_mirror', finalQuestion: null };
+  renderStep1();
+}
+
+// ===== 真正开始抽牌（由逼问流程最后一步调用） =====
+export function proceedStartQuestion() {
+  const q = state.question || '';
   state.manualMode = false;
   state.uid = Date.now() % 1000000;
   state.fingerprint = null;
@@ -316,18 +331,11 @@ function proceedStartQuestion() {
       state.deck = shuffled;
       state.fingerprint = generateFingerprint(shuffled);
 
-      state.ti = null;
-      state.yong = null;
-      state.grid = {};
-      state.line = null;
-      state.lineOrder = {};
-      state.sel = null;
-      state.possible = [];
-      state.chatHistory = [];
-      state.gongOrder = [];
-      state.editCount = 0;
-      state.refinementTags = {};
-      state.intent = null;
+      state.ti = null; state.yong = null;
+      state.grid = {}; state.line = null; state.lineOrder = {};
+      state.sel = null; state.possible = [];
+      state.chatHistory = []; state.gongOrder = [];
+      state.editCount = 0; state.refinementTags = {}; state.intent = null;
 
       updateStep(2);
       renderStep2();
@@ -337,6 +345,7 @@ function proceedStartQuestion() {
   })();
 }
 
+// ===== 手动模式 =====
 export function startManualEntry() {
   guardMidnight(() => {
     const input = document.getElementById('questionInput');
@@ -344,25 +353,18 @@ export function startManualEntry() {
     state.manualMode = true;
     state.uid = Date.now() % 1000000;
     state.deck = createDeck(true);
-    state.ti = null;
-    state.yong = null;
-    state.grid = {};
-    state.line = null;
-    state.lineOrder = {};
-    state.sel = null;
-    state.possible = [];
-    state.chatHistory = [];
-    state.gongOrder = [];
-    state.editCount = 0;
-    state.refinementTags = {};
-    state.intent = null;
-    state.fingerprint = null;
-    state.sealed = false;
+    state.ti = null; state.yong = null;
+    state.grid = {}; state.line = null; state.lineOrder = {};
+    state.sel = null; state.possible = [];
+    state.chatHistory = []; state.gongOrder = [];
+    state.editCount = 0; state.refinementTags = {}; state.intent = null;
+    state.fingerprint = null; state.sealed = false; state.questionFlow = null;
     updateStep(2);
     renderStep2();
   });
 }
 
+// ===== 一键起局 =====
 export function lazyStart() {
   guardMidnight(() => proceedLazyStart());
 }
@@ -385,8 +387,7 @@ async function proceedLazyStart() {
   state.fingerprint = generateFingerprint(shuffled);
 
   const { ti, yong, remaining } = drawTiYong(shuffled);
-  state.ti = ti;
-  state.yong = yong;
+  state.ti = ti; state.yong = yong;
   let remainingDeck = remaining;
   remainingDeck.push({ isJoker: true, type: '大王', _uid: state.uid++ }, { isJoker: true, type: '小王', _uid: state.uid++ });
   remainingDeck = shuffle(remainingDeck);
@@ -398,57 +399,36 @@ async function proceedLazyStart() {
   state.lineOrder[line[0]] = '起因';
   state.lineOrder[line[1]] = '经过';
   state.lineOrder[line[2]] = '结果';
-  for (let g = 1; g <= 9; g++) {
-    if (!state.lineOrder[g]) state.lineOrder[g] = tl[g] || '';
-  }
+  for (let g = 1; g <= 9; g++) if (!state.lineOrder[g]) state.lineOrder[g] = tl[g] || '';
   for (const g of line) state.grid[g] = [remainingDeck.pop()];
-  for (const g of GONG_ORDER) {
-    if (!state.grid[g] && remainingDeck.length) state.grid[g] = [remainingDeck.pop()];
-  }
+  for (const g of GONG_ORDER) if (!state.grid[g] && remainingDeck.length) state.grid[g] = [remainingDeck.pop()];
   state.deck = remainingDeck;
   state.gongOrder = line.slice();
   state.sealed = true;
+  state.questionFlow = null;
 
   updateStep(3);
   const text = await localInterpretation();
-  renderStep3(text);
+  renderFullReport(text);
   toast(`🔒 牌局已自动封印`, 3000);
 }
 
+// ===== 布阵相关 =====
 export function resetStep2() {
-  if (state.sealed) {
-    toast('牌局已封印，不可重置');
-    return;
-  }
-  if (state.ti) {
-    state.deck.push(state.ti);
-    state.ti = null;
-  }
-  if (state.yong) {
-    state.deck.push(state.yong);
-    state.yong = null;
-  }
+  if (state.sealed) { toast('牌局已封印，不可重置'); return; }
+  if (state.ti) { state.deck.push(state.ti); state.ti = null; }
+  if (state.yong) { state.deck.push(state.yong); state.yong = null; }
   state.deck = shuffle(state.deck);
   state.sel = null;
   refreshAll();
-  if (state.step === 2) {
-    renderStep2();
-  } else {
-    updateStep(2);
-    renderStep2();
-  }
+  if (state.step === 2) { renderStep2(); }
+  else { updateStep(2); renderStep2(); }
   toast('体用已重置，可重新选牌');
 }
 
 export function confirmTiYong() {
-  if (!state.ti || !state.yong) {
-    toast('请先选好体用牌');
-    return;
-  }
-  if (state.sealed) {
-    toast('牌局已封印');
-    return;
-  }
+  if (!state.ti || !state.yong) { toast('请先选好体用牌'); return; }
+  if (state.sealed) { toast('牌局已封印'); return; }
   state.deck.push({ isJoker: true, type: '大王', _uid: state.uid++ }, { isJoker: true, type: '小王', _uid: state.uid++ });
   state.deck = shuffle(state.deck);
   const gridArea = document.getElementById('gridArea');
@@ -463,19 +443,10 @@ export function confirmTiYong() {
 }
 
 export function resetGrid() {
-  if (state.sealed) {
-    toast('牌局已封印，不可修改');
-    return;
-  }
-  for (const g in state.grid) {
-    state.deck.push(...state.grid[g]);
-  }
-  state.grid = {};
-  state.line = null;
-  state.lineOrder = {};
-  state.possible = [];
-  state.gongOrder = [];
-  state.sel = null;
+  if (state.sealed) { toast('牌局已封印，不可修改'); return; }
+  for (const g in state.grid) { state.deck.push(...state.grid[g]); }
+  state.grid = {}; state.line = null; state.lineOrder = {};
+  state.possible = []; state.gongOrder = []; state.sel = null;
   state.deck = state.manualMode ? state.deck : shuffle(state.deck);
   removeLineSelector();
   refreshAll();
@@ -483,14 +454,11 @@ export function resetGrid() {
 }
 
 export function sealDeckAction() { sealDeck(); }
-
 export function switchMode(mode) {
   if (!Object.values(MODES).includes(mode)) return;
   state.mode = mode;
   refreshAll();
-  toast(`已切换至「${mode}」模式`);
 }
-
 export function showTimeCapsuleAction() { showTimeCapsule(); }
 export function showDurianReportAction() { showDurianReport(); }
 
@@ -509,13 +477,7 @@ export function saveApiSettingsFromForm() {
   let endpoint = document.getElementById('apiEndpoint')?.value?.trim() || info.endpoint || '';
   if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
   const apiKey = document.getElementById('apiKey')?.value?.trim() || '';
-  const settings = {
-    provider: p,
-    apiKey: apiKey,
-    endpoint: endpoint,
-    model: info.model || '',
-    aiStyle: document.getElementById('aiStyle')?.value || 'guide'
-  };
+  const settings = { provider: p, apiKey, endpoint, model: info.model || '', aiStyle: document.getElementById('aiStyle')?.value || 'guide' };
   saveApiSettings(settings);
   updateApiStatus();
   toast(UI_TEXTS.toastSaved);
@@ -532,20 +494,12 @@ export function saveProfileFromForm() {
   toast(UI_TEXTS.toastProfileSaved);
 }
 
-export function checkEthicalBoundary(question) {
-  const intercept = interceptQuestion(question);
-  return { blocked: intercept.blocked, message: intercept.message || '' };
-}
-
-// ===== 【修正】triggerAI：未配置时引导弹窗 =====
+// ===== AI =====
 export async function triggerAI() {
   const btn = document.getElementById('aiReadBtn');
   if (!btn) return;
   const settings = getApiSettings();
-  if (!settings || !settings.apiKey) {
-    showAIGuideModal();
-    return;
-  }
+  if (!settings || !settings.apiKey) { showAIGuideModal(); return; }
   btn.disabled = true;
   btn.textContent = '思考中...';
   const provider = settings.provider || 'deepseek';
@@ -555,10 +509,7 @@ export async function triggerAI() {
   const model = settings.model || API_PROVIDERS[provider]?.model || '';
   const prompt = await buildAIPrompt();
   try {
-    const result = await requestReading({
-      provider, apiKey: settings.apiKey, endpoint, model,
-      style: settings.aiStyle || 'guide', prompt
-    });
+    const result = await requestReading({ provider, apiKey: settings.apiKey, endpoint, model, style: settings.aiStyle || 'guide', prompt });
     const container = document.getElementById('aiResultContainer');
     const content = document.getElementById('aiResultContent');
     if (container) container.style.display = 'block';
@@ -572,10 +523,7 @@ export async function triggerAI() {
     if (container) container.style.display = 'block';
     const content = document.getElementById('aiResultContent');
     const fallbackText = await localInterpretation();
-    if (content) {
-      content.innerHTML =
-        `<div style="color:#c9a060;border:1px solid #c9a060;padding:8px;border-radius:6px;margin-bottom:8px;font-size:0.85rem;">⚠️ AI 服务暂时无法连接，以下为规则引擎生成的原始解读：</div>${fallbackText.replace(/\n/g, '<br>')}`;
-    }
+    if (content) content.innerHTML = `<div style="color:#c9a060;border:1px solid #c9a060;padding:8px;border-radius:6px;margin-bottom:8px;font-size:0.85rem;">⚠️ AI 服务暂时无法连接，以下为规则引擎生成的原始解读：</div>${fallbackText.replace(/\n/g, '<br>')}`;
     toast('AI 不可用，已展示规则解读', 3000);
   } finally {
     btn.disabled = false;
@@ -590,15 +538,9 @@ export async function sendFollowUp() {
   if (!q) return;
   input.value = '';
   const settings = getApiSettings();
-  if (!settings || !settings.apiKey) {
-    toast('未配置 API Key');
-    return;
-  }
+  if (!settings || !settings.apiKey) { toast('未配置 API Key'); return; }
   const history = state.chatHistory;
-  if (!history || history.length < 2) {
-    toast('请先进行一次 AI 解读');
-    return;
-  }
+  if (!history || history.length < 2) { toast('请先进行一次 AI 解读'); return; }
   history.push({ role: 'user', content: q });
   const chatBlock = document.getElementById('chatHistoryBlock');
   if (chatBlock) chatBlock.innerHTML += `<div class="chat-msg user">${q}</div>`;
@@ -640,9 +582,7 @@ export async function handleTestApiConnection() {
   }
 }
 
-// ============================================
-// 动作分发（所有case已带break）
-// ============================================
+// ===== 动作分发 =====
 export function handleAction(action, dataset) {
   switch (action) {
     case 'togglePanel': togglePanel(dataset.panel); break;
@@ -658,6 +598,7 @@ export function handleAction(action, dataset) {
     case 'resetStep2': resetStep2(); break;
     case 'resetGrid': resetGrid(); break;
     case 'generateInterpretation': generateInterpretation(); break;
+    case 'showFullReport': showFullReport(); break;
     case 'copyLocal': copyLocalResult(); break;
     case 'shareImage': generateShareImage(); break;
     case 'shareCode': generateShareCode(); break;
@@ -687,26 +628,29 @@ export function handleAction(action, dataset) {
     case 'closeModal': document.getElementById('modal')?.setAttribute('hidden', ''); break;
     case 'closeShare': document.getElementById('sharePreview')?.setAttribute('hidden', ''); break;
     case 'saveShareImage': saveShareImage(); break;
-    case 'switchMode': switchMode(dataset.mode); break;
     case 'sealDeck': sealDeckAction(); break;
     case 'timeCapsule': showTimeCapsuleAction(); break;
     case 'durianReport': showDurianReportAction(); break;
+    // 逼问流程
+    case 'flowContinue':
+    case 'flowEdit':
+    case 'flowSkip':
+    case 'flowStart':
+    case 'continueToEcho':
+    case 'skipEcho':
+      handleFlowAction(action, dataset);
+      break;
     default: break;
   }
 }
 
-// ============================================
-// 事件绑定
-// ============================================
+// ===== 事件绑定 =====
 function bindAllEvents() {
   document.addEventListener('click', function(e) {
     const btn = e.target.closest('button');
     if (btn) {
       const action = btn.dataset.action;
-      if (action) {
-        handleAction(action, btn.dataset);
-        return;
-      }
+      if (action) { handleAction(action, btn.dataset); return; }
     }
     const historyItem = e.target.closest('.history-item');
     if (historyItem && historyItem.dataset.index !== undefined) {
@@ -722,11 +666,8 @@ function bindAllEvents() {
     if (emptyDash && state.sel) {
       const card = findCardById(state.sel);
       if (card && !isCardPlaced(card)) {
-        if (emptyDash.textContent.includes('体')) {
-          placeCardOnTiYong(card, 'ti');
-        } else {
-          placeCardOnTiYong(card, 'yong');
-        }
+        if (emptyDash.textContent.includes('体')) placeCardOnTiYong(card, 'ti');
+        else placeCardOnTiYong(card, 'yong');
       }
       return;
     }
@@ -734,9 +675,7 @@ function bindAllEvents() {
     if (gong && state.sel) {
       const g = parseInt(gong.dataset.gong);
       const card = findCardById(state.sel);
-      if (card && !isCardPlaced(card)) {
-        placeCardOnGong(card, g);
-      }
+      if (card && !isCardPlaced(card)) placeCardOnGong(card, g);
     }
   });
 
@@ -767,9 +706,7 @@ function bindAllEvents() {
   });
 }
 
-// ============================================
-// 初始化
-// ============================================
+// ===== 初始化 =====
 function init() {
   try {
     updateStep(1);
@@ -782,13 +719,6 @@ function init() {
     bindAllEvents();
     initDrag();
     bindScrollButtons();
-
-    const seal = getSealStatus();
-    if (seal && seal.sealed) {
-      setTimeout(() => {
-        toast(`🔒 封卦中，剩余 ${seal.daysRemaining} 天`, 4000);
-      }, 1000);
-    }
   } catch (e) {
     document.body.innerHTML =
       '<div style="color:#d45050;padding:40px;text-align:center;font-family:sans-serif;"><h2>浮生牌启动失败</h2><p style="color:var(--dim);font-size:0.9rem;">请检查浏览器控制台（F12）的错误信息，并确认所有文件已正确保存。</p><p style="font-size:0.8rem;">' +

@@ -1,4 +1,4 @@
-// ===== src/state.js · 全局状态管理与 DOM 查询 =====
+// ===== src/state.js · 全局状态管理 =====
 export const state = {
   question: '',
   category: '',
@@ -31,6 +31,10 @@ export const state = {
   sealStatus: null,
   timeCapsule: null,
   loading: false,
+  // 逼问流程
+  questionFlow: null,
+  // 当前待显示的解读文本（比喻/回响之后才显示完整报告）
+  pendingFullReport: '',
 };
 
 export const $ = (sel) => document.querySelector(sel);
