@@ -1,251 +1,165 @@
-// ===== 浮生牌 · 核心引擎 =====
-import {
-  SUITS, RANKS, GONG_ORDER, ALL_LINES, TIME_LABELS, GONG_WUXING,
-  getWuxing, getCardValue, getCardId, getShengKe, getShengKeLabel, getWangState,
-} from './data.js';
+// ===== src/engine.js · 核心算法与工具 =====
+import { GONG_WUXING, getWuxing } from './data.js';
 
-// ===== 牌组创建 =====
-export function createDeck(includeJokers = true) {
-  let uid = 0;
-  const deck = [];
-  for (const suit of SUITS) {
-    for (const rank of RANKS) {
-      deck.push({ suit, rank, isJoker: false, _uid: uid++ });
+// ---- 干支基础 ----
+const TIAN_GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+const SHENG_XIAO = ['鼠', '牛', '虎', '兔', '龙', '蛇', '马', '羊', '猴', '鸡', '狗', '猪'];
+
+// ---- 牌面数值 ----
+const CARD_VALUE_MAP = { A: 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, J: 11, Q: 12, K: 13 };
+
+export function getCardValue(card) {
+  if (!card) return 0;
+  if (card.isJoker) return 0;
+  return CARD_VALUE_MAP[String(card.rank)] || 0;
+}
+
+// ---- 节气（日期级近似）----
+const JIEQI = [
+  { month: 1,  day: 6,  branch: 1  },  // 小寒 → 丑月
+  { month: 2,  day: 4,  branch: 2  },  // 立春 → 寅月
+  { month: 3,  day: 5,  branch: 3  },  // 惊蛰 → 卯月
+  { month: 4,  day: 5,  branch: 4  },  // 清明 → 辰月
+  { month: 5,  day: 6,  branch: 5  },  // 立夏 → 巳月
+  { month: 6,  day: 6,  branch: 6  },  // 芒种 → 午月
+  { month: 7,  day: 7,  branch: 7  },  // 小暑 → 未月
+  { month: 8,  day: 8,  branch: 8  },  // 立秋 → 申月
+  { month: 9,  day: 8,  branch: 9  },  // 白露 → 酉月
+  { month: 10, day: 8,  branch: 10 },  // 寒露 → 戌月
+  { month: 11, day: 7,  branch: 11 },  // 立冬 → 亥月
+  { month: 12, day: 7,  branch: 0  },  // 大雪 → 子月
+];
+
+// ===== 年柱：以立春为界 =====
+export function calcYearPillar(year, month, day) {
+  let ly = year;
+  if (month > 2 || (month === 2 && day >= 4)) ly = year;
+  else ly = year - 1;
+  const gan = ((ly - 4) % 10 + 10) % 10;
+  const zhi = ((ly - 4) % 12 + 12) % 12;
+  return { gan, zhi, full: TIAN_GAN[gan] + DI_ZHI[zhi], shengXiao: SHENG_XIAO[zhi], year: ly };
+}
+
+// ===== 月柱：以节气为界，五虎遁 =====
+export function calcMonthPillar(year, month, day) {
+  const yp = calcYearPillar(year, month, day);
+  const yearGan = yp.gan;
+
+  let branch;
+  if (month === 1 && day < 6) {
+    branch = 0; // 1/1-1/5 为前一年子月
+  } else {
+    const current = month * 100 + day;
+    let last = JIEQI[0];
+    for (const jq of JIEQI) {
+      if (jq.month * 100 + jq.day <= current) last = jq;
+      else break;
     }
+    branch = last.branch;
   }
-  if (includeJokers) {
-    deck.push({ isJoker: true, type: '大王', _uid: uid++ });
-    deck.push({ isJoker: true, type: '小王', _uid: uid++ });
-  }
+
+  const firstGan = ((yearGan % 5) * 2 + 2) % 10; // 五虎遁
+  const offset = (branch - 2 + 12) % 12;
+  const gan = (firstGan + offset) % 10;
+  return { gan, zhi: branch, full: TIAN_GAN[gan] + DI_ZHI[branch] };
+}
+
+// ===== 日柱：基准 1984-02-02 = 甲子 =====
+export function calcDayPillar(year, month, day, hour = 12) {
+  const target = new Date(year, month - 1, day);
+  if (hour >= 23) target.setDate(target.getDate() + 1);
+  const base = new Date(1984, 1, 2);
+  const days = Math.round((target - base) / 86400000);
+  const gan = ((days % 10) + 10) % 10;
+  const zhi = ((days % 12) + 12) % 12;
+  return { gan, zhi, full: TIAN_GAN[gan] + DI_ZHI[zhi], days };
+}
+
+// ===== 时柱：五鼠遁 =====
+export function calcHourPillar(year, month, day, hour) {
+  const h = ((hour % 24) + 24) % 24;
+  const hourIndex = Math.floor((h + 1) / 2) % 12; // 23/0→子, 1→丑
+  const dp = calcDayPillar(year, month, day, hour);
+  const ziGan = ((dp.gan % 5) * 2) % 10;
+  const gan = (ziGan + hourIndex) % 10;
+  return { gan, zhi: hourIndex, full: TIAN_GAN[gan] + DI_ZHI[hourIndex] };
+}
+
+// ===== 完整八字 =====
+export function calcFullBaZi(year, month, day, hour = 12, longitude = 120) {
+  // 真太阳时修正（近似：每15°经度约1小时，未含均时差）
+  const solarHour = hour + (longitude - 120) / 15;
+  const yp = calcYearPillar(year, month, day);
+  const mp = calcMonthPillar(year, month, day);
+  const dp = calcDayPillar(year, month, day, solarHour);
+  const hp = calcHourPillar(year, month, day, solarHour);
+  return {
+    yearPillar: yp,
+    monthPillar: mp,
+    dayPillar: dp,
+    hourPillar: hp,
+    fullText: `${yp.full} ${mp.full} ${dp.full} ${hp.full}`,
+    ganZhi: [yp.full, mp.full, dp.full, hp.full],
+  };
+}
+
+// ===== 牌堆（恢复 includeJokers 语义）=====
+export function createDeck(includeJokers = true) {
+  const suits = ['♥', '♦', '♣', '♠'];
+  const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+  const deck = [];
+  let uid = 1;
+  for (const s of suits) for (const r of ranks) deck.push({ suit: s, rank: r, isJoker: false, _uid: uid++ });
+  if (includeJokers) deck.push({ isJoker: true, type: '大王', _uid: uid++ }, { isJoker: true, type: '小王', _uid: uid++ });
   return deck;
 }
 
-// ===== 洗牌 =====
 export function shuffle(arr) {
   const a = [...arr];
-  const n = a.length;
-  if (window.crypto && window.crypto.getRandomValues) {
-    const rand = new Uint32Array(n);
-    window.crypto.getRandomValues(rand);
-    for (let i = n - 1; i > 0; i--) {
-      const j = rand[i] % (i + 1);
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-  } else {
-    for (let i = n - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
 }
 
-// ===== 体用 =====
 export function drawTiYong(deck) {
-  const shuffled = shuffle(deck);
-  const ti = shuffled[0];
-  const yong = shuffled[1];
-  const remaining = shuffled.slice(2);
-  return { ti, yong, remaining };
+  const d = [...deck];
+  const ti = d.shift();
+  const yong = d.shift();
+  return { ti, yong, remaining: d };
 }
 
-export function injectJokers(deck) {
-  const jokers = [
-    { isJoker: true, type: '大王', _uid: Date.now() + Math.random() },
-    { isJoker: true, type: '小王', _uid: Date.now() + Math.random() + 1 },
-  ];
-  return shuffle([...deck, ...jokers]);
+// ===== 差值：宫位数 - 牌面数值（恢复算术差）=====
+export function calcDiff(gong, card) {
+  const gongNum = (typeof gong === 'number') ? gong : parseInt(String(gong), 10) || 0;
+  return gongNum - getCardValue(card);
 }
 
-export function evaluateTiYong(ti, yong) {
-  const tiWx = getWuxing(ti);
-  const yongWx = getWuxing(yong);
-  const relation = getShengKe(tiWx, yongWx);
-  const label = getShengKeLabel(relation);
-  return { tiWx, yongWx, relation, label };
+// ===== 差值绝对值（供 durian.js / texts-readings.js 用）=====
+export function getDiffMagnitude(gong, card) {
+  return Math.abs(calcDiff(gong, card));
 }
 
-// ===== 九宫与天机线 =====
-export function placeCardInGong(grid, gong, card, maxPerGong = 3) {
-  const newGrid = { ...grid };
-  const current = newGrid[gong] || [];
-  if (current.length >= maxPerGong) {
-    return { success: false, grid };
-  }
-  newGrid[gong] = [...current, card];
-  return { success: true, grid: newGrid };
-}
-
-export function detectLines(grid) {
-  const filledGongs = Object.keys(grid)
-    .filter(g => grid[g] && grid[g].length > 0)
-    .map(Number);
-  return ALL_LINES.filter(line => line.every(g => filledGongs.includes(g)));
-}
-
-export function resolveLine(possibleLines, gongOrder) {
-  if (possibleLines.length === 0) return { line: null, direction: null };
-  if (possibleLines.length === 1) {
-    const line = possibleLines[0];
-    const firstGong = gongOrder.find(g => line.includes(g));
-    if (firstGong) {
-      const idx = line.indexOf(firstGong);
-      const ordered = [...line.slice(idx), ...line.slice(0, idx)];
-      return { line: ordered, direction: ordered.join(',') };
-    }
-    return { line, direction: line.join(',') };
-  }
-  return { line: null, direction: null, candidates: possibleLines };
-}
-
-export function getTimeLabels(direction) {
-  const labels = TIME_LABELS[direction];
-  if (!labels) return {};
-  const result = {};
-  for (let g = 1; g <= 9; g++) {
-    result[g] = labels[g] || '';
-  }
-  return result;
-}
-
-export function calcDiff(gongNumber, card) {
-  return Math.abs(gongNumber - getCardValue(card));
-}
-
-// ===== 【修正】analyzeGrid：正确传入 GONG_WUXING[g] =====
-export function analyzeGrid(grid, lineOrder, ti) {
-  const results = [];
-  const tiWx = getWuxing(ti);
-  for (const gStr in grid) {
-    const g = Number(gStr);
-    const cards = grid[g];
-    if (!cards || cards.length === 0) continue;
-    cards.forEach((card, index) => {
-      const cardWx = getWuxing(card);
-      const diff = calcDiff(g, card);
-      // 修正：传入宫位五行，而非 cardWx
-      const wangState = getWangState(cardWx, GONG_WUXING[g]);
-      const relToTi = getShengKe(tiWx, cardWx);
-      const timeRole = lineOrder[g] || '';
-      results.push({ gong: g, card, cardWx, diff, wangState, relToTi, timeRole, position: index });
-    });
-  }
-  return results;
-}
-
-// ===== 差值等级 =====
+// ===== 差值颜色分级 =====
 export function getDiffLevel(diff) {
-  if (diff <= 1) return { level: '轻微', color: '#4CAF50', desc: '几乎贴合，十分顺畅' };
-  if (diff <= 3) return { level: '低', color: '#8BC34A', desc: '略有偏差，整体良好' };
-  if (diff <= 5) return { level: '中', color: '#FFC107', desc: '明显偏差，需要调整' };
-  if (diff <= 7) return { level: '高', color: '#FF9800', desc: '较大偏差，建议谨慎' };
-  if (diff <= 9) return { level: '极高', color: '#F44336', desc: '严重偏差，不宜冒进' };
-  return { level: '极端', color: '#D32F2F', desc: '完全脱节，强烈建议观望' };
+  const abs = Math.abs(diff);
+  if (abs === 0)  return { color: '#9ca3af', label: '无差' };
+  if (abs <= 3)   return { color: '#10b981', label: '小差' };
+  if (abs <= 6)   return { color: '#f59e0b', label: '中差' };
+  if (abs <= 9)   return { color: '#f97316', label: '大差' };
+  return { color: '#ef4444', label: '巨差' };
 }
 
-// ===== 趋势线 =====
-export function calcTrendLine(grid, line) {
-  if (!line || line.length < 3) return null;
-  const diffs = line.map(g => {
-    const cards = grid[g] || [];
-    return cards.length ? calcDiff(g, cards[0]) : 0;
-  });
-  const trend = diffs[2] - diffs[0];
-  let direction = '稳定';
-  if (trend < -3) direction = '改善';
-  else if (trend > 3) direction = '恶化';
-  else direction = '持平';
-  return { diffs, trend, direction };
-}
-
-// ===== 四柱计算 =====
-const TIAN_GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
-const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
-const SHENG_XIAO = ['鼠', '牛', '虎', '兔', '龙', '蛇', '马', '羊', '猴', '鸡', '狗', '猪'];
-const HOUR_TO_ZHI = [
-  { start: 23, end: 1, zhi: '子', index: 0 },
-  { start: 1, end: 3, zhi: '丑', index: 1 },
-  { start: 3, end: 5, zhi: '寅', index: 2 },
-  { start: 5, end: 7, zhi: '卯', index: 3 },
-  { start: 7, end: 9, zhi: '辰', index: 4 },
-  { start: 9, end: 11, zhi: '巳', index: 5 },
-  { start: 11, end: 13, zhi: '午', index: 6 },
-  { start: 13, end: 15, zhi: '未', index: 7 },
-  { start: 15, end: 17, zhi: '申', index: 8 },
-  { start: 17, end: 19, zhi: '酉', index: 9 },
-  { start: 19, end: 21, zhi: '戌', index: 10 },
-  { start: 21, end: 23, zhi: '亥', index: 11 },
-];
-
-export function calcYearPillar(year) {
-  const ganIndex = (year - 4) % 10;
-  const zhiIndex = (year - 4) % 12;
-  return { gan: TIAN_GAN[ganIndex], zhi: DI_ZHI[zhiIndex], full: TIAN_GAN[ganIndex] + DI_ZHI[zhiIndex], shengXiao: SHENG_XIAO[zhiIndex] };
-}
-
-export function calcMonthPillar(year, month) {
-  const yearGanIndex = (year - 4) % 10;
-  const startGanMap = [2, 4, 6, 8, 0];
-  const firstMonthGanIndex = startGanMap[yearGanIndex % 5];
-  const zhiIndex = (month + 1) % 12;
-  const ganIndex = (firstMonthGanIndex + month - 1) % 10;
-  return { gan: TIAN_GAN[ganIndex], zhi: DI_ZHI[zhiIndex], full: TIAN_GAN[ganIndex] + DI_ZHI[zhiIndex] };
-}
-
-export function calcDayPillar(year, month, day) {
-  const baseDate = new Date(2000, 0, 1);
-  const targetDate = new Date(year, month - 1, day);
-  const diffDays = Math.round((targetDate - baseDate) / (1000 * 60 * 60 * 24));
-  const baseGanIndex = 4;
-  const baseZhiIndex = 6;
-  let ganIndex = (baseGanIndex + diffDays) % 10;
-  let zhiIndex = (baseZhiIndex + diffDays) % 12;
-  if (ganIndex < 0) ganIndex += 10;
-  if (zhiIndex < 0) zhiIndex += 12;
-  return { gan: TIAN_GAN[ganIndex], zhi: DI_ZHI[zhiIndex], full: TIAN_GAN[ganIndex] + DI_ZHI[zhiIndex] };
-}
-
-export function calcHourPillar(hour, dayGanIndex) {
-  let zhiIndex = -1;
-  for (const entry of HOUR_TO_ZHI) {
-    if (entry.start === 23 && entry.end === 1) {
-      if (hour >= 23 || hour < 1) { zhiIndex = entry.index; break; }
-    } else if (hour >= entry.start && hour < entry.end) {
-      zhiIndex = entry.index; break;
-    }
-  }
-  if (zhiIndex === -1) zhiIndex = 0;
-  const ziGanMap = [0, 2, 4, 6, 8];
-  const ziGanIndex = ziGanMap[dayGanIndex % 5];
-  const ganIndex = (ziGanIndex + zhiIndex) % 10;
-  return { gan: TIAN_GAN[ganIndex], zhi: DI_ZHI[zhiIndex], full: TIAN_GAN[ganIndex] + DI_ZHI[zhiIndex] };
-}
-
-export function calcFullBaZi(year, month, day, hour) {
-  const yearPillar = calcYearPillar(year);
-  const monthPillar = calcMonthPillar(year, month);
-  const dayPillar = calcDayPillar(year, month, day);
-  const dayGanIndex = TIAN_GAN.indexOf(dayPillar.gan);
-  const hourPillar = calcHourPillar(hour, dayGanIndex);
-  const fullText = `${yearPillar.full} ${monthPillar.full} ${dayPillar.full} ${hourPillar.full}`;
-  return { yearPillar, monthPillar, dayPillar, hourPillar, fullText };
-}
-
-// ===== 健康使用提醒 =====
-export function checkUsageFrequency(drawTimestamps, options = {}) {
-  const now = Date.now();
-  const sorted = [...drawTimestamps].sort((a, b) => a - b);
-  const shortWindow = (options.shortWindow || 30) * 60 * 1000;
-  const maxShort = options.maxInShortWindow || 3;
-  const longWindow = (options.longWindow || 4) * 60 * 60 * 1000;
-  const maxLong = options.maxInLongWindow || 6;
-  const shortCount = sorted.filter(t => now - t <= shortWindow).length;
-  const longCount = sorted.filter(t => now - t <= longWindow).length;
-  if (shortCount >= maxShort) {
-    return { level: 'strong', message: '你在短时间内抽了很多次牌。牌只是镜子，多看容易模糊。不妨先回到手头的事里，过一阵子再问。' };
-  }
-  if (longCount >= maxLong) {
-    return { level: 'gentle', message: '今天你已经抽了好几次牌了。如果心里还是拿不准，不如先去散个步、喝杯水，牌不会跑的。' };
-  }
-  return { level: 'normal', message: '' };
+// ===== 五行生克（保留，供其它逻辑使用）=====
+export function getWuxingRelation(gong, card) {
+  const gongWx = GONG_WUXING[gong];
+  const cardWx = getWuxing(card);
+  if (!gongWx || !cardWx) return null;
+  const order = ['木', '火', '土', '金', '水'];
+  const idx1 = order.indexOf(cardWx);
+  const idx2 = order.indexOf(gongWx);
+  if (idx1 < 0 || idx2 < 0) return null;
+  return (idx1 - idx2 + 5) % 5;
 }

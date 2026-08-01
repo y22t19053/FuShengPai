@@ -1,5 +1,6 @@
 // ===== src/state.js · 全局状态管理 =====
 export const state = {
+  // --- 基础 ---
   question: '',
   category: '',
   subCategory: '',
@@ -33,13 +34,18 @@ export const state = {
   timeCapsule: null,
   loading: false,
   pendingFullReport: '',
-  // 周期抽牌
+  pendingModules: null,
+  
+  // --- 周期抽牌 ---
   periodType: null,
   periodKey: null,
   periodCard: null,
   periodFortune: '',
   periodAiHistory: [],
   pendingPeriodDeck: null,
+  
+  // --- 时间弧 ---
+  currentTimeArc: null, // 手动指定锚点弧，null=自动判定
 };
 
 export const $ = (sel) => document.querySelector(sel);

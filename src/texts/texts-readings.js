@@ -212,8 +212,8 @@ export function generateFullReading(context) {
   if (trait) result += `，此宫显象${trait}`;
   if (hidden) result += `。深层注意：${hidden}`;
   let shadow = '';
-  if (context.wangState === '死' && context.diff > 5) { shadow = '死态遇高差，强行推进可能折损自身，建议暂缓行动，以守代攻。'; }
-  else if (context.diff > 8) { shadow = '高差值暗示方向与实际产生巨大错位。及时察觉，可避大耗。'; }
+  if (context.wangState === '死' && Math.abs(context.diff) > 5) { shadow = '死态遇高差，强行推进可能折损自身，建议暂缓行动，以守代攻。'; }
+  else if (Math.abs(context.diff) > 8) { shadow = '高差值暗示方向与实际产生巨大错位。及时察觉，可避大耗。'; }
   else { shadow = ''; }
   return { light: result, shadow: shadow };
 }

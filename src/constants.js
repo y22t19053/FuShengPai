@@ -31,11 +31,13 @@ export function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+// ===== 差值强度（绝对值分级）=====
 export function getIntensityLevel(diff) {
-  if (diff <= 1) return 'tiny';
-  if (diff <= 3) return 'small';
-  if (diff <= 5) return 'medium';
-  if (diff <= 8) return 'large';
+  const abs = Math.abs(diff);
+  if (abs <= 1) return 'tiny';
+  if (abs <= 3) return 'small';
+  if (abs <= 5) return 'medium';
+  if (abs <= 8) return 'large';
   return 'huge';
 }
 

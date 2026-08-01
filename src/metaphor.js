@@ -34,10 +34,14 @@ export function generateMetaphor(context) {
   if (rel && TIYONG_METAPHORS[rel]) parts.push(pick(TIYONG_METAPHORS[rel]));
   const gongId = context.gong?.id;
   if (gongId && GONG_METAPHORS[gongId]) parts.push(GONG_METAPHORS[gongId]);
+
+  // 差值用绝对值，负差值也能触发高差/低差
   if (context.diff !== undefined && context.diff !== null) {
-    if (context.diff > 5) parts.push(pick(HIGH_DIFF_METAPHORS));
-    else if (context.diff <= 2) parts.push(pick(LOW_DIFF_METAPHORS));
+    const absDiff = Math.abs(context.diff);
+    if (absDiff > 5) parts.push(pick(HIGH_DIFF_METAPHORS));
+    else if (absDiff <= 2) parts.push(pick(LOW_DIFF_METAPHORS));
   }
+
   if (context.wangState === '旺' || context.wangState === '相') parts.push(pick(WANG_METAPHORS));
   if (context.wangState === '死' || context.wangState === '囚') parts.push(pick(DEAD_METAPHORS));
   if (parts.length === 0) parts.push('牌面没有说一句话，但你已经感觉到了什么。');

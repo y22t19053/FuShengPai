@@ -1,11 +1,11 @@
-// ===== UI 文案（界面、规则、分享、反馈等） =====
+// ===== src/texts/texts-main.js · 界面与按钮文案 =====
 export const UI_TEXTS = {
   appName: '浮生牌',
   step1: '第一步 · 起念',
   step2: '第二步 · 立极',
   step3: '第三步 · 观象',
-  labelTi: '体',
-  labelYong: '用',
+  labelTi: '你',
+  labelYong: '所问之事',
   labelSeparator: '⚡',
   labelEmpty: '空',
   labelDiffPrefix: '差',
@@ -41,9 +41,9 @@ export const UI_TEXTS = {
   toastAnyCount: '牌已落位',
   toastLineConfirmed: '天机线已确认',
   toastLinesMultiple: '发现多条天机线，请选择一条',
-  guideSelectTiYong: '从牌堆中选出体牌与用牌，代表“我”与“事”。',
-  guideManual: '手动模式，双击牌可抽取，明牌选阵。',
-  guideAfterTiYong: '将剩余牌依次放入九宫，差异值反映能量状态。',
+  guideSelectTiYong: '从牌堆中选一张代表你的牌，再选一张代表所问之事的牌。',
+  guideManual: '手动模式：拖动牌到九宫，或点击牌再点击宫位放置。',
+  guideAfterTiYong: '将剩余牌放入九宫，每个宫位最多3张。差值反映能量状态。',
   apiStatusConfigured: '已配置',
   apiStatusNotConfigured: '未配置',
 };

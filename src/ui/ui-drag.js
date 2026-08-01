@@ -1,19 +1,21 @@
-// ===== src/ui/ui-drag.js · Pointer 事件处理 + 拖拽 + 天机线（完整版） =====
+// ===== src/ui/ui-drag.js · 长按激活拖拽 + 自动天机线 + 上限检查 =====
 import { state } from '../state.js';
 import { ALL_LINES, TIME_LABELS, GONG_NAMES, getCardId } from '../data.js';
 import { calcDiff } from '../engine.js';
-import { UI_TEXTS } from '../texts/index.js';
 import { toast } from './ui-modal.js';
 import { refreshAll } from './ui-render.js';
+
+const MAX_CARDS_PER_GONG = 3;
+const LONG_PRESS_DURATION = 120; // 更快触发拖拽
 
 const pointerState = {
   down: false,
   moved: false,
-  isClick: false,
+  isDragging: false,
   startX: 0,
   startY: 0,
   cardEl: null,
-  moveTimer: null,
+  longPressTimer: null,
   ghostCard: null,
 };
 
@@ -29,6 +31,23 @@ export function destroyDrag() {
   document.removeEventListener('pointermove', onPointerMove);
   document.removeEventListener('pointerup', onPointerUp);
   document.removeEventListener('pointercancel', onPointerUp);
+  clearTimeout(pointerState.longPressTimer);
+}
+
+function getDeckContainer() {
+  return document.getElementById('deckContainer');
+}
+
+function setDeckScrollLocked(locked) {
+  const deck = getDeckContainer();
+  if (!deck) return;
+  if (locked) {
+    deck.style.overflowX = 'hidden';
+    deck.style.touchAction = 'none';
+  } else {
+    deck.style.overflowX = 'auto';
+    deck.style.touchAction = 'pan-x';
+  }
 }
 
 function highlightDropTargets(active) {
@@ -44,49 +63,57 @@ function onPointerDown(e) {
   const card = findCardById(id);
   if (!card || isCardPlaced(card)) return;
 
+  clearTimeout(pointerState.longPressTimer);
+
   pointerState.down = true;
   pointerState.moved = false;
-  pointerState.isClick = true;
+  pointerState.isDragging = false;
   pointerState.startX = e.clientX;
   pointerState.startY = e.clientY;
   pointerState.cardEl = cardEl;
   pointerState.ghostCard = null;
 
-  // 200ms内没移动，视为点击选中
-  pointerState.moveTimer = setTimeout(() => {
-    if (!pointerState.moved && pointerState.down) {
-      selectCard(cardEl.dataset.cardid);
-      highlightDropTargets(true);
-    }
-  }, 200);
+  pointerState.longPressTimer = setTimeout(() => {
+    if (!pointerState.down) return;
+    pointerState.isDragging = true;
+    pointerState.moved = true;
+    setDeckScrollLocked(true);
+    highlightDropTargets(true);
+    startGhostDrag(e.clientX, e.clientY);
+    if (navigator.vibrate) navigator.vibrate(15);
+  }, LONG_PRESS_DURATION);
 }
 
 function onPointerMove(e) {
   if (!pointerState.down) return;
+
   const dx = e.clientX - pointerState.startX;
   const dy = e.clientY - pointerState.startY;
-  if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
-    pointerState.moved = true;
-    pointerState.isClick = false;
-    clearTimeout(pointerState.moveTimer);
-    highlightDropTargets(true);
-    if (!pointerState.ghostCard) {
-      startGhostDrag(e.clientX, e.clientY);
+
+  if (pointerState.isDragging) {
+    e.preventDefault();
+    if (pointerState.ghostCard) {
+      pointerState.ghostCard.style.left = (e.clientX - 30) + 'px';
+      pointerState.ghostCard.style.top = (e.clientY - 40) + 'px';
     }
+    return;
   }
-  if (pointerState.ghostCard) {
-    pointerState.ghostCard.style.left = (e.clientX - 30) + 'px';
-    pointerState.ghostCard.style.top = (e.clientY - 40) + 'px';
+
+  if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+    clearTimeout(pointerState.longPressTimer);
+    pointerState.moved = true;
+    setDeckScrollLocked(false);
   }
 }
 
 function onPointerUp(e) {
-  clearTimeout(pointerState.moveTimer);
+  clearTimeout(pointerState.longPressTimer);
+  setDeckScrollLocked(false);
   highlightDropTargets(false);
 
-  if (pointerState.ghostCard) {
+  if (pointerState.isDragging) {
     finishGhostDrag(e.clientX, e.clientY);
-  } else if (pointerState.isClick && pointerState.down) {
+  } else if (pointerState.down && !pointerState.moved) {
     const el = document.elementFromPoint(e.clientX, e.clientY);
     const cardEl = el?.closest('.card-back, .card-face-small');
     if (cardEl) {
@@ -96,7 +123,7 @@ function onPointerUp(e) {
 
   pointerState.down = false;
   pointerState.moved = false;
-  pointerState.isClick = false;
+  pointerState.isDragging = false;
   pointerState.cardEl = null;
   pointerState.ghostCard = null;
 }
@@ -115,7 +142,6 @@ function startGhostDrag(clientX, clientY) {
   ghost.style.top = (clientY - 40) + 'px';
   document.body.appendChild(ghost);
   pointerState.ghostCard = ghost;
-  if (navigator.vibrate) navigator.vibrate(10);
 }
 
 function finishGhostDrag(clientX, clientY) {
@@ -123,7 +149,6 @@ function finishGhostDrag(clientX, clientY) {
     pointerState.ghostCard.remove();
     pointerState.ghostCard = null;
   }
-
   const dropTarget = document.elementFromPoint(clientX, clientY);
   const gong = dropTarget?.closest('.gong');
   const emptyDash = dropTarget?.closest('.empty-dash');
@@ -136,7 +161,7 @@ function finishGhostDrag(clientX, clientY) {
     const g = parseInt(gong.dataset.gong);
     placeCardOnGong(card, g);
   } else if (emptyDash) {
-    if (emptyDash.textContent.includes('体')) {
+    if (emptyDash.textContent.includes('你')) {
       placeCardOnTiYong(card, 'ti');
     } else {
       placeCardOnTiYong(card, 'yong');
@@ -183,6 +208,10 @@ export function placeCardOnGong(card, gong) {
     toast('牌局已封印，不可修改');
     return false;
   }
+  if ((state.grid[gong] || []).length >= MAX_CARDS_PER_GONG) {
+    toast(`每个宫位最多放 ${MAX_CARDS_PER_GONG} 张牌`);
+    return false;
+  }
   if (!state.grid[gong]) state.grid[gong] = [];
   state.grid[gong].push(card);
   state.deck = state.deck.filter(c => getCardId(c) !== getCardId(card));
@@ -215,80 +244,41 @@ export function placeCardOnTiYong(card, role) {
   return true;
 }
 
-// ===== 天机线（用户手动选择，不自动生成） =====
+// ===== 天机线 =====
 export function checkLines() {
   const filled = Object.keys(state.grid).filter(g => state.grid[g] && state.grid[g].length > 0).map(Number);
   const lines = ALL_LINES.filter(line => line.every(g => filled.includes(g)));
   state.possible = lines;
 
   if (lines.length >= 1 && !state.line) {
-    renderLineSelector(lines);
+    let selectedLine = lines[0];
+    if (state.gongOrder && state.gongOrder.length > 0) {
+      const firstGong = state.gongOrder.find(g => selectedLine.includes(g));
+      if (firstGong) {
+        const idx = selectedLine.indexOf(firstGong);
+        selectedLine = [...selectedLine.slice(idx), ...selectedLine.slice(0, idx)];
+      }
+    }
+    setLine(selectedLine);
   } else if (!lines.length) {
-    removeLineSelector();
+    state.line = null;
+    state.lineOrder = {};
   }
 }
 
 export function setLine(line) {
-  let orderedLine = line;
-  if (state.gongOrder && state.gongOrder.length > 0) {
-    const firstGong = state.gongOrder.find(g => line.includes(g));
-    if (firstGong) {
-      const idx = line.indexOf(firstGong);
-      orderedLine = [...line.slice(idx), ...line.slice(0, idx)];
-    }
-  }
-  state.line = orderedLine;
-  const key = orderedLine.join(',');
+  state.line = [...line];
+  const key = line.join(',');
   const tl = TIME_LABELS[key] || {};
   state.lineOrder = {};
-  state.lineOrder[orderedLine[0]] = '起因';
-  state.lineOrder[orderedLine[1]] = '经过';
-  state.lineOrder[orderedLine[2]] = '结果';
+  state.lineOrder[line[0]] = '起因';
+  state.lineOrder[line[1]] = '经过';
+  state.lineOrder[line[2]] = '结果';
   for (let g = 1; g <= 9; g++) {
     if (!state.lineOrder[g]) state.lineOrder[g] = tl[g] || '';
   }
   state.possible = [];
-  removeLineSelector();
   refreshAll();
-  toast(UI_TEXTS.toastLineConfirmed);
-}
-
-export function renderLineSelector(candidates) {
-  removeLineSelector();
-
-  const container = document.createElement('div');
-  container.id = 'lineSelector';
-  container.style.cssText = 'display:flex; flex-direction:column; align-items:center; gap:6px; margin:10px 0;';
-
-  const hint = document.createElement('div');
-  hint.style.cssText = 'font-size:0.75rem;color:var(--dim);text-align:center;';
-  hint.textContent = '✨ 有宫位连成直线。选择一条作为天机线（可跳过）：';
-  container.appendChild(hint);
-
-  const btnGroup = document.createElement('div');
-  btnGroup.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px; justify-content:center;';
-
-  candidates.forEach(line => {
-    const btn = document.createElement('button');
-    btn.className = 'line-btn small outline';
-    btn.dataset.line = line.join(',');
-    btn.textContent = `选：${line.map(g => GONG_NAMES[g]).join('→')}`;
-    btnGroup.appendChild(btn);
-  });
-
-  const skipBtn = document.createElement('button');
-  skipBtn.className = 'small';
-  skipBtn.textContent = '跳过（不选天机线）';
-  skipBtn.addEventListener('click', () => {
-    removeLineSelector();
-    toast('未选天机线，按整体九宫解读');
-  });
-  btnGroup.appendChild(skipBtn);
-
-  container.appendChild(btnGroup);
-
-  const gridArea = document.getElementById('gridArea');
-  if (gridArea) gridArea.appendChild(container);
 }
 
 export function removeLineSelector() {
@@ -296,7 +286,6 @@ export function removeLineSelector() {
   if (existing) existing.remove();
 }
 
-// ===== 封印 =====
 export function sealDeck() {
   if (state.sealed) {
     toast('牌局已封印');

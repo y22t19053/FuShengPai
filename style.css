@@ -12,9 +12,14 @@
   --touch-size: 48px;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-html, body {
+html,
+body {
   background: var(--bg);
   color: var(--text);
   font-family: Georgia, 'Songti SC', serif;
@@ -26,23 +31,44 @@ html, body {
   touch-action: manipulation;
 }
 
-body { padding: 8px; }
+body {
+  padding: 8px;
+}
 
 /* ===== 滚动条 ===== */
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
 
-/* ===== 所有触摸目标 ≥ 44px ===== */
-button, .card-back, .card-face-small, .gong, .empty-dash,
-input, select, textarea, .clickable {
+::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ===== 触摸目标 ≥ 44px ===== */
+button,
+.card-back,
+.card-face-small,
+.gong,
+.empty-dash,
+input,
+select,
+textarea,
+.clickable {
   min-height: 44px;
   min-width: 44px;
   touch-action: manipulation;
 }
 
 /* ===== 焦点 ===== */
-button:focus-visible, input:focus-visible, select:focus-visible {
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -69,7 +95,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   min-width: 0;
 }
 
-/* ===== 各面板默认样式 ===== */
+/* ===== 面板 ===== */
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -77,13 +103,23 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   padding: 16px;
 }
 
-.tiyong-panel { order: 1; }
-.core-panel { order: 2; }
-.result-panel { order: 3; }
+.tiyong-panel {
+  order: 1;
+}
+
+.core-panel {
+  order: 2;
+}
+
+.result-panel {
+  order: 3;
+}
 
 /* ===== 大屏三栏 ===== */
 @media (min-width: 1024px) {
-  body { padding: 16px 24px; }
+  body {
+    padding: 16px 24px;
+  }
 
   #appRoot {
     gap: 0;
@@ -112,7 +148,10 @@ button:focus-visible, input:focus-visible, select:focus-visible {
     max-height: calc(100vh - 120px);
   }
 
-  .core-panel { order: 0; }
+  .core-panel {
+    order: 0;
+  }
+
   .result-panel {
     order: 0;
     position: sticky;
@@ -121,10 +160,21 @@ button:focus-visible, input:focus-visible, select:focus-visible {
     max-height: calc(100vh - 120px);
   }
 
-  .grid-9 { max-width: 480px; }
-  .gong { min-height: 72px; }
-  .gong .name { font-size: 0.85rem; }
-  .gong .diff-label { font-size: 0.65rem; }
+  .grid-9 {
+    max-width: 480px;
+  }
+
+  .gong {
+    min-height: 72px;
+  }
+
+  .gong .name {
+    font-size: 0.85rem;
+  }
+
+  .gong .diff-label {
+    font-size: 0.65rem;
+  }
 }
 
 /* ===== 平板 ===== */
@@ -134,9 +184,18 @@ button:focus-visible, input:focus-visible, select:focus-visible {
     grid-template-columns: 1fr 1fr;
     gap: 12px;
   }
-  .tiyong-panel { grid-column: 1 / -1; }
-  .core-panel { grid-column: 1; }
-  .result-panel { grid-column: 2; }
+
+  .tiyong-panel {
+    grid-column: 1 / -1;
+  }
+
+  .core-panel {
+    grid-column: 1;
+  }
+
+  .result-panel {
+    grid-column: 2;
+  }
 }
 
 /* ===== 顶部导航 ===== */
@@ -212,8 +271,14 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   white-space: nowrap;
 }
 
-.step-dot.active { background: var(--accent); box-shadow: 0 0 12px rgba(201,160,96,0.3); }
-.step-dot.done { background: var(--good); }
+.step-dot.active {
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(201, 160, 96, 0.3);
+}
+
+.step-dot.done {
+  background: var(--good);
+}
 
 /* ===== 体用栏 ===== */
 .tiyong-bar {
@@ -253,9 +318,23 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   flex-shrink: 0;
 }
 
-.mini-card.red { color: var(--bad); border-color: #8a3a3a; background: #2a1a1a; }
-.mini-card.black { color: var(--text); border-color: #4a4a5a; background: #1a1a2a; }
-.mini-card.gold { color: var(--accent); border-color: #8a7a4a; background: #2a2a1a; }
+.mini-card.red {
+  color: var(--bad);
+  border-color: #8a3a3a;
+  background: #2a1a1a;
+}
+
+.mini-card.black {
+  color: var(--text);
+  border-color: #4a4a5a;
+  background: #1a1a2a;
+}
+
+.mini-card.gold {
+  color: var(--accent);
+  border-color: #8a7a4a;
+  background: #2a2a1a;
+}
 
 .empty-dash {
   border: 2px dashed var(--border);
@@ -277,10 +356,17 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   border: 1px solid var(--border);
 }
 
-.relation-badge.good { border-color: var(--good); color: var(--good); }
-.relation-badge.bad { border-color: var(--bad); color: var(--bad); }
+.relation-badge.good {
+  border-color: var(--good);
+  color: var(--good);
+}
 
-/* ===== 牌堆 ===== */
+.relation-badge.bad {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+/* ===== 牌堆（横向滚动） ===== */
 .deck-grid {
   display: flex;
   flex-wrap: nowrap;
@@ -297,9 +383,13 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   scroll-behavior: smooth;
 }
 
-.deck-grid::-webkit-scrollbar { display: none; }
+.deck-grid::-webkit-scrollbar {
+  display: none;
+}
 
-.card-back, .card-face-small {
+/* 长按拖拽激活时的视觉提示 */
+.card-back,
+.card-face-small {
   flex-shrink: 0;
   width: 60px;
   height: 84px;
@@ -311,10 +401,10 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   background: #1a1a2a;
   border: 2px solid var(--border);
   cursor: pointer;
-  transition: transform 0.15s, border-color 0.15s, opacity 0.15s;
+  transition: transform 0.15s, border-color 0.15s, opacity 0.15s, box-shadow 0.15s;
   user-select: none;
   position: relative;
-  touch-action: none;
+  touch-action: pan-x;
 }
 
 .card-back {
@@ -324,13 +414,33 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .card-back.selected {
   border-color: var(--accent);
   transform: translateY(-6px);
-  box-shadow: 0 4px 20px rgba(201,160,96,0.25);
+  box-shadow: 0 4px 20px rgba(201, 160, 96, 0.25);
 }
 
 .card-face-small.selected {
   border-color: var(--accent);
   transform: scale(1.05);
-  box-shadow: 0 4px 20px rgba(201,160,96,0.25);
+  box-shadow: 0 4px 20px rgba(201, 160, 96, 0.25);
+}
+
+/* 长按激活拖拽时的视觉反馈 */
+.card-back.dragging,
+.card-face-small.dragging {
+  border-color: var(--accent);
+  box-shadow: 0 0 16px rgba(201, 160, 96, 0.4);
+  transform: scale(0.95);
+}
+
+.card-back.dragging::after,
+.card-face-small.dragging::after {
+  content: '拖拽放这里';
+  position: absolute;
+  bottom: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.55rem;
+  color: var(--accent);
+  white-space: nowrap;
 }
 
 .card-face-small .rank {
@@ -339,35 +449,46 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   line-height: 1;
 }
 
-.card-face-small .suit { font-size: 1rem; }
+.card-face-small .suit {
+  font-size: 1rem;
+}
+
 .card-face-small .wx-tag {
   position: absolute;
   bottom: 4px;
   font-size: 0.5rem;
   color: var(--dim);
-  background: rgba(0,0,0,0.5);
+  background: rgba(0, 0, 0, 0.5);
   padding: 1px 6px;
   border-radius: 4px;
 }
 
-.card-back.used, .card-face-small.used {
+.card-back.used,
+.card-face-small.used {
   opacity: 0.25;
   pointer-events: none;
 }
 
+/* 拖拽高亮可放置区域 */
+.gong.drag-highlight,
+.empty-dash.drag-highlight {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 12px rgba(201, 160, 96, 0.3) !important;
+}
+
 /* ===== 九宫格 ===== */
 .grid-9 {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
-  aspect-ratio: 1;
-  max-width: 400px;
+  max-width: 480px;
   margin: 12px auto;
   width: 100%;
 }
 
 .gong {
-  background: rgba(255,255,255,0.03);
+  background: rgba(255, 255, 255, 0.03);
   border: 2px solid var(--border);
   border-radius: 8px;
   display: flex;
@@ -380,9 +501,13 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   transition: 0.2s;
   min-height: 56px;
   gap: 2px;
+  flex: 1 1 calc(33.333% - 8px);
+  max-width: calc(33.333% - 8px);
 }
 
-.gong:active { transform: scale(0.97); }
+.gong:active {
+  transform: scale(0.97);
+}
 
 .gong .num {
   position: absolute;
@@ -393,7 +518,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 
 .gong .name {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: bold;
   color: var(--text);
 }
@@ -420,12 +545,12 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 .gong.confirmed {
   border-color: var(--accent);
-  background: rgba(201,160,96,0.08);
+  background: rgba(201, 160, 96, 0.08);
 }
 
 .gong.recommended {
   border-color: var(--good);
-  background: rgba(90,154,106,0.08);
+  background: rgba(90, 154, 106, 0.08);
 }
 
 .gong .time-tag {
@@ -440,7 +565,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   position: absolute;
   top: 2px;
   right: 4px;
-  font-size: 0.4rem;
+  font-size: 0.45rem;
   color: var(--good);
 }
 
@@ -481,8 +606,14 @@ button {
   touch-action: manipulation;
 }
 
-button:hover { border-color: var(--accent); color: var(--text); }
-button:active { transform: scale(0.96); }
+button:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+button:active {
+  transform: scale(0.96);
+}
 
 button.primary {
   background: var(--accent);
@@ -490,14 +621,18 @@ button.primary {
   color: #14141e;
 }
 
-button.primary:hover { background: #b89254; }
+button.primary:hover {
+  background: #b89254;
+}
 
 button.outline {
   border-color: var(--accent);
   color: var(--accent);
 }
 
-button.outline:hover { background: rgba(201,160,96,0.08); }
+button.outline:hover {
+  background: rgba(201, 160, 96, 0.08);
+}
 
 button:disabled {
   opacity: 0.3;
@@ -511,7 +646,9 @@ button.small {
 }
 
 /* ===== 表单 ===== */
-input, textarea, select {
+input,
+textarea,
+select {
   background: rgba(0, 0, 0, 0.4);
   border: 2px solid var(--border);
   color: var(--text);
@@ -526,13 +663,16 @@ input, textarea, select {
   appearance: none;
 }
 
-input:focus, textarea:focus, select:focus {
+input:focus,
+textarea:focus,
+select:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 20px rgba(201,160,96,0.06);
+  box-shadow: 0 0 20px rgba(201, 160, 96, 0.06);
 }
 
-input::placeholder, textarea::placeholder {
-  color: rgba(255,255,255,0.2);
+input::placeholder,
+textarea::placeholder {
+  color: rgba(255, 255, 255, 0.2);
 }
 
 select option {
@@ -540,18 +680,19 @@ select option {
   color: var(--text);
 }
 
-input[type="date"], input[type="time"] {
+input[type='date'],
+input[type='time'] {
   color-scheme: dark;
   padding: 8px 12px;
 }
 
-input[type="date"]::-webkit-calendar-picker-indicator,
-input[type="time"]::-webkit-calendar-picker-indicator {
+input[type='date']::-webkit-calendar-picker-indicator,
+input[type='time']::-webkit-calendar-picker-indicator {
   filter: invert(1);
   cursor: pointer;
 }
 
-/* ===== 类别网格 ===== */
+/* ===== 分类网格 ===== */
 .category-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
@@ -574,7 +715,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .category-grid button.selected {
   border-color: var(--accent);
   color: var(--accent);
-  background: rgba(201,160,96,0.08);
+  background: rgba(201, 160, 96, 0.08);
 }
 
 /* ===== 导入区 ===== */
@@ -607,6 +748,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   pointer-events: none;
   z-index: 900;
   max-width: 90vw;
+  text-align: center;
 }
 
 #toast.show {
@@ -621,7 +763,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.7);
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -630,7 +772,9 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   padding: 20px;
 }
 
-#modal[hidden] { display: none; }
+#modal[hidden] {
+  display: none;
+}
 
 #modalContent {
   background: var(--panel);
@@ -657,7 +801,9 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   max-width: 95vw;
 }
 
-#sharePreview[hidden] { display: none; }
+#sharePreview[hidden] {
+  display: none;
+}
 
 #shareCanvas {
   display: block;
@@ -673,7 +819,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.85);
+  background: rgba(0, 0, 0, 0.85);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -720,7 +866,9 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   transition: 0.3s;
 }
 
-.onboard-dot.active { background: var(--accent); }
+.onboard-dot.active {
+  background: var(--accent);
+}
 
 /* ===== AI 解读区 ===== */
 #aiResultContainer {
@@ -738,18 +886,18 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 .chat-msg.user {
-  background: rgba(201,160,96,0.08);
+  background: rgba(201, 160, 96, 0.08);
   color: var(--accent);
 }
 
 .chat-msg.ai {
-  background: rgba(255,255,255,0.02);
+  background: rgba(255, 255, 255, 0.02);
   color: var(--text);
 }
 
 /* ===== 结果区 ===== */
 .result-block {
-  background: rgba(0,0,0,0.2);
+  background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
   padding: 12px 16px;
   max-height: 50vh;
@@ -761,22 +909,11 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   border: 1px solid var(--border);
 }
 
-/* ===== 模式选择器 ===== */
-#modeSelector {
-  margin: 8px 0;
-}
-
-#modeSelector button {
-  font-size: 0.65rem;
-  padding: 4px 12px;
-  min-height: 36px;
-}
-
-/* ===== 榴莲指数 ===== */
-#durianDisplay { margin: 4px 0; }
-
 /* ===== 静态面板 ===== */
-.static-panel[hidden] { display: none; }
+.static-panel[hidden] {
+  display: none;
+}
+
 .static-panel {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -827,45 +964,145 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .api-provider-grid button.selected {
   border-color: var(--accent);
   color: var(--accent);
-  background: rgba(201,160,96,0.08);
+  background: rgba(201, 160, 96, 0.08);
+}
+
+/* ===== 历史记录 ===== */
+.history-item {
+  cursor: pointer;
+  padding: 10px 12px;
+  margin: 8px 0;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: 0.2s;
+}
+
+.history-item:hover {
+  border-color: var(--accent);
+}
+
+/* ===== 时间弧切换器 ===== */
+#timeArcSwitcher {
+  margin: 10px 0;
+  text-align: center;
+}
+
+#timeArcSwitcher button {
+  margin: 2px;
+}
+
+/* ===== 时间弧标签 ===== */
+.time-arc-tag {
+  display: block;
+  font-size: 0.6rem;
+  margin-top: 2px;
 }
 
 /* ===== 动画 ===== */
 @keyframes cardAppear {
-  0% { opacity: 0; transform: scale(0.8); }
-  100% { opacity: 1; transform: scale(1); }
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes shuffling {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(2deg); }
-  75% { transform: rotate(-2deg); }
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(2deg);
+  }
+  75% {
+    transform: rotate(-2deg);
+  }
 }
 
-.shuffling { animation: shuffling 0.3s ease-in-out 2; }
+.shuffling {
+  animation: shuffling 0.3s ease-in-out 2;
+}
 
 /* ===== 响应式微调 ===== */
 @media (max-width: 480px) {
-  body { padding: 4px; }
-  #appRoot { padding: 4px; gap: 8px; }
-  .panel { padding: 12px; }
-  .card-back, .card-face-small { width: 50px; height: 70px; }
-  .grid-9 { gap: 4px; }
-  .gong { min-height: 44px; padding: 2px; }
-  .gong .name { font-size: 0.6rem; }
-  .gong .num { font-size: 0.45rem; }
-  .card-stack .mini-card { width: 24px; height: 34px; font-size: 0.6rem; }
-  .top-btns button { font-size: 0.55rem; padding: 4px 8px; }
-  .logo { font-size: 1rem; }
-  #modalContent { padding: 16px; margin: 12px; }
+  body {
+    padding: 4px;
+  }
+
+  #appRoot {
+    padding: 4px;
+    gap: 8px;
+  }
+
+  .panel {
+    padding: 12px;
+  }
+
+  .card-back,
+  .card-face-small {
+    width: 50px;
+    height: 70px;
+  }
+
+  .grid-9 {
+    gap: 4px;
+  }
+
+  .gong {
+    min-height: 44px;
+    padding: 2px;
+    flex: 1 1 calc(33.333% - 4px);
+    max-width: calc(33.333% - 4px);
+  }
+
+  .gong .name {
+    font-size: 0.6rem;
+  }
+
+  .gong .num {
+    font-size: 0.45rem;
+  }
+
+  .card-stack .mini-card {
+    width: 24px;
+    height: 34px;
+    font-size: 0.6rem;
+  }
+
+  .top-btns button {
+    font-size: 0.55rem;
+    padding: 4px 8px;
+  }
+
+  .logo {
+    font-size: 1rem;
+  }
+
+  #modalContent {
+    padding: 16px;
+    margin: 12px;
+  }
 }
 
 /* ===== 触摸优化 ===== */
 @media (pointer: coarse) {
-  button, .card-back, .card-face-small, .gong, .empty-dash {
+  button,
+  .card-back,
+  .card-face-small,
+  .gong,
+  .empty-dash {
     cursor: default;
   }
-  button:active, .card-back:active, .card-face-small:active, .gong:active {
+
+  button:active,
+  .card-back:active,
+  .card-face-small:active,
+  .gong:active {
     transform: scale(0.97);
   }
 }

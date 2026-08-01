@@ -1,4 +1,4 @@
-// ===== src/storage.js · 本地数据持久化 =====
+// ===== src/storage.js · 本地数据持久化（修复） =====
 const STORAGE_KEYS = {
   HISTORY: 'fs_history',
   TIMESTAMPS: 'fs_timestamps',
@@ -12,14 +12,16 @@ const STORAGE_KEYS = {
   PERIOD_HISTORY: 'fs_period_history',
 };
 
-// ===== 历史记录 =====
+const MAX_HISTORY = 100;
+const MAX_TIMELINE = 200;
+
 export function getHistory() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.HISTORY)) || []; } catch (e) { return []; }
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.HISTORY)) || []; } catch { return []; }
 }
 export function saveReading(reading) {
   const history = getHistory();
   history.unshift(reading);
-  if (history.length > 200) history.pop();
+  if (history.length > MAX_HISTORY) history.pop();
   localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history));
 }
 export function deleteHistoryItem(index) {
@@ -30,9 +32,8 @@ export function deleteHistoryItem(index) {
   }
 }
 
-// ===== 时间戳 =====
 export function getDrawTimestamps() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.TIMESTAMPS)) || []; } catch (e) { return []; }
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.TIMESTAMPS)) || []; } catch { return []; }
 }
 export function addDrawTimestamp(ts) {
   const list = getDrawTimestamps();
@@ -41,13 +42,12 @@ export function addDrawTimestamp(ts) {
   localStorage.setItem(STORAGE_KEYS.TIMESTAMPS, JSON.stringify(list));
 }
 
-// ===== API设置 =====
 export function getApiSettings() {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.API_SETTINGS);
     if (!raw) return null;
     return JSON.parse(raw);
-  } catch (e) { return null; }
+  } catch { return null; }
 }
 export function saveApiSettings(settings) {
   localStorage.setItem(STORAGE_KEYS.API_SETTINGS, JSON.stringify(settings));
@@ -56,19 +56,17 @@ export function clearApiSettings() {
   localStorage.removeItem(STORAGE_KEYS.API_SETTINGS);
 }
 
-// ===== 个人档案 =====
 export function getProfile() {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.PROFILE);
     if (!raw) return {};
     return JSON.parse(raw);
-  } catch (e) { return {}; }
+  } catch { return {}; }
 }
 export function saveProfile(profile) {
   localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
 }
 
-// ===== 新手引导 =====
 export function hasCompletedOnboarding() {
   return localStorage.getItem(STORAGE_KEYS.ONBOARDING) === 'true';
 }
@@ -76,14 +74,13 @@ export function completeOnboarding() {
   localStorage.setItem(STORAGE_KEYS.ONBOARDING, 'true');
 }
 
-// ===== 数据导出 =====
 export function exportAllData() {
   const data = {
     history: getHistory(),
     timestamps: getDrawTimestamps(),
     apiSettings: getApiSettings(),
     profile: getProfile(),
-    timelime: getTimeline(),
+    timeline: getTimeline(),
     symbolProfile: getSymbolProfile(),
     timeCapsule: getTimeCapsule(),
     periodCards: getStoredPeriodCards(),
@@ -100,7 +97,6 @@ export function exportAllData() {
   URL.revokeObjectURL(url);
 }
 
-// ===== 时间胶囊 =====
 export function saveTimeCapsule(data) {
   localStorage.setItem(STORAGE_KEYS.TIME_CAPSULE, JSON.stringify(data));
 }
@@ -108,17 +104,18 @@ export function getTimeCapsule() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.TIME_CAPSULE)); } catch { return null; }
 }
 
-// ===== 占卜时间线 =====
 export function getTimeline() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.TIMELINE)) || []; } catch { return []; }
 }
 export function addTimelineEntry(entry) {
   const timeline = getTimeline();
   timeline.push({ ...entry, timestamp: Date.now(), durianScore: entry.durianScore || 0 });
+  if (timeline.length > MAX_TIMELINE) {
+    timeline.splice(0, timeline.length - MAX_TIMELINE);
+  }
   localStorage.setItem(STORAGE_KEYS.TIMELINE, JSON.stringify(timeline));
 }
 
-// ===== 符号档案 =====
 export function getSymbolProfile() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.SYMBOL_PROFILE)) || {}; } catch { return {}; }
 }
@@ -131,7 +128,6 @@ export function updateSymbolProfile(key, value) {
   saveSymbolProfile(profile);
 }
 
-// ===== 周期牌存储 =====
 export function getStoredPeriodCards() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.PERIOD_CARDS)) || {}; } catch { return {}; }
 }
@@ -146,6 +142,6 @@ export function getStoredPeriodHistory() {
 export function addPeriodHistoryEntry(entry) {
   const history = getStoredPeriodHistory();
   history.unshift(entry);
-  if (history.length > 200) history.pop();
+  if (history.length > MAX_HISTORY) history.pop();
   localStorage.setItem(STORAGE_KEYS.PERIOD_HISTORY, JSON.stringify(history));
 }

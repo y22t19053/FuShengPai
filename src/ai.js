@@ -1,11 +1,10 @@
-// ===== AI 厂商接口封装（合并版 + 超时重试）=====
+// ===== src/ai.js · AI接口封装（安全版） =====
 
 async function callAI({ messages, apiKey, endpoint, model, temperature = 0.7, maxTokens = 2048, retries = 2 }) {
-  if (!endpoint) throw new Error('API 端点未配置');
-  if (!apiKey) throw new Error('API Key 未配置');
+  if (!endpoint) throw new Error('API端点未配置');
+  if (!apiKey) throw new Error('API Key未配置');
 
   const baseUrl = endpoint.replace(/\/+$/, '');
-  // 支持 OpenAI / Anthropic / Google 三种格式
   let url, headers, body;
 
   if (endpoint.includes('anthropic.com')) {
@@ -15,31 +14,18 @@ async function callAI({ messages, apiKey, endpoint, model, temperature = 0.7, ma
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01'
     };
-    body = {
-      model: model || 'claude-3-haiku-20240307',
-      max_tokens: maxTokens,
-      messages
-    };
+    body = { model: model || 'claude-3-haiku-20240307', max_tokens: maxTokens, messages };
   } else if (endpoint.includes('generativelanguage.googleapis.com')) {
-    url = baseUrl + '/models/' + (model || 'gemini-pro') + ':generateContent';
-    headers = {
-      'Content-Type': 'application/json'
-    };
-    body = {
-      contents: messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }))
-    };
+    url = baseUrl + '/models/' + (model || 'gemini-pro') + ':generateContent?key=' + encodeURIComponent(apiKey);
+    headers = { 'Content-Type': 'application/json' };
+    body = { contents: messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })) };
   } else {
     url = baseUrl + '/chat/completions';
     headers = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`
     };
-    body = {
-      model: model || 'gpt-3.5-turbo',
-      messages,
-      temperature,
-      max_tokens: maxTokens,
-    };
+    body = { model: model || 'gpt-3.5-turbo', messages, temperature, max_tokens: maxTokens };
   }
 
   let lastError;
@@ -56,16 +42,15 @@ async function callAI({ messages, apiKey, endpoint, model, temperature = 0.7, ma
       clearTimeout(timeout);
       if (!res.ok) {
         const errText = await res.text();
-        throw new Error(`API 响应错误 (${res.status}): ${errText}`);
+        throw new Error(`API响应错误(${res.status}): ${errText}`);
       }
       const data = await res.json();
-      // 解析不同格式的响应
       if (endpoint.includes('anthropic.com')) {
-        return data.content?.[0]?.text || 'AI 未返回有效内容';
+        return data.content?.[0]?.text || 'AI未返回有效内容';
       } else if (endpoint.includes('generativelanguage.googleapis.com')) {
-        return data.candidates?.[0]?.content?.parts?.[0]?.text || 'AI 未返回有效内容';
+        return data.candidates?.[0]?.content?.parts?.[0]?.text || 'AI未返回有效内容';
       } else {
-        return data.choices?.[0]?.message?.content || 'AI 未返回有效内容';
+        return data.choices?.[0]?.message?.content || 'AI未返回有效内容';
       }
     } catch (e) {
       clearTimeout(timeout);
@@ -73,18 +58,22 @@ async function callAI({ messages, apiKey, endpoint, model, temperature = 0.7, ma
       if (attempt < retries) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
     }
   }
-  throw lastError || new Error('AI 请求失败');
+  throw lastError || new Error('AI请求失败');
 }
 
 export async function testApiConnection({ provider, apiKey, endpoint, model }) {
-  await callAI({
-    messages: [{ role: 'user', content: 'ping' }],
-    apiKey,
-    endpoint,
-    model: model || 'gpt-3.5-turbo',
-    maxTokens: 5,
-  });
-  return '✅ API 连接成功，服务正常。';
+  try {
+    await callAI({
+      messages: [{ role: 'user', content: 'ping' }],
+      apiKey,
+      endpoint,
+      model: model || 'gpt-3.5-turbo',
+      maxTokens: 5,
+    });
+    return '✅ API连接成功，服务正常。';
+  } catch (e) {
+    throw new Error(`连接失败: ${e.message}`);
+  }
 }
 
 export async function requestReading({ provider, apiKey, endpoint, model, style, prompt }) {
