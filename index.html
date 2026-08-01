@@ -3,13 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes, viewport-fit=cover">
-  <title>浮生牌 · 观测者的镜子</title>
+  <title>浮生牌 · 观牌知势</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%83%8F%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="/style.css">
+  <!-- 第八轮修复：确保内联 display:flex 不会覆盖 hidden 属性 -->
+  <style>
+    #fortuneTypeModal[hidden],
+    #toast[hidden],
+    #sharePreview[hidden],
+    #modal[hidden],
+    .static-panel[hidden] {
+      display: none !important;
+    }
+  </style>
 </head>
 <body>
   <div id="appRoot">
-    <!-- 顶部导航 -->
     <header class="header">
       <div class="logo">浮生牌</div>
       <nav class="top-btns">
@@ -18,21 +27,22 @@
         <button data-action="togglePanel" data-panel="settings">AI</button>
         <button data-action="togglePanel" data-panel="profile">个人</button>
         <button data-action="togglePanel" data-panel="history">历史</button>
-        <button data-action="durianReport">榴莲报告</button>
+        <button data-action="showDataMigration">📦 迁移</button>
+        <button data-action="durianReport">🍈 报告</button>
+        <button data-action="sharePersona">🃏 人格卡</button>
+        <button data-action="shareDaily">☯ 日运卡</button>
         <button data-action="openRepo">🌐 开源</button>
         <button data-action="showReward">☕ 赞赏</button>
         <button data-action="resetAll">重开</button>
       </nav>
     </header>
 
-    <!-- 步骤条 -->
     <div class="step-row" id="stepRow">
       <div id="sd1" class="step-dot active"></div>
       <div id="sd2" class="step-dot"></div>
       <div id="sd3" class="step-dot"></div>
     </div>
 
-    <!-- 主内容区 -->
     <div id="dynamicPanels">
       <div id="tiyongArea" class="panel tiyong-panel">
         <div class="tiyong-bar" id="tiyongBar"></div>
@@ -41,7 +51,6 @@
       <div id="resultArea" class="panel result-panel"></div>
     </div>
 
-    <!-- 静态面板 -->
     <div class="static-panel" id="panelTeaching" hidden>
       <h3>📖 新手教程</h3>
       <div id="teachingContent"></div>
@@ -106,7 +115,24 @@
       <div id="historyList"></div>
     </div>
 
-    <!-- 全局组件 -->
+    <!-- 日运类别选择弹窗（带 hidden，由 CSS !important 保证内联 display:flex 不覆盖） -->
+    <div id="fortuneTypeModal" hidden style="position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:999;">
+      <div style="background:var(--bg, #1a1626);border:1px solid var(--border, #c9a06055);border-radius:12px;padding:20px;min-width:240px;text-align:center;">
+        <h3 style="color:var(--accent, #c9a060);margin-bottom:12px;">☯ 选择日运类型</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          <button data-action="shareDaily" data-fortune="wealth" class="small outline">💰 财运</button>
+          <button data-action="shareDaily" data-fortune="love" class="small outline">🌸 桃花</button>
+          <button data-action="shareDaily" data-fortune="noble" class="small outline">🤝 贵人</button>
+          <button data-action="shareDaily" data-fortune="career" class="small outline">⚡ 事业</button>
+          <button data-action="shareDaily" data-fortune="health" class="small outline">🌿 健康</button>
+          <button data-action="shareDaily" data-fortune="overall" class="small outline">☯ 综合</button>
+        </div>
+        <div class="btn-row" style="margin-top:12px;">
+          <button data-action="closeModal" class="small outline">取消</button>
+        </div>
+      </div>
+    </div>
+
     <div id="toast" hidden></div>
     <div id="modal" hidden><div id="modalContent"></div></div>
     <div id="sharePreview" hidden>

@@ -1106,3 +1106,11 @@ input[type='time']::-webkit-calendar-picker-indicator {
     transform: scale(0.97);
   }
 }
+/* ===== 第八轮修复：内联 display:flex 优先级高于 UA 规则，必须显式覆盖 ===== */
+#fortuneTypeModal[hidden],
+#toast[hidden],
+#sharePreview[hidden],
+#modal[hidden],
+.static-panel[hidden] {
+  display: none !important;
+}

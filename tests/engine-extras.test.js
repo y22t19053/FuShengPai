@@ -1,55 +1,84 @@
+// ===== tests/engine-extras.test.js · 引擎回归测试（大小王数值已统一） =====
 import { describe, it, expect } from 'vitest';
-import { createDeck, calcDiff, getCardValue, getDiffLevel, getDiffMagnitude } from '../src/engine.js';
+import {
+  createDeck, shuffle, drawTiYong, getCardValue,
+  calcDiff, getDiffMagnitude, getDiffLevel
+} from '../src/engine.js';
+import { getCardValue as dataGetCardValue } from '../src/data.js';
 
 describe('createDeck 参数语义（回归测试）', () => {
-  it('默认 createDeck() → 54 张含 2 王', () => {
-    const d = createDeck();
-    expect(d).toHaveLength(54);
-    expect(d.filter(c => c.isJoker)).toHaveLength(2);
+  it('默认包含大小王：54张', () => {
+    const deck = createDeck();
+    expect(deck.length).toBe(54);
   });
 
-  it('createDeck(false) → 52 张无王（一键起局旧契约）', () => {
-    const d = createDeck(false);
-    expect(d).toHaveLength(52);
-    expect(d.filter(c => c.isJoker)).toHaveLength(0);
+  it('includeJokers=true 时包含大小王', () => {
+    expect(createDeck(true)).toHaveLength(54);
   });
 
-  it('createDeck(true) → 54 张含 2 王（手动模式旧契约）', () => {
-    const d = createDeck(true);
-    expect(d.filter(c => c.isJoker)).toHaveLength(2);
+  it('includeJokers=false 时不含大小王：52张', () => {
+    expect(createDeck(false)).toHaveLength(52);
   });
 });
 
 describe('calcDiff 算术差（回归测试）', () => {
   it('巽宫4放梅花5 → 差值 4-5 = -1', () => {
-    const card = { rank: '5', suit: '♣' };
+    const card = { suit: '♣', rank: '5', isJoker: false };
     expect(calcDiff(4, card)).toBe(-1);
   });
 
   it('乾宫6放黑桃A → 差值 6-1 = 5', () => {
-    const card = { rank: 'A', suit: '♠' };
+    const card = { suit: '♠', rank: 'A', isJoker: false };
     expect(calcDiff(6, card)).toBe(5);
   });
 
-  it('大小王算 0 → 宫位5放小王 = 5', () => {
+  it('宫位5放小王 → 差值 = 5 - 15 = -10（与统一后数值一致）', () => {
     const joker = { isJoker: true, type: '小王' };
-    expect(calcDiff(5, joker)).toBe(5);
+    expect(calcDiff(5, joker)).toBe(-10);
+  });
+
+  it('宫位5放大王 → 差值 = 5 - 14 = -9', () => {
+    const joker = { isJoker: true, type: '大王' };
+    expect(calcDiff(5, joker)).toBe(-9);
   });
 
   it('getDiffMagnitude 返回绝对值', () => {
-    const card = { rank: 'K', suit: '♥' }; // 13
-    expect(getDiffMagnitude(4, card)).toBe(9);
+    const card = { suit: '♣', rank: '5', isJoker: false };
+    expect(getDiffMagnitude(4, card)).toBe(1);
   });
 });
 
 describe('getDiffLevel 颜色分级', () => {
-  it('0 → 灰色', () => {
-    expect(getDiffLevel(0).color).toBe('#9ca3af');
+  it('abs=0 → 无差', () => {
+    const level = getDiffLevel(0);
+    expect(level.label).toBe('无差');
   });
-  it('2 → 绿色（小差）', () => {
-    expect(getDiffLevel(2).color).toBe('#10b981');
+
+  it('abs<=3 → 小差', () => {
+    const level = getDiffLevel(-3);
+    expect(level.label).toBe('小差');
   });
-  it('12 → 红色（巨差）', () => {
-    expect(getDiffLevel(12).color).toBe('#ef4444');
+
+  it('abs>9 → 巨差', () => {
+    const level = getDiffLevel(-10);
+    expect(level.label).toBe('巨差');
+  });
+});
+
+describe('统一大小王数值', () => {
+  const jokers = [
+    { isJoker: true, type: '大王' },
+    { isJoker: true, type: '小王' }
+  ];
+
+  it('data.js 和 engine.js 中大小王数值一致', () => {
+    for (const card of jokers) {
+      expect(dataGetCardValue(card)).toBe(getCardValue(card));
+    }
+  });
+
+  it('大王=14，小王=15', () => {
+    expect(getCardValue(jokers[0])).toBe(14);
+    expect(getCardValue(jokers[1])).toBe(15);
   });
 });

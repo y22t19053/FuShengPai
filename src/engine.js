@@ -1,4 +1,4 @@
-// ===== src/engine.js · 核心算法与工具 =====
+// ===== src/engine.js · 核心算法与工具（修复大小王数值） =====
 import { GONG_WUXING, getWuxing } from './data.js';
 
 // ---- 干支基础 ----
@@ -6,12 +6,13 @@ const TIAN_GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬',
 const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
 const SHENG_XIAO = ['鼠', '牛', '虎', '兔', '龙', '蛇', '马', '羊', '猴', '鸡', '狗', '猪'];
 
-// ---- 牌面数值 ----
+// ---- 牌面数值（与 data.js 保持一致：J=11, Q=12, K=13）----
 const CARD_VALUE_MAP = { A: 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, J: 11, Q: 12, K: 13 };
 
+// ---- 修复：大小王与 data.js 完全一致（大王=14，小王=15）----
 export function getCardValue(card) {
   if (!card) return 0;
-  if (card.isJoker) return 0;
+  if (card.isJoker) return card.type === '大王' ? 14 : 15;
   return CARD_VALUE_MAP[String(card.rank)] || 0;
 }
 

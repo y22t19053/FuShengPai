@@ -1,4 +1,4 @@
-// ===== src/data.js · 数据层：基础规则 + 时间弧系统 =====
+// ===== src/data.js · 数据层：基础规则 + 时间弧系统 + 宫位大环境分析 =====
 
 export const SUITS = ['♥', '♦', '♣', '♠'];
 export const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
@@ -13,10 +13,11 @@ export const YIN_YANG = {
   '大王': '阳', '小王': '阴',
 };
 
+// 统一牌面数值：J=11, Q=12, K=13（与 engine.js 保持一致）
 export const CARD_VALUES = {
   A: 1, '2': 2, '3': 3, '4': 4, '5': 5,
   '6': 6, '7': 7, '8': 8, '9': 9, '10': 10,
-  J: 1, Q: 2, K: 3,
+  J: 11, Q: 12, K: 13,
 };
 export const JOKER_VALUE = 0;
 
@@ -198,6 +199,21 @@ export function getRecommendedGongForCategory(categoryName) {
   return cat?.gongFocus || null;
 }
 
+// ===== 宫位大环境分析（宫为地，牌为客，生克决定环境助益） =====
+export function getGongEnvironment(gongWx, cardWx) {
+  if (!gongWx || !cardWx) return null;
+  // 复用 getShengKe：以牌为"我"，宫为"他"
+  const rel = getShengKe(cardWx, gongWx);
+  const map = {
+    '生我': { key: 'gongSheng',  label: '宫生牌', desc: '此宫如沃土，滋养牌力，环境助力，顺势可成。', score: 2 },
+    '我生': { key: 'cardSheng',  label: '牌生宫', desc: '牌在此宫为宫供能，事在推进但自身有所消耗，宜掌握节奏。', score: 1 },
+    '克我': { key: 'gongKe',     label: '宫克牌', desc: '此宫之气压牌，环境阻力明显，宜守不宜攻。', score: -2 },
+    '我克': { key: 'cardKe',     label: '牌克宫', desc: '牌有力克压宫气，需主动破局方能施展。', score: 1 },
+    '同我': { key: 'biHe',       label: '比和',   desc: '牌宫同气，能量共振，顺势增强，气势最稳。', score: 3 },
+  };
+  return map[rel] || null;
+}
+
 // ===== 判定函数 =====
 export function getWuxing(card) {
   if (!card) return '?';
@@ -212,8 +228,10 @@ export function getYinYang(card) {
   return YIN_YANG[card.suit];
 }
 
+// 统一牌面数值：与 engine.js 保持一致（J=11, Q=12, K=13, 大王=14, 小王=15）
 export function getCardValue(card) {
-  if (!card || card.isJoker) return JOKER_VALUE;
+  if (!card) return 0;
+  if (card.isJoker) return card.type === '大王' ? 14 : 15;
   return CARD_VALUES[card.rank] || 0;
 }
 

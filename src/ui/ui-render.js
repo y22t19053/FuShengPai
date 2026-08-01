@@ -1,4 +1,4 @@
-// ===== src/ui/ui-render.js · 全流程渲染（最终版） =====
+// ===== src/ui/ui-render.js · 全流程渲染（窄Hero + 牌格入口 + 九宫逐牌差值 + 拖拽 + 教程同步） =====
 import { state } from '../state.js';
 import {
   GONG_ORDER, GONG_NAMES, GONG_WUXING, CATEGORIES,
@@ -7,7 +7,7 @@ import {
   getPeriodTitle, getPeriodDesc,
   getRecommendedGongForCategory
 } from '../data.js';
-import { calcFullBaZi, calcDiff, getDiffLevel, getCardValue } from '../engine.js';
+import { createDeck, shuffle, calcFullBaZi, calcDiff, getDiffLevel, getCardValue } from '../engine.js';
 import { getApiSettings, getProfile, getHistory, getStoredPeriodCards } from '../storage.js';
 import { UI_TEXTS, HISTORY_EMPTY } from '../texts/index.js';
 import { calculateDurianIndex, getDurianIcon } from '../durian.js';
@@ -15,7 +15,7 @@ import { toast } from './ui-modal.js';
 import { isCardPlaced } from './ui-drag.js';
 import { escapeForHTML, setHTML } from '../utils/safe.js';
 
-// ===== 新手教程（重写） =====
+// ===== 新手教程 =====
 export function renderTeachingPanel() {
   const container = document.getElementById('teachingContent');
   if (!container) return;
@@ -34,15 +34,25 @@ export function renderTeachingPanel() {
       <p>3. 点「抽牌」或「一键起局」开始。</p>
 
       <h4 style="color:var(--accent);">🃏 第二步：立极</h4>
-      <p>1. 长按牌堆中任意一张牌（约0.12秒），拖到上方「你」的位置。</p>
-      <p>2. 再选一张，拖到「所问之事」的位置。</p>
+      <p>1. <strong>点击</strong>牌堆中任意一张牌选中，再<strong>点击</strong>上方「你」或「所问之事」位置放置。</p>
+      <p>2. 桌面端也可以直接<strong>拖拽</strong>牌到目标位置。</p>
       <p>3. 如果你不知道选哪张，凭直觉选就行。</p>
 
       <h4 style="color:var(--accent);">🔮 第三步：布阵</h4>
       <p>1. 点「布阵」后，牌堆里会出现大小王。</p>
-      <p>2. 把剩下的牌拖入九宫格（每格最多3张）。</p>
+      <p>2. 点击或拖拽剩余牌到九宫格任意宫位（每格最多3张）。</p>
       <p>3. 如果三个宫位形成直线，就自动连成「天机线」（起因→经过→结果）。</p>
       <p>4. 点「生成解读」查看结果。</p>
+
+      <h4 style="color:var(--accent);">🃏 牌格</h4>
+      <p>· 牌格是你当前未完成的人生课题，抽一张牌即锁定。</p>
+      <p>· 完成至少3次真正占卜后，可以重新抽取。</p>
+      <p>· 点首页「抽牌格」即可。</p>
+
+      <h4 style="color:var(--accent);">☯ 单牌日运</h4>
+      <p>· 在首页点日/周/月/季/年，抽一张牌。</p>
+      <p>· 抽完即锁定，本周期不可重抽。</p>
+      <p>· 可分别查看财运、桃花、贵人、事业、健康、综合运势。</p>
 
       <h4 style="color:var(--accent);">📚 牌面对应：</h4>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:0.8rem;margin:8px 0;">
@@ -61,12 +71,13 @@ export function renderTeachingPanel() {
       <p>木克土、土克水、水克火、火克金、金克木</p>
 
       <h4 style="color:var(--accent);">🔄 其他功能：</h4>
-      <p>· 周期运（日/周/月/季/年）：一天只能抽一次，锁定一个周期。</p>
-      <p>· 榴莲指数：数值越高代表牌局张力越大。</p>
+      <p>· 榴莲指数：数值越高代表牌局张力越大，注意节奏。</p>
       <p>· AI解读：需要配置API Key（顶部「AI」按钮）。</p>
+      <p>· 数据迁移：点「📦 迁移」可导出/导入全部数据。</p>
 
-      <h4 style="color:var(--accent);">⚠️ 原则：</h4>
+      <h4 style="color:var(--accent);">⚠️ 重要提醒：</h4>
       <p>· 不测生死、不窥他人</p>
+      <p>· 所有数据仅保存在你的浏览器本地</p>
       <p>· 牌是提示，不是命令</p>
       <p>· 最后决定权永远在你</p>
     </div>
@@ -74,7 +85,7 @@ export function renderTeachingPanel() {
   setHTML(container, html);
 }
 
-// ===== 首页（含input同步） =====
+// ===== 首页：窄Hero + 深度占卜台 =====
 export function renderStep1() {
   const core = document.getElementById('coreArea');
   if (!core) return;
@@ -101,30 +112,69 @@ export function renderStep1() {
   const storedPeriods = getStoredPeriodCards();
 
   const html = `
-    <div style="margin-bottom:16px;">
-      <h3 style="font-size:1.6rem;margin:0;">浮生牌</h3>
-      <div style="color:var(--dim);font-size:0.85rem;margin-top:4px;">这里没有答案。只有一面镜子。</div>
-    </div>
-    <input type="text" id="questionInput" placeholder="${escapeForHTML(UI_TEXTS.placeholderQuestion)}" autocomplete="off" value="${escapeForHTML(state.question)}">
-    ${renderCatBtns(state.category, state.subCategory)}
-    <div class="btn-row">
-      <button data-action="confirmQuestion" class="primary">${escapeForHTML(UI_TEXTS.btnStartDraw)}</button>
-      <button data-action="lazyStart" class="outline">${escapeForHTML(UI_TEXTS.btnLazy)}</button>
+    <!-- 🎨 玄学封面区（窄版） -->
+    <div id="heroSection" style="
+      background: linear-gradient(135deg, #f5efe6 0%, #e8dfd1 100%);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      text-align: center;
+      border: 1px solid #d4c5a0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      color: #2c2c2c;
+    ">
+      <div style="font-size: 0.55rem; color: #b8a080; letter-spacing: 2px; margin-bottom: 2px;">· 浮 生 若 梦 ·</div>
+      <div style="font-size: 1.1rem; font-weight: bold; font-family: 'KaiTi', 'PingFang SC', serif; margin: 0; color: #1a1a1a;">抽 一 张 牌 · 见 一 个 课 题</div>
+      <div style="width: 28px; height: 1px; background: #c0392b; margin: 6px auto;"></div>
+      <div style="font-size: 0.7rem; color: #5a4a3a; margin-bottom: 8px;">你的牌格 · 揭示未完成的人生课题</div>
+      <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+        <button id="paigeBtn" style="
+          background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+          color: #f5efe6;
+          border: none;
+          padding: 6px 18px;
+          border-radius: 24px;
+          font-size: 0.8rem;
+          font-family: 'KaiTi', 'PingFang SC', serif;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+          cursor: pointer;
+        ">🃏 抽牌格</button>
+        <button id="quickDailyBtn" style="
+          background: transparent;
+          color: #1a1a1a;
+          border: 1px solid #b8a080;
+          padding: 6px 18px;
+          border-radius: 24px;
+          font-size: 0.8rem;
+          font-family: 'KaiTi', 'PingFang SC', serif;
+          cursor: pointer;
+        ">☯ 今日运势</button>
+      </div>
+      <div style="margin-top: 6px; font-size: 0.5rem; color: #b8a080;">💡 完成 3 次真实占卜后可重抽</div>
     </div>
 
-    <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:12px;">
-      ${Object.entries(PERIODS).map(([key, p]) => {
-        const periodKey = getCurrentPeriodKey(key);
-        const stored = storedPeriods[key];
-        const hasCard = stored && stored.periodKey === periodKey && stored.card;
-        const btnText = hasCard ? `${p.label}·查看` : `${p.label}·抽牌`;
-        const action = hasCard ? 'openPeriodDetail' : 'openPeriodDeck';
-        return `<button data-action="${action}" data-period="${key}" class="small outline">${escapeForHTML(btnText)}</button>`;
-      }).join('')}
+    <!-- ⚙️ 深度工具区（完整功能） -->
+    <div id="toolSection" style="border-top: 1px dashed #e0d5c5; padding-top: 20px;">
+      <div style="font-size: 0.75rem; color: #b8a080; text-align: center; margin-bottom: 12px;">🪷 深 度 占 卜 台</div>
+      <input type="text" id="questionInput" placeholder="${escapeForHTML(UI_TEXTS.placeholderQuestion)}" autocomplete="off" value="${escapeForHTML(state.question)}">
+      ${renderCatBtns(state.category, state.subCategory)}
+      <div class="btn-row">
+        <button data-action="confirmQuestion" class="primary">${escapeForHTML(UI_TEXTS.btnStartDraw)}</button>
+        <button data-action="lazyStart" class="outline">${escapeForHTML(UI_TEXTS.btnLazy)}</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:12px;">
+        ${Object.entries(PERIODS).map(([key, p]) => {
+          const periodKey = getCurrentPeriodKey(key);
+          const stored = storedPeriods[key];
+          const hasCard = stored && stored.periodKey === periodKey && stored.card;
+          const btnText = hasCard ? `${p.label}·查看` : `${p.label}·抽牌`;
+          const action = hasCard ? 'openPeriodDetail' : 'openPeriodDeck';
+          return `<button data-action="${action}" data-period="${key}" class="small outline">${escapeForHTML(btnText)}</button>`;
+        }).join('')}
+      </div>
+      <div style="font-size:0.6rem;color:var(--dim);text-align:center;margin-top:4px;">周期运抽一次即锁定，建议截图保存</div>
+      <div id="periodCardArea" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:12px;justify-content:center;"></div>
     </div>
-    <div style="font-size:0.6rem;color:var(--dim);text-align:center;margin-top:4px;">周期运抽一次，抽完即锁定</div>
-
-    <div id="periodCardArea" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:12px;justify-content:center;"></div>
 
     <div style="text-align:center;font-size:0.7rem;color:var(--dim);margin-top:6px;">
       <a href="#" id="helpClarifyBtn" style="color:var(--accent);">🤔 感觉自己没问清楚？</a>
@@ -132,6 +182,17 @@ export function renderStep1() {
     <div id="clarifyGuide" style="display:none;margin-top:12px;padding:16px;background:rgba(201,160,96,0.05);border:1px solid var(--border);border-radius:8px;font-size:0.8rem;color:var(--dim);"></div>
   `;
   setHTML(core, html);
+
+  // 牌格入口
+  document.getElementById('paigeBtn')?.addEventListener('click', () => {
+    import('./ui-paige.js').then(m => m.openPaiGe());
+  });
+
+  // 今日运势
+  document.getElementById('quickDailyBtn')?.addEventListener('click', () => {
+    const btn = document.querySelector('[data-action="openPeriodDeck"][data-period="daily"]');
+    if (btn) btn.click();
+  });
 
   const questionInput = document.getElementById('questionInput');
   if (questionInput) {
@@ -165,15 +226,9 @@ export function renderStep1() {
       <button data-action="closeClarify" class="small outline">收起</button>
     `;
   });
-  document.addEventListener('click', function(e) {
-    if (e.target.dataset?.action === 'closeClarify') {
-      const guide = document.getElementById('clarifyGuide');
-      if (guide) guide.style.display = 'none';
-    }
-  });
 }
 
-// ===== 周期卡渲染 =====
+// ===== 周期卡渲染（锁定状态显示） =====
 export function renderPeriodCards() {
   const area = document.getElementById('periodCardArea');
   if (!area) return;
@@ -220,14 +275,14 @@ export function renderPeriodCards() {
   });
 }
 
-// ===== 布阵 =====
+// ===== 布阵步骤 =====
 export function renderStep2() {
   const core = document.getElementById('coreArea');
   if (!core) return;
   const html = `
     <h3>${state.manualMode ? '手动录入 · 明牌选阵' : '立极·布阵'}</h3>
     <div style="font-size:0.8rem;color:var(--dim);margin-bottom:8px;">
-      长按牌堆中的牌（约0.12秒），拖到「你」或「所问之事」；选完后点「布阵」。
+      点击牌堆中的牌选中，再点击「你」或「所问之事」放置；桌面端可直接拖拽。放完点「布阵」。
     </div>
     <div id="durianDisplay" style="margin-bottom:8px;"></div>
     <div class="deck-grid" id="deckContainer"></div>
@@ -253,7 +308,7 @@ export function renderStep2() {
   refreshAll();
 }
 
-// ===== 完整解读 =====
+// ===== 完整解读结果 =====
 export function renderFullReport(text, modules = null) {
   const aiSettings = getApiSettings();
   const hasKey = aiSettings && aiSettings.apiKey;
@@ -295,7 +350,7 @@ export function renderFullReport(text, modules = null) {
   });
 }
 
-// ===== 牌堆渲染 =====
+// ===== 牌堆渲染（含 draggable 属性） =====
 let deckCache = [];
 let deckCacheIds = '';
 
@@ -339,12 +394,14 @@ export function renderDeck() {
       div.style.cssText = `${placed ? 'opacity:0.25;pointer-events:none;' : ''} flex-shrink:0;width:60px;height:84px;touch-action:pan-x;`;
       div.dataset.cardid = id;
       div.dataset.cardindex = index;
+      div.draggable = !placed;
       div.innerHTML = `<span class="rank">${rank}</span><span class="suit">${suit}</span><span class="wx-tag">${wx}</span>`;
     } else {
       div.className = `card-back${sel ? ' selected' : ''}${placed ? ' used' : ''}`;
       div.style.cssText = `${placed ? 'opacity:0.25;pointer-events:none;' : ''} flex-shrink:0;width:60px;height:84px;touch-action:pan-x;`;
       div.dataset.cardid = id;
       div.dataset.cardindex = index;
+      div.draggable = !placed;
     }
     el.appendChild(div);
   });
@@ -368,7 +425,7 @@ export function renderTiYong() {
   if (btn) btn.disabled = !(state.ti && state.yong);
 }
 
-// ===== 九宫格（修正牌面差值显示） =====
+// ===== 九宫格（逐牌差值，显示绝对值+方向，无星号） =====
 export function renderGrid() {
   const el = document.getElementById('gridContainer');
   if (!el) return;
@@ -390,16 +447,19 @@ export function renderGrid() {
         inner += `<div class="mini-card ${getCardColor(c)}">${c.isJoker ? c.type : c.rank}${c.isJoker ? '' : c.suit}</div>`;
       });
       inner += '</div>';
-      const diff = calcDiff(g, cards[cards.length - 1]);
-      const cardVal = getCardValue(cards[cards.length - 1]);
-      const diffLevel = getDiffLevel(diff);
-      inner += `<span class="diff-label" style="color:${diffLevel.color}">差值：${g}-${cardVal}=${diff}</span>`;
+      const diffLabels = cards.map(c => {
+        const d = calcDiff(g, c);
+        const abs = Math.abs(d);
+        const direction = d > 0 ? '大于' : d < 0 ? '小于' : '等于';
+        const level = getDiffLevel(d);
+        return `<span class="diff-label" style="color:${level.color}">差值：${g} - ${getCardValue(c)} = ${abs}（${level.label}，${direction}）</span>`;
+      }).join('<br>');
+      inner += diffLabels;
     } else {
       inner += '<span class="empty-label">空</span>';
     }
 
     if (lineLabel) inner += `<span style="display:block;font-size:0.55rem;color:var(--accent);">${lineLabel}</span>`;
-    if (recommendedGong === g) inner += `<span class="recommend-tag">⭐</span>`;
 
     return `<div class="gong ${cls}" data-gong="${g}">${inner}</div>`;
   }).join('');
@@ -426,7 +486,7 @@ function handleScrollButtons(e) {
   if (rightBtn) { e.stopPropagation(); const deck = document.getElementById('deckContainer'); if (deck) deck.scrollBy({ left: 180, behavior: 'smooth' }); return; }
 }
 
-// ===== 榴莲指数 =====
+// ===== 榴莲指数显示 =====
 export function renderDurianDisplay() {
   const container = document.getElementById('durianDisplay');
   if (!container) return;

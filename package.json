@@ -19,5 +19,8 @@
   "license": "AGPL-3.0",
   "allowScripts": {
     "esbuild@0.21.5": true
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4"
   }
 }

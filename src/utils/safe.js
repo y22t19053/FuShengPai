@@ -1,30 +1,28 @@
-// ===== src/utils/safe.js · 安全转义工具 =====
-export function safe(str) {
+// ===== src/utils/safe.js · HTML 安全工具函数 =====
+
+export function escapeForHTML(text) {
+  if (text === null || text === undefined) return '';
   const div = document.createElement('div');
-  div.textContent = str || '';
+  div.textContent = String(text);
   return div.innerHTML;
 }
 
-export function safeHTML(str) {
-  return safe(str);
-}
-
-// 用于HTML字符串拼接时转义，然后通过innerHTML插入
-export function escapeForHTML(str) {
-  return String(str ?? '').replace(/[&<>"']/g, c => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;'
-  })[c]);
-}
-
-// 替代innerHTML插入：安全方式
-export function setHTML(el, html) {
-  if (!el) return;
-  // 使用模板元素解析HTML，然后转移节点，避免执行脚本
+// 核心安全防护：用 <template> 解析，再转移节点
+// 这样内联 <img onerror=...>、<script> 不会被执行
+export function setHTML(element, html) {
+  if (!element) return;
   const template = document.createElement('template');
   template.innerHTML = html;
-  el.replaceChildren(template.content.cloneNode(true));
+  element.replaceChildren(template.content);
+}
+
+export function sanitizeInput(str) {
+  if (typeof str !== 'string') return '';
+  return str.replace(/[<>"'`]/g, function(c) {
+    return { '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[c];
+  });
+}
+
+export function escapeForAttribute(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 }

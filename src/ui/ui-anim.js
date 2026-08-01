@@ -1,22 +1,34 @@
-// ===== src/ui/ui-anim.js · 注入 CSS 动画 =====
+// ===== src/ui/ui-anim.js · 动画与过渡效果（轻量） =====
+
 export function injectAnimations() {
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes cardAppear {
-      0% { opacity: 0; transform: scale(0.8); }
-      100% { opacity: 1; transform: scale(1); }
-    }
-    @keyframes shuffling {
-      0%, 100% { transform: rotate(0deg); }
-      25% { transform: rotate(2deg); }
-      75% { transform: rotate(-2deg); }
-    }
-    .shuffling { animation: shuffling 0.3s ease-in-out 2; }
-    .gong.drag-highlight, .empty-dash.drag-highlight {
-      border-color: var(--accent) !important;
-      box-shadow: 0 0 12px rgba(201, 160, 96, 0.3) !important;
-    }
-    button:active { transform: scale(0.95); transition: transform 0.1s ease; }
-  `;
-  document.head.appendChild(style);
+  // 在 CSS 中已定义动画，这里仅做启动一次性效果
+  // 例如：页面入场淡入
+  const app = document.getElementById('appRoot');
+  if (app) {
+    app.style.animation = 'fadeIn 0.3s ease';
+  }
+  
+  // 牌堆洗牌动画（在按钮触发时加类）
+  const deck = document.getElementById('deckContainer');
+  if (deck) {
+    // 监听牌堆内容变化，可以添加闪烁效果（无操作）
+  }
+}
+
+// 洗牌时加短暂动画（在 ui.js 中调用）
+export function playShuffleAnimation(element) {
+  if (!element) return;
+  element.classList.add('shuffling');
+  setTimeout(() => element.classList.remove('shuffling'), 700);
+}
+
+// 刷新动效（防闪烁）
+export function pulseFade(element) {
+  if (!element) return;
+  element.style.transition = 'opacity 0.15s';
+  element.style.opacity = '0.8';
+  setTimeout(() => {
+    element.style.opacity = '1';
+    setTimeout(() => element.style.transition = '', 200);
+  }, 50);
 }

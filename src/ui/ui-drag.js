@@ -1,302 +1,245 @@
-// ===== src/ui/ui-drag.js · 长按激活拖拽 + 自动天机线 + 上限检查 =====
+// ===== src/ui/ui-drag.js · 选牌与布阵交互（点击选牌 + 拖拽放置 + 高亮提示） =====
 import { state } from '../state.js';
-import { ALL_LINES, TIME_LABELS, GONG_NAMES, getCardId } from '../data.js';
-import { calcDiff } from '../engine.js';
+import {
+  GONG_NAMES, ALL_LINES, TIME_LABELS, getCardId
+} from '../data.js';
 import { toast } from './ui-modal.js';
 import { refreshAll } from './ui-render.js';
 
-const MAX_CARDS_PER_GONG = 3;
-const LONG_PRESS_DURATION = 120; // 更快触发拖拽
-
-const pointerState = {
-  down: false,
-  moved: false,
-  isDragging: false,
-  startX: 0,
-  startY: 0,
-  cardEl: null,
-  longPressTimer: null,
-  ghostCard: null,
-};
-
-export function initDrag() {
-  document.addEventListener('pointerdown', onPointerDown);
-  document.addEventListener('pointermove', onPointerMove);
-  document.addEventListener('pointerup', onPointerUp);
-  document.addEventListener('pointercancel', onPointerUp);
+// ---------- 内部工具 ----------
+function removeFromDeck(card) {
+  const id = getCardId(card);
+  state.deck = state.deck.filter(c => getCardId(c) !== id);
 }
 
-export function destroyDrag() {
-  document.removeEventListener('pointerdown', onPointerDown);
-  document.removeEventListener('pointermove', onPointerMove);
-  document.removeEventListener('pointerup', onPointerUp);
-  document.removeEventListener('pointercancel', onPointerUp);
-  clearTimeout(pointerState.longPressTimer);
+function addToDeck(card) {
+  if (!card) return;
+  state.deck.push(card);
 }
 
-function getDeckContainer() {
-  return document.getElementById('deckContainer');
-}
-
-function setDeckScrollLocked(locked) {
-  const deck = getDeckContainer();
-  if (!deck) return;
-  if (locked) {
-    deck.style.overflowX = 'hidden';
-    deck.style.touchAction = 'none';
-  } else {
-    deck.style.overflowX = 'auto';
-    deck.style.touchAction = 'pan-x';
-  }
-}
-
-function highlightDropTargets(active) {
-  document.querySelectorAll('.gong, .empty-dash').forEach(el => {
-    el.classList.toggle('drag-highlight', active);
-  });
-}
-
-function onPointerDown(e) {
-  const cardEl = e.target.closest('.card-back, .card-face-small');
-  if (!cardEl) return;
-  const id = cardEl.dataset.cardid;
-  const card = findCardById(id);
-  if (!card || isCardPlaced(card)) return;
-
-  clearTimeout(pointerState.longPressTimer);
-
-  pointerState.down = true;
-  pointerState.moved = false;
-  pointerState.isDragging = false;
-  pointerState.startX = e.clientX;
-  pointerState.startY = e.clientY;
-  pointerState.cardEl = cardEl;
-  pointerState.ghostCard = null;
-
-  pointerState.longPressTimer = setTimeout(() => {
-    if (!pointerState.down) return;
-    pointerState.isDragging = true;
-    pointerState.moved = true;
-    setDeckScrollLocked(true);
-    highlightDropTargets(true);
-    startGhostDrag(e.clientX, e.clientY);
-    if (navigator.vibrate) navigator.vibrate(15);
-  }, LONG_PRESS_DURATION);
-}
-
-function onPointerMove(e) {
-  if (!pointerState.down) return;
-
-  const dx = e.clientX - pointerState.startX;
-  const dy = e.clientY - pointerState.startY;
-
-  if (pointerState.isDragging) {
-    e.preventDefault();
-    if (pointerState.ghostCard) {
-      pointerState.ghostCard.style.left = (e.clientX - 30) + 'px';
-      pointerState.ghostCard.style.top = (e.clientY - 40) + 'px';
-    }
-    return;
-  }
-
-  if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-    clearTimeout(pointerState.longPressTimer);
-    pointerState.moved = true;
-    setDeckScrollLocked(false);
-  }
-}
-
-function onPointerUp(e) {
-  clearTimeout(pointerState.longPressTimer);
-  setDeckScrollLocked(false);
-  highlightDropTargets(false);
-
-  if (pointerState.isDragging) {
-    finishGhostDrag(e.clientX, e.clientY);
-  } else if (pointerState.down && !pointerState.moved) {
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    const cardEl = el?.closest('.card-back, .card-face-small');
-    if (cardEl) {
-      selectCard(cardEl.dataset.cardid);
-    }
-  }
-
-  pointerState.down = false;
-  pointerState.moved = false;
-  pointerState.isDragging = false;
-  pointerState.cardEl = null;
-  pointerState.ghostCard = null;
-}
-
-function startGhostDrag(clientX, clientY) {
-  const el = pointerState.cardEl;
-  if (!el) return;
-  const ghost = el.cloneNode(true);
-  ghost.style.position = 'fixed';
-  ghost.style.zIndex = 1000;
-  ghost.style.pointerEvents = 'none';
-  ghost.style.opacity = '0.7';
-  ghost.style.width = el.offsetWidth + 'px';
-  ghost.style.height = el.offsetHeight + 'px';
-  ghost.style.left = (clientX - 30) + 'px';
-  ghost.style.top = (clientY - 40) + 'px';
-  document.body.appendChild(ghost);
-  pointerState.ghostCard = ghost;
-}
-
-function finishGhostDrag(clientX, clientY) {
-  if (pointerState.ghostCard) {
-    pointerState.ghostCard.remove();
-    pointerState.ghostCard = null;
-  }
-  const dropTarget = document.elementFromPoint(clientX, clientY);
-  const gong = dropTarget?.closest('.gong');
-  const emptyDash = dropTarget?.closest('.empty-dash');
-
-  const cardId = pointerState.cardEl?.dataset.cardid;
-  const card = findCardById(cardId);
-  if (!card || isCardPlaced(card)) return;
-
-  if (gong) {
-    const g = parseInt(gong.dataset.gong);
-    placeCardOnGong(card, g);
-  } else if (emptyDash) {
-    if (emptyDash.textContent.includes('你')) {
-      placeCardOnTiYong(card, 'ti');
-    } else {
-      placeCardOnTiYong(card, 'yong');
-    }
-  }
-}
-
-// ===== 核心函数 =====
-export function selectCard(cardId) {
-  if (!cardId) return;
-  if (state.sel === cardId) {
-    state.sel = null;
-    refreshAll();
-    return;
-  }
-  const card = findCardById(cardId);
-  if (!card || isCardPlaced(card)) {
-    state.sel = null;
-    refreshAll();
-    return;
-  }
-  state.sel = cardId;
-  refreshAll();
-  try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) {}
-}
-
+// ---------- 检查牌是否已被放置 ----------
 export function isCardPlaced(card) {
+  if (!card) return false;
   const id = getCardId(card);
   if (state.ti && getCardId(state.ti) === id) return true;
   if (state.yong && getCardId(state.yong) === id) return true;
   for (const g in state.grid) {
-    if (state.grid[g] && state.grid[g].some(c => getCardId(c) === id)) return true;
+    if (state.grid[g].some(slotCard => getCardId(slotCard) === id)) return true;
   }
   return false;
 }
 
+// ---------- 根据 ID 查找牌 ----------
 export function findCardById(id) {
-  return state.deck.find(c => getCardId(c) === id);
+  if (!id) return null;
+  return state.deck.find(c => getCardId(c) === id) || null;
 }
 
+// ---------- 放置到「你」（体） ----------
+export function placeCardOnTiYong(card, slot) {
+  if (!card || !slot) { toast('未选中有效牌'); return; }
+  if (state.sealed) { toast('牌局已封印，不可改动'); return; }
+
+  if (isCardPlaced(card)) { toast('这张牌已经下过，请选别的'); return; }
+
+  const existing = slot === 'ti' ? state.ti : state.yong;
+  if (existing) {
+    addToDeck(existing);
+    if (slot === 'ti') state.ti = null;
+    else state.yong = null;
+  }
+
+  removeFromDeck(card);
+  if (slot === 'ti') state.ti = card;
+  else state.yong = card;
+
+  state.sel = null;
+  refreshAll();
+  toast(slot === 'ti' ? '🪷 你已落位 · 本我之象' : '🎯 所问之事已定 · 事之象');
+}
+
+// ---------- 放置到九宫格 ----------
 export function placeCardOnGong(card, gong) {
-  if (!card) return false;
-  if (state.sealed) {
-    toast('牌局已封印，不可修改');
-    return false;
+  if (!card || !gong) { toast('未选中有效牌'); return; }
+  if (state.sealed) { toast('牌局已封印，不可改动'); return; }
+  if (gong < 1 || gong > 9) { toast('无效宫位'); return; }
+
+  if (isCardPlaced(card)) { toast('这张牌已经下过，请选别的'); return; }
+
+  if (state.grid[gong] && state.grid[gong].length >= 3) {
+    toast('此宫已满（最多3张），请换一宫');
+    return;
   }
-  if ((state.grid[gong] || []).length >= MAX_CARDS_PER_GONG) {
-    toast(`每个宫位最多放 ${MAX_CARDS_PER_GONG} 张牌`);
-    return false;
-  }
+
+  removeFromDeck(card);
   if (!state.grid[gong]) state.grid[gong] = [];
   state.grid[gong].push(card);
-  state.deck = state.deck.filter(c => getCardId(c) !== getCardId(card));
-  if (!state.gongOrder.includes(gong)) state.gongOrder.push(gong);
+
   state.sel = null;
+  updateLine();
   refreshAll();
-  checkLines();
-  const diff = calcDiff(gong, card);
-  const gongName = GONG_NAMES[gong];
-  const cardName = card.isJoker ? card.type : card.suit + card.rank;
-  toast(`${gongName}宫(${gong}) - ${cardName} = 差值 ${diff}`, 1500);
-  try { if (navigator.vibrate) navigator.vibrate(10); } catch (e) {}
-  return true;
+  toast(`✦ ${GONG_NAMES[gong]}宫 · 一子落定，万象生`);
 }
 
-export function placeCardOnTiYong(card, role) {
-  if (!card || card.isJoker) return false;
-  if (state.sealed) {
-    toast('牌局已封印，不可修改');
-    return false;
+// ---------- 手动设置天机线 ----------
+export function setLine(lineArray) {
+  if (!lineArray || !Array.isArray(lineArray) || lineArray.length !== 3) return;
+  if (state.sealed) { toast('牌局已封印，不可改动'); return; }
+
+  state.line = [...lineArray];
+  state.lineOrder = {};
+  const key = lineArray.join(',');
+  const tl = TIME_LABELS[key] || {};
+  state.lineOrder[lineArray[0]] = '起因';
+  state.lineOrder[lineArray[1]] = '经过';
+  state.lineOrder[lineArray[2]] = '结果';
+  for (let g = 1; g <= 9; g++) {
+    if (!state.lineOrder[g]) state.lineOrder[g] = tl[g] || '';
   }
-  if (role === 'ti' && state.ti) return false;
-  if (role === 'yong' && state.yong) return false;
-  state.deck = state.deck.filter(c => getCardId(c) !== getCardId(card));
-  if (role === 'ti') state.ti = card;
-  else state.yong = card;
-  state.sel = null;
   refreshAll();
-  try { if (navigator.vibrate) navigator.vibrate(10); } catch (e) {}
-  return true;
+  toast('✨ 天机线已连起');
 }
 
-// ===== 天机线 =====
-export function checkLines() {
-  const filled = Object.keys(state.grid).filter(g => state.grid[g] && state.grid[g].length > 0).map(Number);
-  const lines = ALL_LINES.filter(line => line.every(g => filled.includes(g)));
-  state.possible = lines;
+// ---------- 自动计算天机线（内部） ----------
+function updateLine() {
+  if (state.line) return;
 
-  if (lines.length >= 1 && !state.line) {
-    let selectedLine = lines[0];
-    if (state.gongOrder && state.gongOrder.length > 0) {
-      const firstGong = state.gongOrder.find(g => selectedLine.includes(g));
-      if (firstGong) {
-        const idx = selectedLine.indexOf(firstGong);
-        selectedLine = [...selectedLine.slice(idx), ...selectedLine.slice(0, idx)];
-      }
+  const filled = ALL_LINES.filter(line => {
+    return line.every(g => (state.grid[g] && state.grid[g].length > 0));
+  });
+
+  if (filled.length > 0) {
+    const chosen = filled[0];
+    state.line = [...chosen];
+    state.lineOrder = {};
+    const key = chosen.join(',');
+    const tl = TIME_LABELS[key] || {};
+    state.lineOrder[chosen[0]] = '起因';
+    state.lineOrder[chosen[1]] = '经过';
+    state.lineOrder[chosen[2]] = '结果';
+    for (let g = 1; g <= 9; g++) {
+      if (!state.lineOrder[g]) state.lineOrder[g] = tl[g] || '';
     }
-    setLine(selectedLine);
-  } else if (!lines.length) {
+    toast('✨ 自动连成天机线');
+  } else {
     state.line = null;
     state.lineOrder = {};
   }
 }
 
-export function setLine(line) {
-  state.line = [...line];
-  const key = line.join(',');
-  const tl = TIME_LABELS[key] || {};
-  state.lineOrder = {};
-  state.lineOrder[line[0]] = '起因';
-  state.lineOrder[line[1]] = '经过';
-  state.lineOrder[line[2]] = '结果';
-  for (let g = 1; g <= 9; g++) {
-    if (!state.lineOrder[g]) state.lineOrder[g] = tl[g] || '';
-  }
-  state.possible = [];
-  refreshAll();
-}
-
-export function removeLineSelector() {
-  const existing = document.getElementById('lineSelector');
-  if (existing) existing.remove();
-}
-
+// ---------- 封印牌局 ----------
 export function sealDeck() {
-  if (state.sealed) {
-    toast('牌局已封印');
-    return;
-  }
-  if (!state.ti || !state.yong || Object.keys(state.grid).length === 0) {
-    toast('请先完成布阵');
-    return;
-  }
+  if (!state.ti || !state.yong) { toast('请先选好体用'); return; }
   state.sealed = true;
-  state.sealedAt = Date.now();
-  toast('🔒 牌局已封印，不可再修改');
+  state.sel = null;
   refreshAll();
+  toast('🔒 牌局已封印，不可再改动');
+}
+
+// ---------- 移除线选择器（如果有） ----------
+export function removeLineSelector() {
+  const selector = document.getElementById('lineSelector');
+  if (selector) selector.remove();
+}
+
+// ---------- 初始化交互（点选 + 拖拽 + 高亮 + 长按震动） ----------
+let dragInitialized = false;
+export function initDrag() {
+  if (dragInitialized) return;
+  dragInitialized = true;
+
+  // 长按震动（可选反馈）
+  let pressTimer = null;
+  document.addEventListener('touchstart', function(e) {
+    const cardEl = e.target.closest('.card-back, .card-face-small');
+    if (!cardEl || !cardEl.dataset.cardid) return;
+    const card = findCardById(cardEl.dataset.cardid);
+    if (!card || isCardPlaced(card)) return;
+    pressTimer = setTimeout(() => {
+      if (navigator.vibrate) navigator.vibrate(15);
+    }, 250);
+  }, { passive: true });
+
+  document.addEventListener('touchend', function() {
+    clearTimeout(pressTimer);
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function() {
+    clearTimeout(pressTimer);
+  }, { passive: true });
+
+  // ===== 桌面端拖拽（通过 dataTransfer 传递卡牌 ID） =====
+  document.addEventListener('dragstart', function(e) {
+    const cardEl = e.target.closest('.card-back, .card-face-small');
+    if (!cardEl || !cardEl.dataset.cardid) return;
+    const card = findCardById(cardEl.dataset.cardid);
+    if (!card || isCardPlaced(card)) return;
+    e.dataTransfer.setData('text/plain', cardEl.dataset.cardid);
+    e.dataTransfer.effectAllowed = 'move';
+  });
+
+  document.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  });
+
+  // 高亮提示
+  let lastHighlightEl = null;
+  function clearHighlight() {
+    if (lastHighlightEl) {
+      lastHighlightEl.style.boxShadow = '';
+      lastHighlightEl.style.borderColor = '';
+      lastHighlightEl.style.filter = '';
+      lastHighlightEl = null;
+    }
+  }
+
+  document.addEventListener('dragenter', function(e) {
+    const target = e.target.closest('.empty-dash, .gong');
+    if (target) {
+      clearHighlight();
+      target.style.boxShadow = '0 0 16px 4px rgba(201,160,96,0.5)';
+      target.style.borderColor = '#c9a060';
+      lastHighlightEl = target;
+    }
+  });
+
+  document.addEventListener('dragleave', function(e) {
+    const target = e.target.closest('.empty-dash, .gong');
+    if (target && target === lastHighlightEl) {
+      clearHighlight();
+    }
+  });
+
+  document.addEventListener('drop', function(e) {
+    e.preventDefault();
+    clearHighlight();
+    const cardId = e.dataTransfer.getData('text/plain');
+    if (!cardId) return;
+    const card = findCardById(cardId);
+    if (!card || isCardPlaced(card)) return;
+
+    // 目标：体用槽
+    const emptyDash = e.target.closest('.empty-dash');
+    if (emptyDash) {
+      if (emptyDash.textContent.includes('你')) placeCardOnTiYong(card, 'ti');
+      else placeCardOnTiYong(card, 'yong');
+      return;
+    }
+    // 目标：九宫格
+    const gong = e.target.closest('.gong');
+    if (gong) {
+      const g = parseInt(gong.dataset.gong);
+      placeCardOnGong(card, g);
+      return;
+    }
+    // 没有落在有效位置，自动回到选中态
+    state.sel = cardId;
+    refreshAll();
+    toast('再试一次：拖到「你」或九宫格上');
+  });
+
+  document.addEventListener('dragend', function() {
+    clearHighlight();
+  });
 }
