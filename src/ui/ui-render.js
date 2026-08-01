@@ -69,7 +69,6 @@ export function renderStep1() {
     return html;
   };
 
-  // 读取已保存的周期牌，决定按钮文字
   const storedPeriods = getStoredPeriodCards();
 
   core.innerHTML = `
@@ -89,7 +88,7 @@ export function renderStep1() {
         const periodKey = getCurrentPeriodKey(key);
         const stored = storedPeriods[key];
         const hasCard = stored && stored.periodKey === periodKey && stored.card;
-        const btnText = hasCard ? `${p.label}·查看` : `${p.label}·去抽牌`;
+        const btnText = hasCard ? `${p.label}·查看` : `${p.label}·抽牌`;
         const action = hasCard ? 'openPeriodDetail' : 'openPeriodDeck';
         return `<button data-action="${action}" data-period="${key}" class="small outline">${btnText}</button>`;
       }).join('')}
@@ -137,13 +136,19 @@ export function renderStep1() {
   });
 }
 
-// ===== 周期卡渲染（移动端适配） =====
+// ===== 周期卡渲染（移动端横向滑动） =====
 export function renderPeriodCards() {
   const area = document.getElementById('periodCardArea');
   if (!area) return;
 
   area.innerHTML = '';
-  area.style.cssText = 'display:flex;flex-wrap:nowrap;gap:12px;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;padding:8px 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;';
+
+  const isTouch = window.matchMedia('(pointer: coarse)').matches;
+  if (isTouch) {
+    area.style.cssText = 'display:flex;flex-wrap:nowrap;gap:12px;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;padding:8px 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x;overscroll-behavior:contain;';
+  } else {
+    area.style.cssText = 'display:flex;flex-wrap:wrap;gap:12px;justify-content:center;';
+  }
   area.style.setProperty('::-webkit-scrollbar', 'display:none');
 
   const storedPeriods = getStoredPeriodCards();
@@ -209,31 +214,27 @@ export function renderStep2() {
   refreshAll();
 }
 
-// ===== 完整报告 =====
+// ===== 完整解读（一次性展示，不折叠） =====
 export function renderFullReport(text, modules = null) {
   const aiSettings = getApiSettings();
   const hasKey = aiSettings && aiSettings.apiKey;
   const result = document.getElementById('resultArea');
   if (!result) return;
 
-  let contentHTML = '';
+  // 将所有模块内容拼接到正文中
+  let fullText = text;
   if (modules && modules.length > 0) {
+    let moduleText = '\n\n';
     modules.forEach(m => {
-      contentHTML += `
-        <details style="margin-bottom:10px;background:rgba(0,0,0,0.15);border-radius:8px;padding:10px 12px;">
-          <summary style="cursor:pointer;color:var(--accent);font-size:0.85rem;font-weight:bold;user-select:none;">${m.title}</summary>
-          <div style="font-size:0.8rem;color:var(--dim);line-height:1.8;margin-top:8px;">${m.content.replace(/\n/g, '<br>')}</div>
-        </details>
-      `;
+      moduleText += `【${m.title}】\n${m.content}\n\n`;
     });
-  } else {
-    contentHTML = text.replace(/\n/g, '<br>');
+    fullText += moduleText;
   }
 
   result.innerHTML = `
     <h3>${UI_TEXTS.step3}</h3>
     <div id="durianDisplay" style="margin-bottom:8px;"></div>
-    <div class="result-block" id="interpretText" style="font-size:0.9rem;line-height:1.9;">${contentHTML}</div>
+    <div class="result-block" id="interpretText" style="font-size:0.9rem;line-height:1.9;max-height:60vh;overflow-y:auto;padding:16px;white-space:pre-wrap;">${escapeHtml(fullText)}</div>
     <div class="btn-row">
       <button data-action="copyLocal" class="small">${UI_TEXTS.btnCopy}</button>
       <button id="copyPromptBtn" class="small outline">📋 复制提示词</button>
@@ -264,7 +265,7 @@ export function renderFullReport(text, modules = null) {
   });
 }
 
-// ===== 牌堆渲染 =====
+// ===== 牌堆渲染（移动端滚动优化） =====
 let deckCache = [];
 let deckCacheIds = '';
 
@@ -291,7 +292,10 @@ export function renderDeck() {
     });
     return;
   }
-  el.style.cssText = `display:flex;flex-wrap:nowrap;gap:10px;overflow-x:auto;overflow-y:hidden;padding:10px 8px;touch-action:pan-x;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;`;
+
+  const isTouch = window.matchMedia('(pointer: coarse)').matches;
+  el.style.cssText = `display:flex;flex-wrap:nowrap;gap:10px;overflow-x:auto;overflow-y:hidden;padding:10px 8px;touch-action:pan-x;overscroll-behavior:contain;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;`;
+  el.style.setProperty('::-webkit-scrollbar', 'display:none');
   el.innerHTML = '';
   state.deck.forEach((c, index) => {
     const id = getCardId(c);
@@ -336,7 +340,7 @@ export function renderTiYong() {
   if (btn) btn.disabled = !(state.ti && state.yong);
 }
 
-// ===== 九宫格 =====
+// ===== 九宫格（已去除张力分布） =====
 export function renderGrid() {
   const el = document.getElementById('gridContainer');
   if (!el) return;
@@ -362,6 +366,7 @@ export function renderGrid() {
     return `<div class="gong ${cls}" data-gong="${g}">${inner}</div>`;
   }).join('');
 
+  // 天机线提示
   const lineGuide = document.getElementById('lineGuide');
   const filledGongs = Object.keys(state.grid).filter(g => state.grid[g] && state.grid[g].length > 0).map(Number);
   if (filledGongs.length >= 3 && (state.possible || []).length > 0 && !state.line) {
@@ -373,33 +378,11 @@ export function renderGrid() {
       el.parentNode.insertBefore(guide, el.nextSibling);
     }
   } else if (lineGuide) lineGuide.remove();
-
-  if (Object.keys(state.grid).length > 0) renderTensionMap(el);
 }
 
 function getRecommendedGong(intent) {
   const map = { '财运': 2, '感情': 7, '事业': 6, '健康': 8, '学业': 4, '决策': 5, '人际关系': 7, '家宅': 8, '运势': 9, '寻物': 1, '官非': 3, '出行': 3, '灵异': 1, '技能': 4 };
   return map[intent] || null;
-}
-
-function renderTensionMap(container) {
-  let existing = document.getElementById('tensionMap');
-  if (!existing) {
-    const map = document.createElement('div');
-    map.id = 'tensionMap';
-    map.style.cssText = 'margin-top:12px;padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;font-size:0.7rem;';
-    container.parentNode.appendChild(map);
-    existing = map;
-  }
-  const gongs = state.gongOrder.length ? state.gongOrder : GONG_ORDER;
-  const tensions = gongs.map(g => {
-    const cards = state.grid[g] || [];
-    if (!cards.length) return { gong: g, tension: 0 };
-    const diff = calcDiff(g, cards[0]);
-    return { gong: g, tension: Math.min(100, diff * 10) };
-  });
-  const maxTension = Math.max(1, ...tensions.map(t => t.tension));
-  existing.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;"><span style="color:var(--dim);width:100%;text-align:center;margin-bottom:4px;">⚡ 张力分布</span>${tensions.filter(t => t.tension > 0).map(t => { const intensity = maxTension > 0 ? Math.round((t.tension / maxTension) * 100) : 0; const bg = intensity < 20 ? 'rgba(76,175,80,0.2)' : intensity < 40 ? 'rgba(139,195,74,0.4)' : intensity < 60 ? 'rgba(255,193,7,0.6)' : intensity < 80 ? 'rgba(255,152,0,0.8)' : 'rgba(244,67,54,0.9)'; return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:${bg};color:${intensity > 60 ? '#fff' : 'var(--text)'}">${GONG_NAMES[t.gong]} ${t.tension}%</span>`; }).join('')}</div>`;
 }
 
 // ===== 刷新所有 =====

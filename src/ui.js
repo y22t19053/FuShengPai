@@ -387,7 +387,7 @@ async function proceedLazyStart() {
   toast('🔒 牌局已自动封印', 3000);
 }
 
-// ===== 周期抽牌：展开牌堆，自己选 =====
+// ===== 周期抽牌：展开牌堆，自己选（支持实体牌自选 + 手机按钮） =====
 export function openPeriodDeck(periodType) {
   const modal = document.getElementById('modal');
   const content = document.getElementById('modalContent');
@@ -408,29 +408,106 @@ export function openPeriodDeck(periodType) {
   state.periodType = periodType;
   state.pendingPeriodDeck = shuffled;
 
-  // 判断是否为触摸设备（手机/平板）
+  // 判断是否为触摸设备
   const isTouch = window.matchMedia('(pointer: coarse)').matches;
 
   if (isTouch) {
-    // 手机端：按钮选牌，避免滑动冲突
     content.innerHTML = `
       <h3 style="text-align:center;">${cfg.label} · 抽一张牌</h3>
-      <p style="text-align:center;font-size:0.75rem;color:var(--dim);margin-bottom:10px;">点击下方按钮，随机抽一张牌。</p>
-      <div style="text-align:center;padding:20px 0;">
+      <p style="text-align:center;font-size:0.75rem;color:var(--dim);margin-bottom:10px;">点击下方按钮随机抽牌，或选择“我已抽实体牌”手动输入。</p>
+      <div style="text-align:center;padding:10px 0;">
         <button id="periodTouchDraw" class="primary small" style="padding:12px 32px;font-size:1rem;">抽一张</button>
       </div>
-      <div style="text-align:center;font-size:0.65rem;color:var(--dim);">抽完即锁定，本周期内不可重抽</div>
+      <div style="text-align:center;margin-top:16px;">
+        <button id="periodManualEntry" class="outline small" style="font-size:0.75rem;">我已抽了实体牌，自己选</button>
+      </div>
+      <div id="periodManualPicker" style="display:none;margin-top:12px;max-height:300px;overflow-y:auto;padding:8px;">
+        <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">
+          <button class="small outline" data-manual-card="♥A">♥A</button>
+          <button class="small outline" data-manual-card="♥2">♥2</button>
+          <button class="small outline" data-manual-card="♥3">♥3</button>
+          <button class="small outline" data-manual-card="♥4">♥4</button>
+          <button class="small outline" data-manual-card="♥5">♥5</button>
+          <button class="small outline" data-manual-card="♥6">♥6</button>
+          <button class="small outline" data-manual-card="♥7">♥7</button>
+          <button class="small outline" data-manual-card="♥8">♥8</button>
+          <button class="small outline" data-manual-card="♥9">♥9</button>
+          <button class="small outline" data-manual-card="♥10">♥10</button>
+          <button class="small outline" data-manual-card="♥J">♥J</button>
+          <button class="small outline" data-manual-card="♥Q">♥Q</button>
+          <button class="small outline" data-manual-card="♥K">♥K</button>
+          <button class="small outline" data-manual-card="♦A">♦A</button>
+          <button class="small outline" data-manual-card="♦2">♦2</button>
+          <button class="small outline" data-manual-card="♦3">♦3</button>
+          <button class="small outline" data-manual-card="♦4">♦4</button>
+          <button class="small outline" data-manual-card="♦5">♦5</button>
+          <button class="small outline" data-manual-card="♦6">♦6</button>
+          <button class="small outline" data-manual-card="♦7">♦7</button>
+          <button class="small outline" data-manual-card="♦8">♦8</button>
+          <button class="small outline" data-manual-card="♦9">♦9</button>
+          <button class="small outline" data-manual-card="♦10">♦10</button>
+          <button class="small outline" data-manual-card="♦J">♦J</button>
+          <button class="small outline" data-manual-card="♦Q">♦Q</button>
+          <button class="small outline" data-manual-card="♦K">♦K</button>
+          <button class="small outline" data-manual-card="♣A">♣A</button>
+          <button class="small outline" data-manual-card="♣2">♣2</button>
+          <button class="small outline" data-manual-card="♣3">♣3</button>
+          <button class="small outline" data-manual-card="♣4">♣4</button>
+          <button class="small outline" data-manual-card="♣5">♣5</button>
+          <button class="small outline" data-manual-card="♣6">♣6</button>
+          <button class="small outline" data-manual-card="♣7">♣7</button>
+          <button class="small outline" data-manual-card="♣8">♣8</button>
+          <button class="small outline" data-manual-card="♣9">♣9</button>
+          <button class="small outline" data-manual-card="♣10">♣10</button>
+          <button class="small outline" data-manual-card="♣J">♣J</button>
+          <button class="small outline" data-manual-card="♣Q">♣Q</button>
+          <button class="small outline" data-manual-card="♣K">♣K</button>
+          <button class="small outline" data-manual-card="♠A">♠A</button>
+          <button class="small outline" data-manual-card="♠2">♠2</button>
+          <button class="small outline" data-manual-card="♠3">♠3</button>
+          <button class="small outline" data-manual-card="♠4">♠4</button>
+          <button class="small outline" data-manual-card="♠5">♠5</button>
+          <button class="small outline" data-manual-card="♠6">♠6</button>
+          <button class="small outline" data-manual-card="♠7">♠7</button>
+          <button class="small outline" data-manual-card="♠8">♠8</button>
+          <button class="small outline" data-manual-card="♠9">♠9</button>
+          <button class="small outline" data-manual-card="♠10">♠10</button>
+          <button class="small outline" data-manual-card="♠J">♠J</button>
+          <button class="small outline" data-manual-card="♠Q">♠Q</button>
+          <button class="small outline" data-manual-card="♠K">♠K</button>
+          <button class="small outline" data-manual-card="大王">大王</button>
+          <button class="small outline" data-manual-card="小王">小王</button>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:0.65rem;color:var(--dim);margin-top:6px;">抽完即锁定，本周期内不可重抽</div>
     `;
     modal.removeAttribute('hidden');
+
     document.getElementById('periodTouchDraw').addEventListener('click', () => {
       const idx = Math.floor(Math.random() * shuffled.length);
       const card = shuffled[idx];
       confirmPeriodPick(periodType, card);
     });
+
+    document.getElementById('periodManualEntry')?.addEventListener('click', () => {
+      const picker = document.getElementById('periodManualPicker');
+      if (picker) picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
+    });
+
+    content.querySelectorAll('[data-manual-card]').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const label = this.dataset.manualCard;
+        if (label === '大王') { confirmPeriodPick(periodType, { isJoker: true, type: '大王' }); return; }
+        if (label === '小王') { confirmPeriodPick(periodType, { isJoker: true, type: '小王' }); return; }
+        const suit = label[0];
+        const rank = label.slice(1);
+        confirmPeriodPick(periodType, { suit, rank, isJoker: false });
+      });
+    });
     return;
   }
 
-  // 桌面端：保留点击牌堆
+  // 桌面端：点击牌堆
   let deckHTML = shuffled.map((c, idx) => {
     return `<div class="card-back" data-period-card-idx="${idx}" style="flex-shrink:0;width:60px;height:84px;cursor:pointer;margin:4px;"></div>`;
   }).join('');
@@ -439,6 +516,67 @@ export function openPeriodDeck(periodType) {
     <h3 style="text-align:center;">${cfg.label} · 抽一张牌</h3>
     <p style="text-align:center;font-size:0.75rem;color:var(--dim);margin-bottom:10px;">凭直觉选一张，不要多想。</p>
     <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-height:400px;overflow-y:auto;padding:10px;">${deckHTML}</div>
+    <div style="text-align:center;margin-top:8px;">
+      <button id="periodManualEntryDesktop" class="outline small" style="font-size:0.75rem;">我已抽了实体牌，自己选</button>
+    </div>
+    <div id="periodManualPickerDesktop" style="display:none;margin-top:8px;max-height:250px;overflow-y:auto;padding:8px;">
+      <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;">
+        <button class="small outline" data-manual-card="♥A">♥A</button>
+        <button class="small outline" data-manual-card="♥2">♥2</button>
+        <button class="small outline" data-manual-card="♥3">♥3</button>
+        <button class="small outline" data-manual-card="♥4">♥4</button>
+        <button class="small outline" data-manual-card="♥5">♥5</button>
+        <button class="small outline" data-manual-card="♥6">♥6</button>
+        <button class="small outline" data-manual-card="♥7">♥7</button>
+        <button class="small outline" data-manual-card="♥8">♥8</button>
+        <button class="small outline" data-manual-card="♥9">♥9</button>
+        <button class="small outline" data-manual-card="♥10">♥10</button>
+        <button class="small outline" data-manual-card="♥J">♥J</button>
+        <button class="small outline" data-manual-card="♥Q">♥Q</button>
+        <button class="small outline" data-manual-card="♥K">♥K</button>
+        <button class="small outline" data-manual-card="♦A">♦A</button>
+        <button class="small outline" data-manual-card="♦2">♦2</button>
+        <button class="small outline" data-manual-card="♦3">♦3</button>
+        <button class="small outline" data-manual-card="♦4">♦4</button>
+        <button class="small outline" data-manual-card="♦5">♦5</button>
+        <button class="small outline" data-manual-card="♦6">♦6</button>
+        <button class="small outline" data-manual-card="♦7">♦7</button>
+        <button class="small outline" data-manual-card="♦8">♦8</button>
+        <button class="small outline" data-manual-card="♦9">♦9</button>
+        <button class="small outline" data-manual-card="♦10">♦10</button>
+        <button class="small outline" data-manual-card="♦J">♦J</button>
+        <button class="small outline" data-manual-card="♦Q">♦Q</button>
+        <button class="small outline" data-manual-card="♦K">♦K</button>
+        <button class="small outline" data-manual-card="♣A">♣A</button>
+        <button class="small outline" data-manual-card="♣2">♣2</button>
+        <button class="small outline" data-manual-card="♣3">♣3</button>
+        <button class="small outline" data-manual-card="♣4">♣4</button>
+        <button class="small outline" data-manual-card="♣5">♣5</button>
+        <button class="small outline" data-manual-card="♣6">♣6</button>
+        <button class="small outline" data-manual-card="♣7">♣7</button>
+        <button class="small outline" data-manual-card="♣8">♣8</button>
+        <button class="small outline" data-manual-card="♣9">♣9</button>
+        <button class="small outline" data-manual-card="♣10">♣10</button>
+        <button class="small outline" data-manual-card="♣J">♣J</button>
+        <button class="small outline" data-manual-card="♣Q">♣Q</button>
+        <button class="small outline" data-manual-card="♣K">♣K</button>
+        <button class="small outline" data-manual-card="♠A">♠A</button>
+        <button class="small outline" data-manual-card="♠2">♠2</button>
+        <button class="small outline" data-manual-card="♠3">♠3</button>
+        <button class="small outline" data-manual-card="♠4">♠4</button>
+        <button class="small outline" data-manual-card="♠5">♠5</button>
+        <button class="small outline" data-manual-card="♠6">♠6</button>
+        <button class="small outline" data-manual-card="♠7">♠7</button>
+        <button class="small outline" data-manual-card="♠8">♠8</button>
+        <button class="small outline" data-manual-card="♠9">♠9</button>
+        <button class="small outline" data-manual-card="♠10">♠10</button>
+        <button class="small outline" data-manual-card="♠J">♠J</button>
+        <button class="small outline" data-manual-card="♠Q">♠Q</button>
+        <button class="small outline" data-manual-card="♠K">♠K</button>
+        <button class="small outline" data-manual-card="大王">大王</button>
+        <button class="small outline" data-manual-card="小王">小王</button>
+      </div>
+    </div>
     <div style="text-align:center;font-size:0.65rem;color:var(--dim);margin-top:6px;">抽完即锁定，本周期内不可重抽</div>
   `;
   modal.removeAttribute('hidden');
@@ -448,6 +586,22 @@ export function openPeriodDeck(periodType) {
       const idx = parseInt(this.dataset.periodCardIdx);
       const card = shuffled[idx];
       confirmPeriodPick(periodType, card);
+    });
+  });
+
+  document.getElementById('periodManualEntryDesktop')?.addEventListener('click', () => {
+    const picker = document.getElementById('periodManualPickerDesktop');
+    if (picker) picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
+  });
+
+  content.querySelectorAll('[data-manual-card]').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const label = this.dataset.manualCard;
+      if (label === '大王') { confirmPeriodPick(periodType, { isJoker: true, type: '大王' }); return; }
+      if (label === '小王') { confirmPeriodPick(periodType, { isJoker: true, type: '小王' }); return; }
+      const suit = label[0];
+      const rank = label.slice(1);
+      confirmPeriodPick(periodType, { suit, rank, isJoker: false });
     });
   });
 }
