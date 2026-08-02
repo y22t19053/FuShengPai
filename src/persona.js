@@ -1,5 +1,7 @@
 // ===== src/persona.js · 扑克牌人格 + 单牌运势体系 =====
 import { getWuxing } from './data.js';
+import { pick } from './constants.js';
+import { WUXING_FORTUNE_POOLS, WUXING_MOOD_SHORTS } from './texts/fortune-pools.js';
 
 // ---- 花色气质 ----
 const SUIT_PERSONA = {
@@ -56,26 +58,16 @@ export function getPokerPersona(card) {
   };
 }
 
-// ---- 单牌运势类别 ----
+// ---- 单牌运势类别（含学业） ----
 export const FORTUNE_TYPES = [
+  { key: 'overall', label: '综合', icon: '☯' },
   { key: 'wealth',  label: '财运', icon: '💰' },
   { key: 'love',    label: '桃花', icon: '🌸' },
   { key: 'noble',   label: '贵人', icon: '🤝' },
   { key: 'career',  label: '事业', icon: '⚡' },
   { key: 'health',  label: '健康', icon: '🌿' },
-  { key: 'overall', label: '综合', icon: '☯' }
+  { key: 'study',   label: '学业', icon: '📚' }
 ];
-
-// ---- 五行 × 运势类别 判词 ----
-const WUXING_FORTUNE = {
-  '木': { wealth: '细水长流，利正财', love: '桃花渐显，宜主动', noble: '身边有引路人', career: '宜学习进修', health: '注意肝气郁结', overall: '向上生长的一天' },
-  '火': { wealth: '偏财活跃，见好就收', love: '炽热开场，易上头', noble: '贵人主动靠近', career: '宜展示表现', health: '注意心火上炎', overall: '热烈但有损耗' },
-  '土': { wealth: '稳中求进，不宜投机', love: '平淡是真，别急', noble: '贵人来自旧识', career: '宜守成积累', health: '注意脾胃', overall: '安守本分的一天' },
-  '金': { wealth: '财星得力，宜谈合作', love: '锋利言辞易伤人', noble: '贵人带资源来', career: '宜决断清理', health: '注意呼吸道', overall: '宜断舍离' },
-  '水': { wealth: '财来财去，留三分', love: '情绪涌动，宜沟通', noble: '贵人隐于暗处', career: '宜布局未来', health: '注意肾气', overall: '随波逐流但有灵光' },
-  '天': { wealth: '格局打开，利大额', love: '缘分可遇不可求', noble: '遇高层提携', career: '宜定大方向', health: '精神饱满', overall: '大气运的一天' },
-  '人': { wealth: '人脉生财', love: '贵人即是桃花', noble: '众人相助', career: '宜社交协作', health: '宜放松', overall: '借力的一天' }
-};
 
 // ---- 吉凶判定 ----
 function fortuneGrade(wx) {
@@ -83,16 +75,19 @@ function fortuneGrade(wx) {
   return grades[wx] || '中平';
 }
 
-// ---- 单牌运势生成 ----
+// ---- 单牌运势生成（支持细选类别，判词从五行×类别池随机取，每日不重样） ----
 export function getDailyFortune(card, typeKey = 'overall') {
   if (!card) return null;
   const wx = getWuxing(card);
-  const map = WUXING_FORTUNE[wx] || WUXING_FORTUNE['土'];
-  const text = map[typeKey] || map.overall;
-  const type = FORTUNE_TYPES.find(t => t.key === typeKey) || FORTUNE_TYPES[FORTUNE_TYPES.length - 1];
+  const pool = (WUXING_FORTUNE_POOLS[wx] && (WUXING_FORTUNE_POOLS[wx][typeKey] || WUXING_FORTUNE_POOLS[wx].overall))
+    || WUXING_FORTUNE_POOLS['土'].overall;
+  const text = pick(pool);
+  const mood = pick(WUXING_MOOD_SHORTS[wx] || WUXING_MOOD_SHORTS['土']);
+  const type = FORTUNE_TYPES.find(t => t.key === typeKey) || FORTUNE_TYPES[0];
   return {
     wx,
     grade: fortuneGrade(wx),
+    mood,
     typeKey: type.key,
     typeLabel: type.label,
     typeIcon: type.icon,

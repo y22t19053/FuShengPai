@@ -36,7 +36,7 @@ export function findCardById(id) {
 }
 
 // ---------- 放置到「你」（体） ----------
-export function placeCardOnTiYong(card, slot) {
+export function placeCardOnTiYong(card, slot, silent = false) {
   if (!card || !slot) { toast('未选中有效牌'); return; }
   if (state.sealed) { toast('牌局已封印，不可改动'); return; }
 
@@ -55,11 +55,11 @@ export function placeCardOnTiYong(card, slot) {
 
   state.sel = null;
   refreshAll();
-  toast(slot === 'ti' ? '🪷 你已落位 · 本我之象' : '🎯 所问之事已定 · 事之象');
+  if (!silent) toast(slot === 'ti' ? '🪷 你已落位 · 本我之象' : '🎯 所问之事已定 · 事之象');
 }
 
 // ---------- 放置到九宫格 ----------
-export function placeCardOnGong(card, gong) {
+export function placeCardOnGong(card, gong, silent = false) {
   if (!card || !gong) { toast('未选中有效牌'); return; }
   if (state.sealed) { toast('牌局已封印，不可改动'); return; }
   if (gong < 1 || gong > 9) { toast('无效宫位'); return; }
@@ -78,7 +78,7 @@ export function placeCardOnGong(card, gong) {
   state.sel = null;
   updateLine();
   refreshAll();
-  toast(`✦ ${GONG_NAMES[gong]}宫 · 一子落定，万象生`);
+  if (!silent) toast(`✦ ${GONG_NAMES[gong]}宫 · 一子落定，万象生`);
 }
 
 // ---------- 手动设置天机线 ----------
@@ -97,7 +97,7 @@ export function setLine(lineArray) {
     if (!state.lineOrder[g]) state.lineOrder[g] = tl[g] || '';
   }
   refreshAll();
-  toast('✨ 天机线已连起');
+  toast('✨ 天机线已连起——这是你亲手选出的那条线，顺着它看下去', 2400, 'success');
 }
 
 // ---------- 自动计算天机线（内部） ----------
@@ -120,7 +120,7 @@ function updateLine() {
     for (let g = 1; g <= 9; g++) {
       if (!state.lineOrder[g]) state.lineOrder[g] = tl[g] || '';
     }
-    toast('✨ 自动连成天机线');
+    toast('✨ 天机线自动成形——牌是你摆的，线也是你的选择', 2400, 'success');
   } else {
     state.line = null;
     state.lineOrder = {};
@@ -129,7 +129,7 @@ function updateLine() {
 
 // ---------- 封印牌局 ----------
 export function sealDeck() {
-  if (!state.ti || !state.yong) { toast('请先选好体用'); return; }
+  if (!state.ti || !state.yong) { toast('请先选好体用', 2200, 'warning'); return; }
   state.sealed = true;
   state.sel = null;
   refreshAll();
@@ -148,43 +148,13 @@ export function initDrag() {
   if (dragInitialized) return;
   dragInitialized = true;
 
-  // 长按震动（可选反馈）
   let pressTimer = null;
-  document.addEventListener('touchstart', function(e) {
-    const cardEl = e.target.closest('.card-back, .card-face-small');
-    if (!cardEl || !cardEl.dataset.cardid) return;
-    const card = findCardById(cardEl.dataset.cardid);
-    if (!card || isCardPlaced(card)) return;
-    pressTimer = setTimeout(() => {
-      if (navigator.vibrate) navigator.vibrate(15);
-    }, 250);
-  }, { passive: true });
-
-  document.addEventListener('touchend', function() {
-    clearTimeout(pressTimer);
-  }, { passive: true });
-
-  document.addEventListener('touchmove', function() {
-    clearTimeout(pressTimer);
-  }, { passive: true });
-
-  // ===== 桌面端拖拽（通过 dataTransfer 传递卡牌 ID） =====
-  document.addEventListener('dragstart', function(e) {
-    const cardEl = e.target.closest('.card-back, .card-face-small');
-    if (!cardEl || !cardEl.dataset.cardid) return;
-    const card = findCardById(cardEl.dataset.cardid);
-    if (!card || isCardPlaced(card)) return;
-    e.dataTransfer.setData('text/plain', cardEl.dataset.cardid);
-    e.dataTransfer.effectAllowed = 'move';
-  });
-
-  document.addEventListener('dragover', function(e) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  });
-
-  // 高亮提示
+  let draggingCardId = null;
+  let pointerActive = false;
   let lastHighlightEl = null;
+  let swipeStartX = null;
+  let swipeStartY = null;
+
   function clearHighlight() {
     if (lastHighlightEl) {
       lastHighlightEl.style.boxShadow = '';
@@ -194,7 +164,92 @@ export function initDrag() {
     }
   }
 
-  document.addEventListener('dragenter', function(e) {
+  function getCardFromElement(el) {
+    if (!el || !el.dataset.cardid) return null;
+    const card = findCardById(el.dataset.cardid);
+    if (!card || isCardPlaced(card)) return null;
+    return card;
+  }
+
+  function handleDrop(target, cardId) {
+    if (!cardId) return;
+    const card = findCardById(cardId);
+    if (!card || isCardPlaced(card)) return;
+
+    const emptyDash = target.closest('.empty-dash');
+    if (emptyDash) {
+      if (emptyDash.textContent.includes('你')) placeCardOnTiYong(card, 'ti');
+      else placeCardOnTiYong(card, 'yong');
+      return;
+    }
+
+    const gong = target.closest('.gong');
+    if (gong) {
+      const g = parseInt(gong.dataset.gong);
+      placeCardOnGong(card, g);
+      return;
+    }
+
+    state.sel = cardId;
+    refreshAll();
+    toast('再试一次：拖到「你」或九宫格上');
+  }
+
+  document.addEventListener('touchstart', function(e) {
+    const cardEl = e.target.closest('.card-back, .card-face-small');
+    const card = getCardFromElement(cardEl);
+    if (!card) return;
+    pointerActive = true;
+    draggingCardId = cardEl.dataset.cardid;
+    swipeStartX = e.touches[0]?.clientX ?? null;
+    swipeStartY = e.touches[0]?.clientY ?? null;
+    pressTimer = setTimeout(() => {
+      if (navigator.vibrate) navigator.vibrate(15);
+      cardEl.classList.add('dragging');
+    }, 220);
+  }, { passive: true });
+
+  document.addEventListener('touchend', function(e) {
+    clearTimeout(pressTimer);
+    if (!pointerActive || !draggingCardId) return;
+    pointerActive = false;
+    const cardEl = document.querySelector(`[data-cardid="${draggingCardId}"]`);
+    cardEl?.classList.remove('dragging');
+    const deltaX = (e.changedTouches?.[0]?.clientX ?? swipeStartX) - (swipeStartX ?? 0);
+    const deltaY = (e.changedTouches?.[0]?.clientY ?? swipeStartY) - (swipeStartY ?? 0);
+    const dropTarget = e.target.closest('.empty-dash, .gong');
+    if (dropTarget && Math.abs(deltaX) < 24 && Math.abs(deltaY) < 24) handleDrop(e.target, draggingCardId);
+    draggingCardId = null;
+    swipeStartX = null;
+    swipeStartY = null;
+    clearHighlight();
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function(e) {
+    clearTimeout(pressTimer);
+    const cardEl = document.querySelector(`[data-cardid="${draggingCardId}"]`);
+    if (cardEl) cardEl.classList.add('dragging');
+    if (swipeStartX !== null && swipeStartY !== null) {
+      const dx = e.touches[0].clientX - swipeStartX;
+      const dy = e.touches[0].clientY - swipeStartY;
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+        e.preventDefault();
+      }
+    }
+  }, { passive: false });
+
+  document.addEventListener('dragstart', function(e) {
+    const cardEl = e.target.closest('.card-back, .card-face-small');
+    const card = getCardFromElement(cardEl);
+    if (!card) return;
+    draggingCardId = cardEl.dataset.cardid;
+    e.dataTransfer.setData('text/plain', cardEl.dataset.cardid);
+    e.dataTransfer.effectAllowed = 'move';
+  });
+
+  document.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
     const target = e.target.closest('.empty-dash, .gong');
     if (target) {
       clearHighlight();
@@ -214,32 +269,14 @@ export function initDrag() {
   document.addEventListener('drop', function(e) {
     e.preventDefault();
     clearHighlight();
-    const cardId = e.dataTransfer.getData('text/plain');
+    const cardId = e.dataTransfer?.getData('text/plain') || draggingCardId;
     if (!cardId) return;
-    const card = findCardById(cardId);
-    if (!card || isCardPlaced(card)) return;
-
-    // 目标：体用槽
-    const emptyDash = e.target.closest('.empty-dash');
-    if (emptyDash) {
-      if (emptyDash.textContent.includes('你')) placeCardOnTiYong(card, 'ti');
-      else placeCardOnTiYong(card, 'yong');
-      return;
-    }
-    // 目标：九宫格
-    const gong = e.target.closest('.gong');
-    if (gong) {
-      const g = parseInt(gong.dataset.gong);
-      placeCardOnGong(card, g);
-      return;
-    }
-    // 没有落在有效位置，自动回到选中态
-    state.sel = cardId;
-    refreshAll();
-    toast('再试一次：拖到「你」或九宫格上');
+    handleDrop(e.target, cardId);
+    draggingCardId = null;
   });
 
   document.addEventListener('dragend', function() {
     clearHighlight();
+    draggingCardId = null;
   });
 }

@@ -13,7 +13,6 @@ export const YIN_YANG = {
   '大王': '阳', '小王': '阴',
 };
 
-// 统一牌面数值：J=11, Q=12, K=13（与 engine.js 保持一致）
 export const CARD_VALUES = {
   A: 1, '2': 2, '3': 3, '4': 4, '5': 5,
   '6': 6, '7': 7, '8': 8, '9': 9, '10': 10,
@@ -55,16 +54,44 @@ export const KE = { 木: '土', 土: '水', 水: '火', 火: '金', 金: '木' }
 
 export const WANG_STATES = { '同我': '旺', '我生': '相', '生我': '休', '我克': '囚', '克我': '死' };
 
+// ===== 日运细选类别 =====
+export const DAILY_FORTUNE_TYPES = [
+  { key: 'overall', label: '综合', icon: '☯' },
+  { key: 'wealth', label: '财运', icon: '💰' },
+  { key: 'love', label: '桃花', icon: '🌸' },
+  { key: 'noble', label: '贵人', icon: '🤝' },
+  { key: 'career', label: '事业', icon: '⚡' },
+  { key: 'health', label: '健康', icon: '🌿' },
+  { key: 'study', label: '学业', icon: '📚' },
+];
+
+export function getDailyFortuneType(key) {
+  return DAILY_FORTUNE_TYPES.find(t => t.key === key) || DAILY_FORTUNE_TYPES[0];
+}
+
+// ===== API 厂商配置（含推荐模型）=====
 export const API_PROVIDERS = {
   deepseek: { endpoint: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
   qwen: { endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
-  openai: { endpoint: 'https://api.openai.com/v1', model: 'gpt-3.5-turbo' },
+  openai: { endpoint: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
   claude: { endpoint: 'https://api.anthropic.com/v1', model: 'claude-3-haiku-20240307' },
-  gemini: { endpoint: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-pro' },
+  gemini: { endpoint: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-1.5-flash' },
   kimi: { endpoint: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k' },
   zhipu: { endpoint: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4' },
   custom: { endpoint: '', model: '' },
 };
+
+// ===== 热门模型快捷列表 =====
+export const POPULAR_MODELS = [
+  { provider: 'deepseek', label: 'DeepSeek-V3', model: 'deepseek-chat', desc: '旗舰·平衡' },
+  { provider: 'deepseek', label: 'DeepSeek-R1', model: 'deepseek-reasoner', desc: '推理增强' },
+  { provider: 'gemini', label: 'Gemini 2.0 Flash', model: 'gemini-2.0-flash-exp', desc: '极速·免费' },
+  { provider: 'gemini', label: 'Gemini 1.5 Pro', model: 'gemini-1.5-pro', desc: '深度·长文本' },
+  { provider: 'openai', label: 'GPT-4o-mini', model: 'gpt-4o-mini', desc: '轻量·高性价比' },
+  { provider: 'openai', label: 'GPT-4o', model: 'gpt-4o', desc: '旗舰·全能' },
+  { provider: 'claude', label: 'Claude 3.7 Sonnet', model: 'claude-3-7-sonnet-20250219', desc: '最强推理' },
+  { provider: 'qwen', label: '千问 2.5-72B', model: 'qwen-plus', desc: '国产·均衡' },
+];
 
 // ===== 周期抽牌配置（公历自然周期） =====
 export const PERIODS = {
@@ -162,7 +189,7 @@ export function getGongTimeRole(gongId, nowArc = '951') {
   return '';
 }
 
-// ===== 统一推荐宫位数据源（含风水/射覆） =====
+// ===== 统一推荐宫位数据源 =====
 export const CATEGORIES = [
   { name: '感情', sub: ['复合', '脱单', '正缘', '暧昧', '前任', '分手', '关系沟通'], gongFocus: 7, weight: { diff: 0.35, ke: 0.3, trend: 0.15, tension: 0.2 }, promptHint: '关注感情中的沟通模式、互相理解、情绪流动以及关系的发展阶段。' },
   { name: '财运', sub: ['正财', '偏财', '投资', '借贷', '破财', '合作', '加薪'], gongFocus: 2, weight: { diff: 0.4, ke: 0.2, trend: 0.25, tension: 0.15 }, promptHint: '关注收入、支出、资金流动趋势、风险管理、长期稳定性。' },
@@ -193,23 +220,21 @@ export function getSubCategoryConfig(categoryName, subName) {
   return { ...cat, activeSub: subName };
 }
 
-// 统一推荐宫位入口
 export function getRecommendedGongForCategory(categoryName) {
   const cat = getCategoryConfig(categoryName);
   return cat?.gongFocus || null;
 }
 
-// ===== 宫位大环境分析（宫为地，牌为客，生克决定环境助益） =====
+// ===== 宫位大环境分析 =====
 export function getGongEnvironment(gongWx, cardWx) {
   if (!gongWx || !cardWx) return null;
-  // 复用 getShengKe：以牌为"我"，宫为"他"
   const rel = getShengKe(cardWx, gongWx);
   const map = {
-    '生我': { key: 'gongSheng',  label: '宫生牌', desc: '此宫如沃土，滋养牌力，环境助力，顺势可成。', score: 2 },
+    '生我': { key: 'gongSheng',  label: '宫生牌', desc: '此宫如沃土，滋养牌的能量，环境助力，顺势可成。', score: 2 },
     '我生': { key: 'cardSheng',  label: '牌生宫', desc: '牌在此宫为宫供能，事在推进但自身有所消耗，宜掌握节奏。', score: 1 },
-    '克我': { key: 'gongKe',     label: '宫克牌', desc: '此宫之气压牌，环境阻力明显，宜守不宜攻。', score: -2 },
-    '我克': { key: 'cardKe',     label: '牌克宫', desc: '牌有力克压宫气，需主动破局方能施展。', score: 1 },
-    '同我': { key: 'biHe',       label: '比和',   desc: '牌宫同气，能量共振，顺势增强，气势最稳。', score: 3 },
+    '克我': { key: 'gongKe',     label: '宫克牌', desc: '此宫的能量压过牌，环境阻力明显，宜守不宜攻。', score: -2 },
+    '我克': { key: 'cardKe',     label: '牌克宫', desc: '牌的能量压过此宫，需主动破局方能施展。', score: 1 },
+    '同我': { key: 'biHe',       label: '比和',   desc: '牌与宫能量同频、相互共振，顺势增强，最为稳妥。', score: 3 },
   };
   return map[rel] || null;
 }
@@ -228,7 +253,6 @@ export function getYinYang(card) {
   return YIN_YANG[card.suit];
 }
 
-// 统一牌面数值：与 engine.js 保持一致（J=11, Q=12, K=13, 大王=14, 小王=15）
 export function getCardValue(card) {
   if (!card) return 0;
   if (card.isJoker) return card.type === '大王' ? 14 : 15;

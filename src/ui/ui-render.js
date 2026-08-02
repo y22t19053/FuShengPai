@@ -1,19 +1,24 @@
-// ===== src/ui/ui-render.js · 全流程渲染（窄Hero + 牌格入口 + 九宫逐牌差值 + 拖拽 + 教程同步） =====
+// ===== src/ui/ui-render.js · 全流程渲染（含AI高级参数回填 + 日运细选支持 + 牌灵卡显示） =====
 import { state } from '../state.js';
 import {
   GONG_ORDER, GONG_NAMES, GONG_WUXING, CATEGORIES,
   getShengKe, getShengKeLabel, getWuxing, getCardColor,
   getCardId, PERIODS, getCurrentPeriodKey,
   getPeriodTitle, getPeriodDesc,
-  getRecommendedGongForCategory
+  getRecommendedGongForCategory,
+  DAILY_FORTUNE_TYPES, getDailyFortuneType
 } from '../data.js';
 import { createDeck, shuffle, calcFullBaZi, calcDiff, getDiffLevel, getCardValue } from '../engine.js';
 import { getApiSettings, getProfile, getHistory, getStoredPeriodCards } from '../storage.js';
-import { UI_TEXTS, HISTORY_EMPTY } from '../texts/index.js';
-import { calculateDurianIndex, getDurianIcon } from '../durian.js';
+import { UI_TEXTS, HISTORY_EMPTY, PHYSICAL_GUIDE } from '../texts/index.js';
+import { calculateDurianIndex, getDurianColor } from '../durian.js';
+import { getDailyFortune, getPokerPersona } from '../persona.js';
+import { getFriendCircleHook, getFortuneTags, getPaiGeQuestion } from '../texts/social.js';
 import { toast } from './ui-modal.js';
 import { isCardPlaced } from './ui-drag.js';
 import { escapeForHTML, setHTML } from '../utils/safe.js';
+import { syncQuestionFromInput } from '../utils/flow-helpers.js';
+import { copyTextWithFeedback } from '../utils/clipboard.js';
 
 // ===== 新手教程 =====
 export function renderTeachingPanel() {
@@ -25,7 +30,7 @@ export function renderTeachingPanel() {
       
       <div style="background:rgba(201,160,96,0.06);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;">
         <strong style="color:var(--accent);">核心玩法一句话：</strong>
-        <span style="color:var(--text);">选两张牌代表「你」和「所问之事」，再往九宫格放牌，找一条直线（天机线），看牌面五行与宫位生克。</span>
+        <span style="color:var(--text);">选两张牌代表「你」和「所问之事」，再往九宫格放牌，找一条直线（天机线），看牌与宫位的五行能量关系。</span>
       </div>
 
       <h4 style="color:var(--accent);">🎯 第一步：起念</h4>
@@ -38,21 +43,30 @@ export function renderTeachingPanel() {
       <p>2. 桌面端也可以直接<strong>拖拽</strong>牌到目标位置。</p>
       <p>3. 如果你不知道选哪张，凭直觉选就行。</p>
 
-      <h4 style="color:var(--accent);">🔮 第三步：布阵</h4>
+      <h4 style="color:var(--accent);">🔮 第三步：观象</h4>
       <p>1. 点「布阵」后，牌堆里会出现大小王。</p>
       <p>2. 点击或拖拽剩余牌到九宫格任意宫位（每格最多3张）。</p>
       <p>3. 如果三个宫位形成直线，就自动连成「天机线」（起因→经过→结果）。</p>
       <p>4. 点「生成解读」查看结果。</p>
 
-      <h4 style="color:var(--accent);">🃏 牌格</h4>
-      <p>· 牌格是你当前未完成的人生课题，抽一张牌即锁定。</p>
-      <p>· 完成至少3次真正占卜后，可以重新抽取。</p>
-      <p>· 点首页「抽牌格」即可。</p>
+      <h4 style="color:var(--accent);">🃏 牌灵</h4>
+      <p>· 牌灵，是你潜意识在扑克牌上的投影——这张牌揭晓的，是你尚未完成的灵魂课题。</p>
+      <p>· 理论上，拿一副真实的扑克牌抽，同样成立：那一刻，你的无意识借 54 张牌，选出了它想让你看见的那一张。</p>
+      <p>· 重抽需先完成 3 次正式观象——那不是门槛，是提醒：课题是拿来完成的，不是拿来抽着玩的。</p>
+      <p>· 点首页「牌灵」即可。</p>
 
       <h4 style="color:var(--accent);">☯ 单牌日运</h4>
-      <p>· 在首页点日/周/月/季/年，抽一张牌。</p>
-      <p>· 抽完即锁定，本周期不可重抽。</p>
-      <p>· 可分别查看财运、桃花、贵人、事业、健康、综合运势。</p>
+      <p>· 日运支持<strong>细选类别</strong>：综合、财运、桃花、贵人、事业、健康、学业。</p>
+      <p>· 每个类别独立抽牌、独立锁定。</p>
+      <p>· 点击已抽牌面可直接查看解读。</p>
+      <div style="background:rgba(201,160,96,0.06);border:1px solid var(--border);border-radius:8px;padding:10px;margin:8px 0;font-size:0.8rem;">
+        <strong style="color:var(--accent);">周期判定方法：</strong><br>
+        日运：今天（自然日）<br>
+        周运：当前自然周（周一~周日）<br>
+        月运：当前自然月（1日~月末）<br>
+        季运：当前季度（1-3/4-6/7-9/10-12 月）<br>
+        年运：当前自然年（1月1日~12月31日）
+      </div>
 
       <h4 style="color:var(--accent);">📚 牌面对应：</h4>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:0.8rem;margin:8px 0;">
@@ -60,20 +74,28 @@ export function renderTeachingPanel() {
         <div>♦ 方块 → 金（阳）</div>
         <div>♣ 梅花 → 木（阴）</div>
         <div>♠ 黑桃 → 水（阴）</div>
-        <div>J / Q / K → 土</div>
+        <div>J/Q/K → 土（不分花色）</div>
         <div>大王 → 天（阳）</div>
         <div>小王 → 人（阴）</div>
         <div>红色 → 阳，黑色 → 阴</div>
       </div>
+      <p style="font-size:0.72rem;color:var(--accent);">
+        ※ A-10 按花色分五行；J/Q/K 不分花色，一律属土。
+      </p>
 
       <h4 style="color:var(--accent);">💡 生克口诀：</h4>
       <p>木生火、火生土、土生金、金生水、水生木</p>
       <p>木克土、土克水、水克火、火克金、金克木</p>
 
       <h4 style="color:var(--accent);">🔄 其他功能：</h4>
-      <p>· 榴莲指数：数值越高代表牌局张力越大，注意节奏。</p>
+      <p>· 张力指数：数值越高代表牌局张力越大，注意节奏。</p>
       <p>· AI解读：需要配置API Key（顶部「AI」按钮）。</p>
-      <p>· 数据迁移：点「📦 迁移」可导出/导入全部数据。</p>
+<p>· 数据备份：点顶部「备份」可导出/导入全部数据。</p>
+
+      <h4 style="color:var(--accent);">🃏 实体牌对照（现实占卜入门）：</h4>
+      ${PHYSICAL_GUIDE.sections.map(s => `
+        <p style="margin:6px 0;"><strong>${escapeForHTML(s.heading)}</strong><br>${escapeForHTML(s.body)}</p>
+      `).join('')}
 
       <h4 style="color:var(--accent);">⚠️ 重要提醒：</h4>
       <p>· 不测生死、不窥他人</p>
@@ -83,6 +105,49 @@ export function renderTeachingPanel() {
     </div>
   `;
   setHTML(container, html);
+}
+
+// ===== 更多周期运弹窗 =====
+function showMorePeriodsModal() {
+  const modal = document.getElementById('modal');
+  const content = document.getElementById('modalContent');
+  if (!modal || !content) return;
+
+  const storedPeriods = getStoredPeriodCards();
+
+  // 日运细选面板
+  const dailyTypesHTML = DAILY_FORTUNE_TYPES.map(t => {
+    const periodKey = getCurrentPeriodKey('daily');
+    const stored = storedPeriods[`daily_${t.key}`];
+    const hasCard = stored && stored.periodKey === periodKey && stored.card;
+    const btnText = hasCard ? `${t.icon} ${t.label}·查看` : `${t.icon} ${t.label}·抽牌`;
+    const action = hasCard ? 'openPeriodDetail' : 'openPeriodDeck';
+    return `<button data-action="${action}" data-period="daily" data-fortune-type="${t.key}" class="small outline" style="width:100%;padding:10px;font-size:0.8rem;text-align:left;">${btnText}</button>`;
+  }).join('');
+
+  // 周月季年
+  const otherPeriodsHTML = Object.entries(PERIODS).filter(([key]) => key !== 'daily').map(([key, p]) => {
+    const periodKey = getCurrentPeriodKey(key);
+    const stored = storedPeriods[key];
+    const hasCard = stored && stored.periodKey === periodKey && stored.card;
+    const btnText = hasCard ? `${p.label}·查看` : `${p.label}·抽牌`;
+    const action = hasCard ? 'openPeriodDetail' : 'openPeriodDeck';
+    return `<button data-action="${action}" data-period="${key}" class="small outline" style="width:100%;padding:10px;font-size:0.8rem;">${btnText}</button>`;
+  }).join('');
+
+  const html = `
+    <h3 style="color:var(--accent);text-align:center;margin-bottom:12px;">选择周期运</h3>
+    <div style="font-size:0.7rem;color:var(--dim);text-align:center;margin:4px 0 8px;">日运可细选类别，各自独立抽牌锁定</div>
+    <div style="display:flex;flex-direction:column;gap:4px;max-height:40vh;overflow-y:auto;padding:4px;">
+      <div style="font-size:0.7rem;color:var(--accent);margin:4px 0 2px;">☯ 日运细选</div>
+      ${dailyTypesHTML}
+      <div style="font-size:0.7rem;color:var(--accent);margin:8px 0 2px;">📅 周期运</div>
+      ${otherPeriodsHTML}
+      <button data-action="closeModal" class="small outline" style="width:100%;padding:10px;font-size:0.8rem;margin-top:6px;">取消</button>
+    </div>
+  `;
+  setHTML(content, html);
+  modal.removeAttribute('hidden');
 }
 
 // ===== 首页：窄Hero + 深度占卜台 =====
@@ -112,96 +177,134 @@ export function renderStep1() {
   const storedPeriods = getStoredPeriodCards();
 
   const html = `
-    <!-- 🎨 玄学封面区（窄版） -->
+    <!-- 🎨 玄学封面区（深色·简洁） -->
     <div id="heroSection" style="
-      background: linear-gradient(135deg, #f5efe6 0%, #e8dfd1 100%);
+      background: linear-gradient(135deg, #0d0b1c 0%, #191530 100%);
+      border: 1px solid #c9a96e44;
       border-radius: 10px;
       padding: 10px 12px;
       margin-bottom: 14px;
       text-align: center;
-      border: 1px solid #d4c5a0;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-      color: #2c2c2c;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+      color: #c8c8d8;
     ">
-      <div style="font-size: 0.55rem; color: #b8a080; letter-spacing: 2px; margin-bottom: 2px;">· 浮 生 若 梦 ·</div>
-      <div style="font-size: 1.1rem; font-weight: bold; font-family: 'KaiTi', 'PingFang SC', serif; margin: 0; color: #1a1a1a;">抽 一 张 牌 · 见 一 个 课 题</div>
-      <div style="width: 28px; height: 1px; background: #c0392b; margin: 6px auto;"></div>
-      <div style="font-size: 0.7rem; color: #5a4a3a; margin-bottom: 8px;">你的牌格 · 揭示未完成的人生课题</div>
-      <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+      <div style="font-size: 0.55rem; color: #8b6f47; letter-spacing: 2px; margin-bottom: 2px;">· 浮 生 若 梦 ·</div>
+      <div style="font-size: 1.1rem; font-weight: 600; background: linear-gradient(90deg, #c9a96e, #e8cf9a, #c9a96e); -webkit-background-clip: text; background-clip: text; color: transparent; letter-spacing: 0.06em; margin: 0;">抽 一 张 牌 · 见 一 个 课 题</div>
+      <div style="width: 28px; height: 1px; background: #8b6f47; margin: 6px auto;"></div>
+      <div style="font-size: 0.7rem; color: #77778a; margin-bottom: 8px;">牌灵与日运 · 各守一签，只存本机</div>
+      <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
         <button id="paigeBtn" style="
-          background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
-          color: #f5efe6;
-          border: none;
-          padding: 6px 18px;
+          background: rgba(201,169,110,0.10);
+          color: #c9a96e;
+          border: 1px solid #c9a96e88;
+          padding: 8px 24px;
           border-radius: 24px;
-          font-size: 0.8rem;
-          font-family: 'KaiTi', 'PingFang SC', serif;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+          font-size: 0.9rem;
+          font-family: 'Noto Serif SC', 'Songti SC', serif;
+          font-weight: 700;
           cursor: pointer;
-        ">🃏 抽牌格</button>
+        ">牌灵</button>
         <button id="quickDailyBtn" style="
           background: transparent;
-          color: #1a1a1a;
-          border: 1px solid #b8a080;
-          padding: 6px 18px;
+          color: #e07a66;
+          border: 1px solid #b03a2eaa;
+          padding: 8px 24px;
           border-radius: 24px;
-          font-size: 0.8rem;
-          font-family: 'KaiTi', 'PingFang SC', serif;
+          font-size: 0.9rem;
+          font-family: 'Noto Serif SC', 'Songti SC', serif;
           cursor: pointer;
-        ">☯ 今日运势</button>
+        ">☯ 日运</button>
       </div>
-      <div style="margin-top: 6px; font-size: 0.5rem; color: #b8a080;">💡 完成 3 次真实占卜后可重抽</div>
+      <div style="margin-top: 6px; font-size: 0.5rem; color: #77778a; opacity: 0.7;">牌灵需 3 次观象方可重抽 · 日运细选各类别独立锁定</div>
     </div>
 
-    <!-- ⚙️ 深度工具区（完整功能） -->
-    <div id="toolSection" style="border-top: 1px dashed #e0d5c5; padding-top: 20px;">
-      <div style="font-size: 0.75rem; color: #b8a080; text-align: center; margin-bottom: 12px;">🪷 深 度 占 卜 台</div>
-      <input type="text" id="questionInput" placeholder="${escapeForHTML(UI_TEXTS.placeholderQuestion)}" autocomplete="off" value="${escapeForHTML(state.question)}">
+    <!-- 🃏 牌灵 + 🌤 今日日运（已抽则直接可见，无需点击；未抽给轻引导） -->
+    <div id="dualStrip" style="margin-bottom: 14px;"></div>
+
+    <!-- ⚙️ 深度工具区 -->
+    <div id="toolSection" style="border-top: 1px dashed #323242; padding-top: 20px;">
+      <div style="font-size: 0.75rem; color: #8b6f47; text-align: center; margin-bottom: 12px;">🪷 深 度 占 卜 台</div>
+      <div style="display:flex;justify-content:center;gap:6px;margin-bottom:8px;">
+        <button data-action="toggleConsultMode" class="small ${state.consultMode ? 'primary' : 'outline'}" style="font-size:0.7rem;">${state.consultMode ? '🧑 帮别人问 · 已开启' : '🧑 帮别人问'}</button>
+      </div>
+      ${state.consultMode ? `<input type="text" id="consultNameInput" placeholder="求测人称呼（可选，如：朋友小王）" autocomplete="off" value="${escapeForHTML(state.consultName)}" style="position:relative;z-index:2;pointer-events:auto;margin-bottom:6px;border:1px solid #c9a96e55;">` : ''}
+      <input type="text" id="questionInput" placeholder="${escapeForHTML(state.consultMode ? '求测人想问什么？' : UI_TEXTS.placeholderQuestion)}" autocomplete="off" value="${escapeForHTML(state.question)}" style="position:relative;z-index:2;pointer-events:auto;">
       ${renderCatBtns(state.category, state.subCategory)}
       <div class="btn-row">
         <button data-action="confirmQuestion" class="primary">${escapeForHTML(UI_TEXTS.btnStartDraw)}</button>
         <button data-action="lazyStart" class="outline">${escapeForHTML(UI_TEXTS.btnLazy)}</button>
+        <button data-action="manualEntry" class="outline">${escapeForHTML(UI_TEXTS.btnManual)}</button>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:12px;">
-        ${Object.entries(PERIODS).map(([key, p]) => {
-          const periodKey = getCurrentPeriodKey(key);
-          const stored = storedPeriods[key];
-          const hasCard = stored && stored.periodKey === periodKey && stored.card;
-          const btnText = hasCard ? `${p.label}·查看` : `${p.label}·抽牌`;
-          const action = hasCard ? 'openPeriodDetail' : 'openPeriodDeck';
-          return `<button data-action="${action}" data-period="${key}" class="small outline">${escapeForHTML(btnText)}</button>`;
-        }).join('')}
+
+      <!-- 周期运入口 -->
+      <div style="display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
+        <button id="morePeriodBtn" class="small outline">更多周期运</button>
       </div>
-      <div style="font-size:0.6rem;color:var(--dim);text-align:center;margin-top:4px;">周期运抽一次即锁定，建议截图保存</div>
-      <div id="periodCardArea" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:12px;justify-content:center;"></div>
+      <div style="font-size:0.6rem;color:#77778a;text-align:center;margin-top:4px;">日运/周运/月运等抽一次即锁定，建议截图保存</div>
+      <div id="periodCardArea" style="margin-top:12px;display:flex;justify-content:center;"></div>
     </div>
 
-    <div style="text-align:center;font-size:0.7rem;color:var(--dim);margin-top:6px;">
-      <a href="#" id="helpClarifyBtn" style="color:var(--accent);">🤔 感觉自己没问清楚？</a>
+    <div style="text-align:center;font-size:0.7rem;color:#77778a;margin-top:6px;">
+      <a href="#" id="helpClarifyBtn" style="color:#c9a96e;">🤔 感觉自己没问清楚？</a>
     </div>
-    <div id="clarifyGuide" style="display:none;margin-top:12px;padding:16px;background:rgba(201,160,96,0.05);border:1px solid var(--border);border-radius:8px;font-size:0.8rem;color:var(--dim);"></div>
+    <div id="clarifyGuide" style="display:none;margin-top:12px;padding:16px;background:rgba(201,169,110,0.05);border:1px solid #323242;border-radius:8px;font-size:0.8rem;color:#77778a;"></div>
   `;
   setHTML(core, html);
 
-  // 牌格入口
+  // 牌灵入口
   document.getElementById('paigeBtn')?.addEventListener('click', () => {
     import('./ui-paige.js').then(m => m.openPaiGe());
   });
 
-  // 今日运势
+  // 日运入口：弹出日运细选
   document.getElementById('quickDailyBtn')?.addEventListener('click', () => {
-    const btn = document.querySelector('[data-action="openPeriodDeck"][data-period="daily"]');
-    if (btn) btn.click();
+    import('./ui-modal.js').then(m => m.showDailyFortunePicker());
   });
 
-  const questionInput = document.getElementById('questionInput');
-  if (questionInput) {
-    questionInput.addEventListener('input', function() {
-      state.question = this.value;
+  // 更多周期运：弹出弹窗
+  document.getElementById('morePeriodBtn')?.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    showMorePeriodsModal();
+  });
+
+  // 输入框：渲染后延迟绑定，避免与其他渲染/引导层事件竞争
+  setTimeout(() => {
+    // 求测人称呼（帮别人问时显示）
+    const consultNameInput = document.getElementById('consultNameInput');
+    if (consultNameInput) {
+      consultNameInput.style.pointerEvents = 'auto';
+      consultNameInput.style.zIndex = '3';
+      consultNameInput.addEventListener('input', () => { state.consultName = consultNameInput.value; });
+      consultNameInput.addEventListener('change', () => { state.consultName = consultNameInput.value; });
+    }
+
+    const questionInput = document.getElementById('questionInput');
+    if (!questionInput) return;
+    questionInput.style.pointerEvents = 'auto';
+    questionInput.style.zIndex = '3';
+    questionInput.removeAttribute('disabled');
+    questionInput.setAttribute('aria-label', state.consultMode ? '求测人想问什么' : '输入你的问题');
+
+    const persistQuestion = () => syncQuestionFromInput(questionInput, state);
+
+    questionInput.addEventListener('focus', () => {
+      questionInput.style.pointerEvents = 'auto';
+      questionInput.style.zIndex = '3';
+      questionInput.removeAttribute('disabled');
+      persistQuestion();
     });
-  }
+    questionInput.addEventListener('input', persistQuestion);
+    questionInput.addEventListener('change', persistQuestion);
+    questionInput.addEventListener('blur', () => {
+      questionInput.style.pointerEvents = 'auto';
+      questionInput.style.zIndex = '3';
+      persistQuestion();
+    });
+  }, 0);
 
   renderPeriodCards();
+  renderTodayFortuneStrip();
 
   document.getElementById('helpClarifyBtn')?.addEventListener('click', (e) => {
     e.preventDefault();
@@ -209,8 +312,8 @@ export function renderStep1() {
     if (!guide) return;
     guide.style.display = 'block';
     guide.innerHTML = `
-      <div style="color:var(--accent);font-weight:bold;margin-bottom:8px;">🤔 理清问题</div>
-      <h4 style="color:var(--text);">5W2H</h4>
+      <div style="color:#c9a96e;font-weight:bold;margin-bottom:8px;">🤔 理清问题</div>
+      <h4 style="color:#c8c8d8;">5W2H</h4>
       <p><strong>What</strong> 你要问的事是什么？</p>
       <p><strong>Why</strong> 为什么现在问？</p>
       <p><strong>Who</strong> 这事涉及谁？</p>
@@ -218,7 +321,7 @@ export function renderStep1() {
       <p><strong>Where</strong> 在什么场景下？</p>
       <p><strong>How</strong> 如果做，打算怎么做？</p>
       <p><strong>How much</strong> 你愿意付出多少？</p>
-      <h4 style="color:var(--text);margin-top:12px;">SWOT 自检</h4>
+      <h4 style="color:#c8c8d8;margin-top:12px;">SWOT 自检</h4>
       <p><strong>S</strong> 优势：你手里有什么牌？</p>
       <p><strong>W</strong> 劣势：你怕什么？</p>
       <p><strong>O</strong> 机会：什么可能帮你？</p>
@@ -228,61 +331,255 @@ export function renderStep1() {
   });
 }
 
-// ===== 周期卡渲染（锁定状态显示） =====
+// ===== 牌灵 + 今日日运 双横幅（对等展示：已抽直接可见，未抽给轻引导） =====
+// theme: 'tarot'（西方·深空暗金） / 'daily'（东方·宣纸朱砂）——东西方美学硬隔离
+function bannerShell({ theme = 'tarot', label, sub, cardCls, cardText, goldBorder, title, line, tags, shareId, viewHTML }) {
+  const isEast = theme === 'daily';
+  const cardStyle = goldBorder
+    ? 'width:58px;height:82px;font-size:1.2rem;border-radius:8px;border:2px solid #c9a96e;'
+    : 'width:58px;height:82px;font-size:1.2rem;border-radius:8px;';
+  const boxStyle = isEast
+    ? 'flex:1 1 300px;min-width:280px;background:rgba(25,22,28,0.85);border:1px solid #b03a2e88;border-radius:12px;padding:14px 16px;display:flex;gap:14px;align-items:center;backdrop-filter:blur(4px);'
+    : 'flex:1 1 300px;min-width:280px;background:linear-gradient(135deg,#0d0b1c,#191530);border:1px solid #c9a96e66;border-radius:12px;padding:14px 16px;display:flex;gap:14px;align-items:center;';
+  const labelColor = isEast ? '#e07a66' : '#c9a96e';      // 朱砂(亮) vs 暗金
+  const subColor = isEast ? '#a89a82' : '#8b8ba0';
+  const titleColor = isEast ? '#d6cbb5' : '#e8e4da';
+  const lineColor = isEast ? '#a89a82' : '#a8a4b8';
+  const tagStyle = isEast
+    ? 'border:1px solid #e07a6688;color:#e07a66;font-size:0.6rem;padding:2px 8px;border-radius:10px;'
+    : 'border:1px solid #c9a96e55;color:#c9a96e;font-size:0.6rem;padding:2px 8px;border-radius:10px;';
+  const shareBtnHTML = isEast
+    ? `background:rgba(176,58,46,0.15);color:#e07a66;border:1px solid #b03a2e88;font-weight:700;min-width:72px;`
+    : `background:rgba(201,169,110,0.12);color:#c9a96e;border:1px solid #c9a96e88;font-weight:700;min-width:72px;`;
+  return `
+    <div style="${boxStyle}">
+      <div class="mini-card ${cardCls}" style="${cardStyle}flex-shrink:0;">${escapeForHTML(cardText)}</div>
+      <div style="flex:1;min-width:150px;">
+        <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
+          <span style="color:${labelColor};font-weight:700;font-size:0.85rem;">${label}</span>
+          <span style="font-size:0.72rem;color:${subColor};">${escapeForHTML(sub)}</span>
+        </div>
+        <div style="font-size:0.95rem;color:${titleColor};font-weight:600;margin-top:4px;">${escapeForHTML(title)}</div>
+        <div style="font-size:0.8rem;color:${lineColor};margin-top:2px;line-height:1.5;">${escapeForHTML(line)}</div>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
+          ${tags.map(tag => `<span style="${tagStyle}">${escapeForHTML(tag)}</span>`).join('')}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+        <button id="${shareId}" class="small" style="${shareBtnHTML}">☯ 分享图</button>
+        ${viewHTML}
+      </div>
+    </div>
+  `;
+}
+
+export function renderTodayFortuneStrip() {
+  const el = document.getElementById('dualStrip');
+  if (!el) return;
+
+  // ---- ① 牌灵横幅 ----
+  let paigeBanner = '';
+  let paigeCard = null;
+  try {
+    const raw = localStorage.getItem('fsp_paige');
+    const paigeData = raw ? JSON.parse(raw) : null;
+    if (paigeData && paigeData.card) {
+      paigeCard = paigeData.card;
+      const q = getPaiGeQuestion(paigeCard);
+      const hook = getFriendCircleHook(paigeCard);
+      const tags = (q?.keywords?.length ? q.keywords : hook.tags || []).slice(0, 3);
+      const colorCls = getCardColor(paigeCard);
+      const rank = paigeCard.isJoker ? paigeCard.type : paigeCard.rank;
+      const suit = paigeCard.isJoker ? '' : paigeCard.suit;
+      const wx = getWuxing(paigeCard);
+      paigeBanner = bannerShell({
+        theme: 'tarot',
+        label: '🃏 我的牌灵',
+        sub: `${wx} · 人生课题`,
+        cardCls: colorCls, cardText: rank + suit, goldBorder: true,
+        title: q?.title || hook.title,
+        line: q?.question || hook.line,
+        tags,
+        shareId: 'paigeBannerShareBtn',
+        viewHTML: '<button data-action="openPaiGe" class="small outline" style="color:#c9a96e;border-color:#c9a96e66;">查看</button>',
+      });
+    }
+  } catch (e) { paigeCard = null; }
+
+  if (!paigeBanner) {
+    paigeBanner = `
+      <div style="flex:1 1 300px;min-width:280px;background:linear-gradient(135deg,#0d0b1c,#191530);border:1px dashed #c9a96e66;border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <div style="font-size:0.78rem;color:#8b8ba0;">
+          <span style="color:#c9a96e;font-weight:700;">🃏 我的牌灵</span>
+          <span style="opacity:0.85;"> · 一签即锁 · 只存本机</span>
+        </div>
+        <button id="drawPaigeBannerBtn" style="background:rgba(201,169,110,0.12);color:#c9a96e;border:1px solid #c9a96e88;padding:7px 18px;border-radius:18px;font-size:0.8rem;font-weight:700;cursor:pointer;">抽一张</button>
+      </div>
+    `;
+  }
+
+  // ---- ② 今日日运横幅 ----
+  const storedPeriods = getStoredPeriodCards();
+  const todayKey = getCurrentPeriodKey('daily');
+  const drawn = DAILY_FORTUNE_TYPES
+    .map(t => ({ t, stored: storedPeriods[`daily_${t.key}`] }))
+    .filter(x => x.stored && x.stored.periodKey === todayKey && x.stored.card);
+
+  let dailyBanner = '';
+  let dailyCard = null;
+  let dailyTypeKey = 'overall';
+  if (drawn.length) {
+    const main = drawn.find(x => x.t.key === 'overall') || drawn[0];
+    dailyCard = main.stored.card;
+    dailyTypeKey = main.t.key;
+    const fortune = getDailyFortune(dailyCard, main.t.key) || { grade: '中平', typeLabel: main.t.label };
+    const hook = getFriendCircleHook(dailyCard);
+    const tags = getFortuneTags(dailyCard, main.t.key).slice(0, 3);
+    const colorCls = getCardColor(dailyCard);
+    const rank = dailyCard.isJoker ? dailyCard.type : dailyCard.rank;
+    const suit = dailyCard.isJoker ? '' : dailyCard.suit;
+    const wx = getWuxing(dailyCard);
+    dailyBanner = bannerShell({
+      theme: 'daily',
+      label: `🌤 今日日运 · ${main.t.icon}${main.t.label}`,
+      sub: `${wx} · ${fortune.grade} · ${fortune.mood || ''}`,
+      cardCls: colorCls, cardText: rank + suit, goldBorder: false,
+      title: hook.title, line: hook.line, tags,
+      shareId: 'dailyBannerShareBtn',
+      viewHTML: `<button class="small outline" style="color:#e07a66;border-color:#e07a66aa;" data-action="openPeriodDetail" data-period="daily" data-fortune-type="${main.t.key}">查看解读</button>`,
+    });
+  }
+
+  if (!dailyBanner) {
+    dailyBanner = `
+      <div style="flex:1 1 300px;min-width:280px;background:rgba(25,22,28,0.85);border:1px dashed #b03a2e88;border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;backdrop-filter:blur(4px);">
+        <div style="font-size:0.78rem;color:#a89a82;">
+          <span style="color:#e07a66;font-weight:700;">🌤 今日日运</span>
+          <span style="opacity:0.85;"> · 每天一签 · 只存本机</span>
+        </div>
+        <button id="drawDailyBannerBtn" style="background:#b03a2e;color:#f6efdd;border:none;padding:7px 18px;border-radius:18px;font-size:0.8rem;font-weight:700;cursor:pointer;">抽一张</button>
+      </div>
+    `;
+  }
+
+  setHTML(el, `
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:stretch;">
+      ${paigeBanner}
+      ${dailyBanner}
+    </div>
+  `);
+
+  el.querySelector('#drawPaigeBannerBtn')?.addEventListener('click', () => {
+    import('./ui-paige.js').then(m => m.openPaiGe());
+  });
+  el.querySelector('#drawDailyBannerBtn')?.addEventListener('click', () => {
+    import('./ui-modal.js').then(m => m.showDailyFortunePicker());
+  });
+  el.querySelector('#paigeBannerShareBtn')?.addEventListener('click', () => {
+    if (paigeCard) {
+      import('./ui-modal.js').then(m => m.generateShareImage({ type: 'paige', card: paigeCard, template: 'tarot' }));
+    }
+  });
+  el.querySelector('#dailyBannerShareBtn')?.addEventListener('click', () => {
+    if (dailyCard) {
+      import('./ui-modal.js').then(m => m.generateShareImage({ type: 'daily', card: dailyCard, typeKey: dailyTypeKey, fortuneType: dailyTypeKey, template: 'daily' }));
+    }
+  });
+}
+
+// ===== 周期卡渲染（牌灵卡 + 日运细选 + 周/月/季/年） =====
 export function renderPeriodCards() {
   const area = document.getElementById('periodCardArea');
   if (!area) return;
   setHTML(area, '');
 
-  const isTouch = window.matchMedia('(pointer: coarse)').matches;
-  if (isTouch) {
-    area.style.cssText = 'display:flex;flex-wrap:nowrap;gap:12px;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;padding:8px 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x;overscroll-behavior:contain;';
-  } else {
-    area.style.cssText = 'display:flex;flex-wrap:wrap;gap:12px;justify-content:center;';
-  }
-
   const storedPeriods = getStoredPeriodCards();
+  const todayKey = getCurrentPeriodKey('daily');
 
-  Object.entries(PERIODS).forEach(([key, p]) => {
+  // 1. 牌灵卡（独立存储 key 'fsp_paige'）
+  let paigeHTML = '';
+  try {
+    const raw = localStorage.getItem('fsp_paige');
+    if (raw) {
+      const paigeData = JSON.parse(raw);
+      if (paigeData && paigeData.card) {
+        const card = paigeData.card;
+        const colorCls = getCardColor(card);
+        const rank = card.isJoker ? card.type : card.rank;
+        const suit = card.isJoker ? '' : card.suit;
+        const wx = getWuxing(card);
+        paigeHTML = `
+          <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;padding:6px;border-radius:8px;flex-shrink:0;" data-action="openPaiGe" title="我的牌灵">
+            <div class="mini-card ${colorCls}" style="width:44px;height:62px;font-size:0.9rem;border-radius:6px;border:2px solid #c9a96e;">${escapeForHTML(rank + suit)}</div>
+            <div style="font-size:0.5rem;color:#c9a96e;margin-top:3px;">♟ 牌灵</div>
+            <div style="font-size:0.45rem;color:#77778a;">${wx}</div>
+          </div>
+        `;
+      }
+    }
+  } catch (e) { /* 忽略损坏数据 */ }
+
+  // 2. 日运细选卡
+  let dailyCardsHTML = '';
+  DAILY_FORTUNE_TYPES.forEach(t => {
+    const stored = storedPeriods[`daily_${t.key}`];
+    if (!stored || stored.periodKey !== todayKey || !stored.card) return;
+    const card = stored.card;
+    const colorCls = getCardColor(card);
+    const rank = card.isJoker ? card.type : card.rank;
+    const suit = card.isJoker ? '' : card.suit;
+    const wx = getWuxing(card);
+    dailyCardsHTML += `
+      <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;padding:6px;border-radius:8px;flex-shrink:0;" data-action="openPeriodDetail" data-period="daily" data-fortune-type="${t.key}" title="${t.label}运势">
+        <div class="mini-card ${colorCls}" style="width:44px;height:62px;font-size:0.9rem;border-radius:6px;">${escapeForHTML(rank + suit)}</div>
+        <div style="font-size:0.5rem;color:#c9a96e;margin-top:3px;">${t.icon} ${t.label}</div>
+        <div style="font-size:0.45rem;color:#77778a;">${wx}</div>
+      </div>
+    `;
+  });
+
+  // 3. 周/月/季/年卡
+  let otherCardsHTML = '';
+  Object.entries(PERIODS).filter(([key]) => key !== 'daily').forEach(([key, p]) => {
     const periodKey = getCurrentPeriodKey(key);
     const stored = storedPeriods[key];
-    const title = getPeriodTitle(key);
-
-    if (stored && stored.periodKey === periodKey && stored.card) {
-      const card = stored.card;
-      const colorCls = getCardColor(card);
-      const rank = card.isJoker ? card.type : card.rank;
-      const suit = card.isJoker ? '' : card.suit;
-      const wx = getWuxing(card);
-
-      const html = `
-        <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;flex-shrink:0;min-width:60px;padding:6px;border-radius:8px;touch-action:manipulation;" data-action="openPeriodDetail" data-period="${key}" title="${escapeForHTML(title)}">
-          <div class="mini-card ${colorCls}" style="width:52px;height:72px;font-size:1rem;border-radius:6px;">${escapeForHTML(rank + suit)}</div>
-          <div style="font-size:0.55rem;color:var(--dim);margin-top:4px;">${escapeForHTML(p.label)}</div>
-          <div style="font-size:0.5rem;color:var(--accent);">${escapeForHTML(wx)}</div>
-        </div>
-      `;
-      setHTML(area, area.innerHTML + html);
-    } else {
-      const html = `
-        <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;flex-shrink:0;min-width:60px;padding:6px;border-radius:8px;touch-action:manipulation;" data-action="openPeriodDeck" data-period="${key}" title="${escapeForHTML(title)}">
-          <div class="card-back" style="width:52px;height:72px;border-radius:6px;"></div>
-          <div style="font-size:0.55rem;color:var(--dim);margin-top:4px;">${escapeForHTML(p.label)}</div>
-        </div>
-      `;
-      setHTML(area, area.innerHTML + html);
-    }
+    if (!stored || stored.periodKey !== periodKey || !stored.card) return;
+    const card = stored.card;
+    const colorCls = getCardColor(card);
+    const rank = card.isJoker ? card.type : card.rank;
+    const suit = card.isJoker ? '' : card.suit;
+    const wx = getWuxing(card);
+    otherCardsHTML += `
+      <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;padding:6px;border-radius:8px;flex-shrink:0;" data-action="openPeriodDetail" data-period="${key}" title="${p.label}">
+        <div class="mini-card ${colorCls}" style="width:44px;height:62px;font-size:0.9rem;border-radius:6px;">${escapeForHTML(rank + suit)}</div>
+        <div style="font-size:0.5rem;color:#c9a96e;margin-top:3px;">${p.label}</div>
+        <div style="font-size:0.45rem;color:#77778a;">${wx}</div>
+      </div>
+    `;
   });
+
+  const html = paigeHTML + dailyCardsHTML + otherCardsHTML;
+  if (!html) {
+    setHTML(area, `<div style="font-size:0.7rem;color:#77778a;text-align:center;padding:12px;">日运可细选：点上方「日运」开始</div>`);
+    return;
+  }
+  setHTML(area, `<div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;">${html}</div>`);
 }
 
 // ===== 布阵步骤 =====
 export function renderStep2() {
   const core = document.getElementById('coreArea');
   if (!core) return;
+  const seqHint = state.manualMode
+    ? (state.manualSeq
+      ? '📋 顺序录入：依次点击牌堆——第 1 张＝「你」，第 2 张＝「所问之事」，第 3 张起自动按九宫顺序布入。'
+      : '🎯 自由放置：先点一张牌选中，再点「你」「所问之事」或九宫宫位放置。')
+    : '点击牌堆中的牌选中，再点击「你」或「所问之事」放置；桌面端可直接拖拽。放完点「布阵」。';
   const html = `
-    <h3>${state.manualMode ? '手动录入 · 明牌选阵' : '立极·布阵'}</h3>
+    <h3>${state.manualMode ? '手动录入 · 明牌模式' : '立极·布阵'}</h3>
     <div style="font-size:0.8rem;color:var(--dim);margin-bottom:8px;">
-      点击牌堆中的牌选中，再点击「你」或「所问之事」放置；桌面端可直接拖拽。放完点「布阵」。
+      ${seqHint}
+      ${state.manualMode ? `<button data-action="toggleManualSeq" class="outline small" style="margin-left:8px;font-size:0.7rem;">${state.manualSeq ? '切换为自由放置' : '切换为顺序录入'}</button>` : ''}
     </div>
     <div id="durianDisplay" style="margin-bottom:8px;"></div>
     <div class="deck-grid" id="deckContainer"></div>
@@ -300,7 +597,6 @@ export function renderStep2() {
       <div class="btn-row">
         <button data-action="resetGrid" class="outline small">清九宫</button>
         ${state.manualMode ? '' : '<button data-action="generateInterpretation" class="small primary">' + escapeForHTML(UI_TEXTS.btnInterpret) + '</button>'}
-        ${!state.manualMode && state.line ? '<button data-action="sealDeck" class="outline small">🔒 封印</button>' : ''}
       </div>
     </div>
   `;
@@ -317,6 +613,7 @@ export function renderFullReport(text, modules = null) {
 
   const html = `
     <h3>${escapeForHTML(UI_TEXTS.step3)}</h3>
+    ${state.consultMode && state.consultName ? `<p style="font-size:0.8rem;color:var(--dim);text-align:center;margin-bottom:6px;">🧑 为「${escapeForHTML(state.consultName)}」所问</p>` : ''}
     <div id="durianDisplay" style="margin-bottom:8px;"></div>
     <div class="result-block" id="interpretText" style="font-size:0.9rem;line-height:1.9;max-height:60vh;overflow-y:auto;padding:16px;white-space:pre-wrap;">${escapeForHTML(text)}</div>
     <div class="btn-row">
@@ -341,12 +638,11 @@ export function renderFullReport(text, modules = null) {
   `;
   setHTML(result, html);
   renderDurianDisplay();
-  document.getElementById('copyPromptBtn')?.addEventListener('click', async () => {
+  document.getElementById('copyPromptBtn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
     const prompt = await import('../ui.js').then(m => m.buildAIPrompt());
-    navigator.clipboard.writeText(prompt).then(
-      () => toast('✅ 提示词已复制'),
-      () => toast('复制失败')
-    );
+    const ok = await copyTextWithFeedback(prompt, btn);
+    toast(ok ? '✅ 提示词已复制（自动带上你的问题与领域）' : '复制失败，请长按手动复制');
   });
 }
 
@@ -425,7 +721,7 @@ export function renderTiYong() {
   if (btn) btn.disabled = !(state.ti && state.yong);
 }
 
-// ===== 九宫格（逐牌差值，显示绝对值+方向，无星号） =====
+// ===== 九宫格（逐牌差值） =====
 export function renderGrid() {
   const el = document.getElementById('gridContainer');
   if (!el) return;
@@ -465,11 +761,27 @@ export function renderGrid() {
   }).join('');
 }
 
+// ===== 九宫按钮区（动态渲染封印按钮，天机线连成后出现） =====
+export function renderGridButtons() {
+  const row = document.querySelector('#gridArea .btn-row');
+  if (!row) return;
+  const old = row.querySelector('[data-action="sealDeck"]');
+  if (old) old.remove();
+  if (!state.manualMode && state.line && !state.sealed) {
+    const btn = document.createElement('button');
+    btn.dataset.action = 'sealDeck';
+    btn.className = 'outline small';
+    btn.textContent = '🔒 封印';
+    row.appendChild(btn);
+  }
+}
+
 // ===== 刷新所有 =====
 export function refreshAll() {
   renderDeck();
   renderTiYong();
   renderGrid();
+  renderGridButtons();
   renderDurianDisplay();
 }
 
@@ -486,7 +798,7 @@ function handleScrollButtons(e) {
   if (rightBtn) { e.stopPropagation(); const deck = document.getElementById('deckContainer'); if (deck) deck.scrollBy({ left: 180, behavior: 'smooth' }); return; }
 }
 
-// ===== 榴莲指数显示 =====
+// ===== 张力指数显示（克制：色条 + 数字，无装饰图形） =====
 export function renderDurianDisplay() {
   const container = document.getElementById('durianDisplay');
   if (!container) return;
@@ -496,24 +808,69 @@ export function renderDurianDisplay() {
   }
   const result = calculateDurianIndex(state);
   state.durianIndex = result;
-  const icon = getDurianIcon(result.score);
-  const html = `<div style="display:flex;align-items:center;gap:12px;padding:8px 12px;background:rgba(0,0,0,0.2);border-radius:8px;margin:4px 0;"><span style="font-size:1.8rem;">${icon}</span><div><div style="font-weight:bold;font-size:1rem;">榴莲指数 ${result.score}/10 <span style="color:${result.score < 3 ? '#4CAF50' : result.score < 5 ? '#8BC34A' : result.score < 7 ? '#FFC107' : result.score < 9 ? '#FF9800' : '#F44336'};font-size:0.75rem;">（${result.level}）</span></div><div style="font-size:0.75rem;color:var(--dim);">${escapeForHTML(result.description)}</div></div></div>`;
+  const color = getDurianColor(result.score);
+  const pct = Math.round(result.score * 10);
+  const html = `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(0,0,0,0.2);border-radius:8px;margin:4px 0;">
+    <div style="flex:1;min-width:0;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;">
+        <span style="font-size:0.75rem;color:var(--dim);">张力指数</span>
+        <span style="font-weight:bold;font-size:0.9rem;">${result.score}/10 <span style="color:${color};font-size:0.7rem;">（${result.level}）</span></span>
+      </div>
+      <div style="height:4px;background:rgba(255,255,255,0.12);border-radius:2px;margin:6px 0 4px;overflow:hidden;">
+        <div style="width:${pct}%;height:100%;background:${color};border-radius:2px;transition:width .3s ease;"></div>
+      </div>
+      <div style="font-size:0.7rem;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeForHTML(result.description)}</div>
+    </div>
+  </div>`;
   setHTML(container, html);
 }
 
-// ===== 设置面板 =====
+// ===== 设置面板（含AI高级参数回填） =====
 export function initSettingsPanel() {
   const s = getApiSettings();
   if (s) {
+    // 厂商按钮选中状态
     document.querySelectorAll('#providerGrid button').forEach(b => b.classList.toggle('selected', b.dataset.value === s.provider));
+
+    // 基础字段
     const keyInput = document.getElementById('apiKey');
     if (keyInput) keyInput.value = s.apiKey || '';
     const endpointInput = document.getElementById('apiEndpoint');
     if (endpointInput) endpointInput.value = s.endpoint || '';
+    const modelInput = document.getElementById('apiModel');
+    if (modelInput) modelInput.value = s.model || '';
     const styleSelect = document.getElementById('aiStyle');
     if (styleSelect) styleSelect.value = s.aiStyle || 'guide';
+
+    // AI高级参数回填
+    const temperatureInput = document.getElementById('aiTemperature');
+    if (temperatureInput) temperatureInput.value = s.temperature !== undefined ? s.temperature : 0.7;
+    const maxTokensInput = document.getElementById('aiMaxTokens');
+    if (maxTokensInput) maxTokensInput.value = s.maxTokens || 2048;
+    const topPInput = document.getElementById('aiTopP');
+    if (topPInput) topPInput.value = s.topP !== undefined ? s.topP : 0.9;
+    const headersInput = document.getElementById('aiHeaders');
+    if (headersInput) headersInput.value = s.headers ? JSON.stringify(s.headers) : '';
+
+    // 如果选择了厂商默认模型，但 model 为空，自动填充默认模型
+    if (!s.model && s.provider && API_PROVIDERS[s.provider]) {
+      if (modelInput) modelInput.placeholder = API_PROVIDERS[s.provider].model || '';
+    }
   }
   updateApiStatus();
+
+  // 高级面板折叠切换
+  const advToggle = document.getElementById('aiAdvToggle');
+  const advPanel = document.getElementById('aiAdvPanel');
+  if (advToggle && advPanel) {
+    if (!advToggle.dataset.bound) {
+      advToggle.addEventListener('click', function() {
+        advPanel.classList.toggle('open');
+        this.textContent = advPanel.classList.contains('open') ? '⚙ 高级参数 ▲' : '⚙ 高级参数';
+      });
+      advToggle.dataset.bound = 'true';
+    }
+  }
 }
 
 // ===== 个人面板 =====

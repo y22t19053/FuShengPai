@@ -91,11 +91,11 @@ export const gongPhrases = {
 
 // ===== 五行词汇 =====
 export const elementPhrases = {
-  '火': { positive: ['充满热情', '有感染力', '果断有力', '行动迅速', '勇于冒险'], negative: ['容易急躁', '过度燃烧自己', '缺乏耐心', '伤人而不自知'], action: ['需要找到燃料的可持续来源', '给火加个灶，让热情有方向', '把热情转为持久力', '慢下来反而能烧得更久'], metaphor: ['你是一团火，温暖别人也在燃烧自己', '火不控制火，只有风能改变方向', '火焰需要燃料，人也需要补给'] },
-  '金': { positive: ['清晰果断', '有边界感', '判断力强', '坚韧不拔', '像刀一样锋利'], negative: ['易冷漠', '过于刚硬', '缺乏弹性', '容易伤到别人', '容易感到孤立'], action: ['需要学会适当柔软', '不是所有事情都需要切割', '保持锋利的也保持温度'], metaphor: ['你是一把好刀，也需要刀鞘', '金属不需要变成别的，找到合适用途就好', '太坚硬的东西容易折断'] },
-  '木': { positive: ['有韧性', '善于生长', '有耐心', '善于适应', '像树一样在夹缝中生长'], negative: ['易摇摆不定', '容易被人带节奏', '过于柔软失去形状', '容易被风吹倒'], action: ['需要把根扎得更深', '在风中保持自己的姿态', '生长不是向外扩张，而是向内加深'], metaphor: ['你是树，每次风都让你更稳', '木不急着开花，先让根扎够深', '年份越久的树越不怕风'] },
-  '水': { positive: ['善于流动', '直觉敏锐', '适应性极强', '能渗透到任何地方', '柔软却有力量'], negative: ['容易失去边界', '过于依赖环境', '缺乏稳定性', '容易被带偏方向'], action: ['需要找到自己的容器', '让水流向该去的地方', '流动和静止都是能力'], metaphor: ['你像水一样，既能漫过石头也能停在碗里', '水不急着到达，享受流动本身', '水到渠成，不是等来的，是流出来的'] },
-  '土': { positive: ['稳定可靠', '有承载力', '耐心十足', '善于等待', '厚重踏实'], negative: ['过于保守', '缺乏灵活性', '容易陷入惯性', '不肯改变'], action: ['学会松动自己', '翻土才能迎来新的生长', '承载力是用来承接的，不是用来压住自己的'], metaphor: ['你是大地，承载一切，但大地也需要春天解冻', '土不急着移动，该来的会来', '厚土之下，种子在发芽'] }
+  '火': { positive: ['充满热情', '有感染力', '果断有力', '行动迅速', '勇于冒险', '敢想敢做'], negative: ['容易急躁', '过度燃烧自己', '缺乏耐心', '伤人而不自知', '三分钟热度'], action: ['需要找到燃料的可持续来源', '给火加个灶，让热情有方向', '把热情转为持久力', '慢下来反而能烧得更久', '留一点温度给自己，别全数给出去'], metaphor: ['你是一团火，温暖别人也在燃烧自己', '火不控制火，只有风能改变方向', '火焰需要燃料，人也需要补给', '你烧得太快，是因为从没给自己添过柴', '灯要亮，先得有个罩，免得风一吹就灭'] },
+  '金': { positive: ['清晰果断', '有边界感', '判断力强', '坚韧不拔', '像刀一样锋利', '原则分明'], negative: ['易冷漠', '过于刚硬', '缺乏弹性', '容易伤到别人', '容易感到孤立', '把自己武装得太紧'], action: ['需要学会适当柔软', '不是所有事情都需要切割', '保持锋利的也保持温度', '偶尔把刀收进鞘里，也是一种力量'], metaphor: ['你是一把好刀，也需要刀鞘', '金属不需要变成别的，找到合适用途就好', '太坚硬的东西容易折断', '利刃割人，也割自己', '真正的锋利，是知道何时收刃'] },
+  '木': { positive: ['有韧性', '善于生长', '有耐心', '善于适应', '像树一样在夹缝中生长', '懂得等待'], negative: ['易摇摆不定', '容易被人带节奏', '过于柔软失去形状', '容易被风吹倒', '总在讨好风向'], action: ['需要把根扎得更深', '在风中保持自己的姿态', '生长不是向外扩张，而是向内加深', '先立根，再谈枝叶'], metaphor: ['你是树，每次风都让你更稳', '木不急着开花，先让根扎够深', '年份越久的树越不怕风', '树冠越高，根越要往深处走', '春天会来，但你得先活过这个冬天'] },
+  '水': { positive: ['善于流动', '直觉敏锐', '适应性极强', '能渗透到任何地方', '柔软却有力量', '洞察人心'], negative: ['容易失去边界', '过于依赖环境', '缺乏稳定性', '容易被带偏方向', '太容易迁就别人'], action: ['需要找到自己的容器', '让水流向该去的地方', '流动和静止都是能力', '先看清自己往哪流，再谈润泽万物'], metaphor: ['你像水一样，既能漫过石头也能停在碗里', '水不急着到达，享受流动本身', '水到渠成，不是等来的，是流出来的', '水面越静，底下越深', '水没有形状，是因为它还在等一个容器'] },
+  '土': { positive: ['稳定可靠', '有承载力', '耐心十足', '善于等待', '厚重踏实', '值得托付'], negative: ['过于保守', '缺乏灵活性', '容易陷入惯性', '不肯改变', '把自己当成了所有人的靠山'], action: ['学会松动自己', '翻土才能迎来新的生长', '承载力是用来承接的，不是用来压住自己的', '分一点重量出去，大地也需要轮作'], metaphor: ['你是大地，承载一切，但大地也需要春天解冻', '土不急着移动，该来的会来', '厚土之下，种子在发芽', '你把一切都扛住了，却没人问你累不累', '大地会开花，你也会——先允许自己歇一歇'] }
 };
 
 // ===== 体用关系 =====
@@ -132,17 +132,40 @@ export const intensityMap = {
   'huge': { adv: ['极其深刻地', '完全彻底地', '以一种覆盖一切的方式'], verb: ['吞噬着', '重塑着', '决定着', '定义着', '主导着'], effect: ['你几乎被这件事占满了。','它已经成了你当前生活的主轴。','你感到自己被一股巨大的力量推着走。'] }
 };
 
-// ================================================================
-// 核心生成函数 =====
+// ════════════════════════════════════════════════════════════════
+// 核心生成函数
+// ════════════════════════════════════════════════════════════════
+
+// 宫位词库结构：{ default: { lead/trait/hidden }, '感情': {...}, ... }
+// getPhraseSet 按 phraseType 取 phrasesObj[phraseType]，对宫位结构取不到
+// （gongSet.lead 不存在），且 [] 是 truthy 会让 `|| fallback` 短路失效。
+// 这里直接按宫位结构取值：意图集优先，缺省回退 default。
+function pickGongPhrase(gongSet, phraseType, intent) {
+  const intentSet = intent && gongSet[intent];
+  const arr = (intentSet && intentSet[phraseType]) || gongSet.default?.[phraseType] || [];
+  return pick(arr);
+}
+
+// 天机线位置（start/middle/end）→ 词库 key（起因/经过/结果）
+const LINE_KEY_MAP = { start: '起因', middle: '经过', end: '结果' };
+
+// 拼接短语：去重「句号+逗号」（。，）与「句号+句号」（。。）
+function appendPhrase(result, seg) {
+  if (!seg) return result;
+  if (!result) return seg.replace(/^[，。]/, '');
+  if (result.endsWith('。')) return result + seg.replace(/^[，。]/, '');
+  return result + seg;
+}
+
 export function generateGongText(context) {
   const gongId = context.gong?.id;
   const intent = context.intent || 'default';
   if (!gongId || !gongPhrases[gongId]) return '宫位信息缺失，请确认牌面。';
 
   const baseSet = gongPhrases[gongId];
-  const selectedLead = pick(getPhraseSet(baseSet, 'lead', intent) || baseSet.default?.lead || []);
-  const selectedTrait = pick(getPhraseSet(baseSet, 'trait', intent) || baseSet.default?.trait || []);
-  const selectedHidden = pick(getPhraseSet(baseSet, 'hidden', intent) || baseSet.default?.hidden || []);
+  const selectedLead = pickGongPhrase(baseSet, 'lead', intent);
+  const selectedTrait = pickGongPhrase(baseSet, 'trait', intent);
+  const selectedHidden = pickGongPhrase(baseSet, 'hidden', intent);
 
   if (!selectedLead) return '';
 
@@ -152,11 +175,11 @@ export function generateGongText(context) {
   if (diff !== undefined && diff !== null) {
     const level = getIntensityLevel(diff);
     const effect = pick(intensityMap[level]?.effect || ['']);
-    if (effect) result += '，此宫差值' + diff + '，' + effect;
+    if (effect) result = appendPhrase(result, '此宫差值' + diff + '，' + effect);
   }
 
-  if (selectedTrait) result += '，' + selectedTrait;
-  if (selectedHidden) result += '。另外，' + selectedHidden;
+  if (selectedTrait) result = appendPhrase(result, selectedTrait);
+  if (selectedHidden) result = appendPhrase(result, '。另外，' + selectedHidden);
 
   return result;
 }
@@ -170,8 +193,8 @@ export function generateElementTiYongText(context) {
   if (!tiPhrase || !yongPhrase || !relationPhrase) return '';
   const directionMap = { '生我': '滋养', '我生': '流向', '克我': '压力', '我克': '转化', '同我': '平衡' };
   const direction = directionMap[relation] || '共振';
-  let result = `体牌属${tiWx}，用牌属${yongWx}。${relationPhrase}`;
-  result += `这种${direction}的关系是当前的能量通道。`;
+  let result = `你抽中的体牌属${tiWx}，所问之事属${yongWx}。${relationPhrase}`;
+  result += `这种「${direction}」的关系，就是当前局面里的能量走向。`;
   return result;
 }
 
@@ -185,7 +208,8 @@ export function generateWangText(context) {
 export function generateLineText(context) {
   const position = context.linePosition || 'offline'; const intent = context.intent || 'default';
   if (position === 'offline') return '';
-  const linePhrase = pick(getPhraseSet(linePhrases, position, intent) || ['']);
+  const key = LINE_KEY_MAP[position] || position;
+  const linePhrase = pick(getPhraseSet(linePhrases, key, intent) || ['']);
   if (!linePhrase) return '';
   return linePhrase;
 }
@@ -197,23 +221,66 @@ export function generateDiffText(context) {
   return `当前差值${diff}，${effect}`;
 }
 
+// ════════════════════════════════════════════════════════════════
+// generateFullReading（完整牌局解读生成）
+// 已删除"其牌面属X"冗余描述
+// ════════════════════════════════════════════════════════════════
+
 export function generateFullReading(context) {
-  const gongId = context.gong?.id; const intent = context.intent || 'default';
-  const gongSet = gongPhrases[gongId]; if (!gongSet) return { light: '宫位信息缺失', shadow: '' };
-  const lead = pick(getPhraseSet(gongSet, 'lead', intent) || gongSet.default?.lead || []);
-  const trait = pick(getPhraseSet(gongSet, 'trait', intent) || gongSet.default?.trait || []);
-  const hidden = pick(getPhraseSet(gongSet, 'hidden', intent) || gongSet.default?.hidden || []);
+  const gongId = context.gong?.id;
+  const intent = context.intent || 'default';
+  const gongSet = gongPhrases[gongId];
+  if (!gongSet) return { light: '宫位信息缺失', shadow: '' };
+
+  const lead = pickGongPhrase(gongSet, 'lead', intent);
+  const trait = pickGongPhrase(gongSet, 'trait', intent);
+  const hidden = pickGongPhrase(gongSet, 'hidden', intent);
+
   let result = lead;
-  if (context.diff !== undefined && context.diff !== null) { const level = getIntensityLevel(context.diff); const effect = pick(intensityMap[level]?.effect || []); if (effect) result += `，差值运算至${context.diff}处，表征${effect}`; }
-  if (context.linePosition && context.linePosition !== 'offline') { const lineText = pick(getPhraseSet(linePhrases, context.linePosition, intent) || []); if (lineText) result += `，此宫位于天机线「${context.linePosition === 'start' ? '起因' : context.linePosition === 'middle' ? '经过' : '结果'}」段，${lineText}`; }
-  if (context.tiYongRelation) { const relText = pick(getPhraseSet(tiYongPhrases, context.tiYongRelation, intent) || []); if (relText) result += `，体用呈${context.tiYongRelation}态，${relText}`; }
-  if (context.wangState) { const wangText = pick(getPhraseSet(wangPhrases, context.wangState, intent) || []); if (wangText) result += `，当前状态属【${context.wangState}】，${wangText}`; }
-  if (context.card?.element) { const ele = context.card.element; const elePositive = pick(elementPhrases[ele]?.positive || []); if (elePositive) result += `，其牌面属${ele}，${elePositive}`; }
-  if (trait) result += `，此宫显象${trait}`;
-  if (hidden) result += `。深层注意：${hidden}`;
+
+  // 差值
+  if (context.diff !== undefined && context.diff !== null) {
+    const level = getIntensityLevel(context.diff);
+    const effect = pick(intensityMap[level]?.effect || []);
+    if (effect) result = appendPhrase(result, `差值等于${context.diff}，表示着${effect}`);
+  }
+
+  // 天机线位置
+  if (context.linePosition && context.linePosition !== 'offline') {
+    const lineKey = LINE_KEY_MAP[context.linePosition] || context.linePosition;
+    const lineText = pick(getPhraseSet(linePhrases, lineKey, intent) || []);
+    if (lineText) result = appendPhrase(result, `此宫位于天机线「${lineKey}」段，${lineText}`);
+  }
+
+  // 体用关系
+  if (context.tiYongRelation) {
+    const relText = pick(getPhraseSet(tiYongPhrases, context.tiYongRelation, intent) || []);
+    if (relText) result = appendPhrase(result, `你与所问之事的关系是「${context.tiYongRelation}」，${relText}`);
+  }
+
+  // 旺衰状态
+  if (context.wangState) {
+    const wangText = pick(getPhraseSet(wangPhrases, context.wangState, intent) || []);
+    if (wangText) result = appendPhrase(result, `当前状态是「${context.wangState}」，${wangText}`);
+  }
+
+  // ✂️ 已删除：context.card?.element 的"其牌面属X"冗余描述
+
+  // 宫位显象（直接接白话，避免"显象"术语）
+  if (trait) result = appendPhrase(result, trait);
+
+  // 深层注意
+  if (hidden) result = appendPhrase(result, `。另外，${hidden}`);
+
+  // 阴暗面提示
   let shadow = '';
-  if (context.wangState === '死' && Math.abs(context.diff) > 5) { shadow = '死态遇高差，强行推进可能折损自身，建议暂缓行动，以守代攻。'; }
-  else if (Math.abs(context.diff) > 8) { shadow = '高差值暗示方向与实际产生巨大错位。及时察觉，可避大耗。'; }
-  else { shadow = ''; }
+  if (context.wangState === '死' && Math.abs(context.diff) > 5) {
+    shadow = '死态遇高差，强行推进可能折损自身，建议暂缓行动，以守代攻。';
+  } else if (Math.abs(context.diff) > 8) {
+    shadow = '高差值暗示方向与实际产生巨大错位。及时察觉，可避大耗。';
+  } else {
+    shadow = '';
+  }
+
   return { light: result, shadow: shadow };
 }

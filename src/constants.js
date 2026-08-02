@@ -10,7 +10,7 @@ export const ENTROPY_THRESHOLD = 30;
 export const CHAOS_ITERATIONS = 100;
 export const FINGERPRINT_LENGTH = 8;
 
-// ===== 榴莲指数 =====
+// ===== 张力指数 =====
 export const DURIAN_WEIGHTS = {
   diff: 0.35,
   ke: 0.25,
@@ -23,6 +23,16 @@ export const MODES = {
   SIMPLE: 'simple',
   STANDARD: 'standard',
   PRO: 'pro'
+};
+
+export const WX_COLORS = {
+  木: '#5a7a4a',
+  火: '#a04040',
+  土: '#9a7a4a',
+  金: '#6a6a5a',
+  水: '#4a6a8a',
+  天: '#8a7a5a',
+  人: '#5a5a6a',
 };
 
 // ===== 辅助函数 =====

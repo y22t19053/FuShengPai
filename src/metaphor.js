@@ -2,6 +2,7 @@
 // 核心原则：只说画面，不做评价。让用户自己完成解码。
 
 import { GONG_NAMES, GONG_WUXING } from './data.js';
+import { WUXING_FORTUNE_POOLS } from './texts/fortune-pools.js';
 
 const TIYONG_METAPHORS = {
   '生我': ['有一条河在推着你往前走，你不需要用力。', '你背后有一阵风，方向刚好是你想去的方向。', '有人默默把门给你推开了。'],
@@ -35,7 +36,6 @@ export function generateMetaphor(context) {
   const gongId = context.gong?.id;
   if (gongId && GONG_METAPHORS[gongId]) parts.push(GONG_METAPHORS[gongId]);
 
-  // 差值用绝对值，负差值也能触发高差/低差
   if (context.diff !== undefined && context.diff !== null) {
     const absDiff = Math.abs(context.diff);
     if (absDiff > 5) parts.push(pick(HIGH_DIFF_METAPHORS));
@@ -48,24 +48,23 @@ export function generateMetaphor(context) {
   return parts.slice(0, 2).join(' ');
 }
 
-// ===== 单张周期牌的比喻（轻量版） =====
-export function generateSingleCardMetaphor(card, wx, periodLabel) {
+// ===== 单张周期牌的比喻（轻量版·支持日运细选类别） =====
+// ===== 单张周期牌的比喻（轻量版·支持日运细选类别） =====
+// 判词从五行×类别池随机取，每日不重样；不再写死单句。
+export function generateSingleCardMetaphor(card, wx, periodLabel, fortuneType = 'overall') {
   const rank = card.isJoker ? card.type : card.rank;
   const suit = card.isJoker ? '' : card.suit;
   const label = `${rank}${suit}`;
 
-  const wxMetaphors = {
-    '火': ['这一周期，你会带着一盏灯行走，光够亮，但别烧到自己。', '火在烧，说明你还有热情。问题是这热情要往哪放。'],
-    '金': ['这段时间，你在打磨一把刀。刀快了，但也要小心别伤到自己。', '金气重，决断会变多，适合做切割和清理。'],
-    '木': ['这是一段生长的时期。根扎得越深，以后长得越稳。', '别急着开花，先把枝干长结实。'],
-    '水': ['这段时间适合流动，不适合硬撑。该转弯就转弯。', '你的直觉最近会比较准，试着听一下。'],
-    '土': ['这是一段需要稳住的日子。少动，多观察。', '你需要在不确定中守住一件确定的事。'],
-    '天': ['这段时间的大势在你这边，适合定方向、许承诺。', '天气清朗，你做判断的时候不容易被情绪带偏。'],
-    '人': ['这段时间的关键在人。多沟通，别猜。', '人事变动带来的影响，会比事情本身更大。'],
+  const pool = (WUXING_FORTUNE_POOLS[wx] && (WUXING_FORTUNE_POOLS[wx][fortuneType] || WUXING_FORTUNE_POOLS[wx].overall))
+    || WUXING_FORTUNE_POOLS['土'].overall;
+  const base = pick(pool);
+
+  const typeLabelMap = {
+    overall: '综合', wealth: '财运', love: '桃花', noble: '贵人', career: '事业', health: '健康', study: '学业'
   };
 
-  const base = wxMetaphors[wx] ? wxMetaphors[wx][Math.floor(Math.random() * wxMetaphors[wx].length)] : '保持清醒，平常心看待。';
-  return `【${periodLabel} · ${label} · ${wx}】\n${base}`;
+  return `【${periodLabel} · ${typeLabelMap[fortuneType] || '综合'} · ${label} · ${wx}】\n${base}`;
 }
 
 function pick(arr) {

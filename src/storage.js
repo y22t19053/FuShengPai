@@ -1,6 +1,5 @@
 // ===== src/storage.js · 本地存储封装（完整版：降级/迁移/周期锁定/数据导出） =====
 
-// 存储 keys
 const HISTORY_KEY = 'fsp_history';
 const PROFILE_KEY = 'fsp_profile';
 const SETTINGS_KEY = 'fsp_api';
@@ -71,10 +70,8 @@ export function getHistory() {
 
 export function saveReading(data) {
   const history = getHistory();
-  // 避免重复（同一时间戳）
   if (history.some(item => item.time === data.time)) return;
   history.unshift(data);
-  // 保留最近 MAX_HISTORY 条
   if (history.length > MAX_HISTORY) history.length = MAX_HISTORY;
   return safeSet(HISTORY_KEY, history);
 }
@@ -88,12 +85,12 @@ export function deleteHistoryItem(index) {
 
 export function addPeriodHistoryEntry(entry) {
   const history = getHistory();
-  // 检查是否已有相同周期记录（避免覆盖已有周期记录时重复添加）
-  const existingIndex = history.findIndex(h => h.type === 'period' && h.periodType === entry.periodType && h.periodKey === entry.periodKey);
+  const existingIndex = history.findIndex(h => h.type === 'period' && h.periodType === entry.periodType && h.periodKey === entry.periodKey && (h.fortuneType || 'overall') === (entry.fortuneType || 'overall'));
   const fullEntry = {
     type: 'period',
     periodType: entry.periodType,
     periodKey: entry.periodKey,
+    fortuneType: entry.fortuneType || 'overall',
     card: entry.card,
     fortune: entry.fortune || '',
     question: entry.question || '',
@@ -102,7 +99,6 @@ export function addPeriodHistoryEntry(entry) {
     chatHistory: entry.chatHistory || []
   };
   if (existingIndex >= 0) {
-    // 更新已有记录，保留原时间
     const old = history[existingIndex];
     fullEntry.time = old.time;
     history[existingIndex] = fullEntry;
@@ -113,7 +109,6 @@ export function addPeriodHistoryEntry(entry) {
   return safeSet(HISTORY_KEY, history);
 }
 
-// 更新历史记录中的 AI 对话（供 triggerAI/sendFollowUp 使用）
 export function updateHistoryChat(chatHistory) {
   try {
     const history = getHistory();
@@ -158,13 +153,12 @@ export function getDrawTimestamps() {
 export function addDrawTimestamp(ts) {
   const stamps = getDrawTimestamps();
   stamps.push(ts);
-  // 仅保留最近 30 天
   const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const filtered = stamps.filter(x => x > cutoff);
   return safeSet(DRAW_TIMESTAMPS_KEY, filtered);
 }
 
-// ---------- 时间线（榴莲报告） ----------
+// ---------- 时间线 ----------
 export function getTimeline() {
   return safeGet(TIMELINE_KEY) || [];
 }
@@ -190,15 +184,37 @@ export function saveTimeCapsule(data) {
   return safeSet(TIMECAPSULE_KEY, data);
 }
 
-// ---------- 周期卡 ----------
-export function getStoredPeriodCards() {
-  return safeGet(PERIOD_CARDS_KEY) || {};
+// ---------- 周期卡 & 日运细选存储 ----------
+function migratePeriodCards(cards) {
+  const migrated = { ...(cards || {}) };
+  if (migrated.daily && !migrated.daily_overall) {
+    migrated.daily_overall = migrated.daily;
+    delete migrated.daily;
+  }
+  return migrated;
 }
 
-export function saveStoredPeriodCard(periodType, data) {
+export function getStoredPeriodCards() {
+  const cards = migratePeriodCards(safeGet(PERIOD_CARDS_KEY) || {});
+  if (JSON.stringify(cards) !== JSON.stringify(safeGet(PERIOD_CARDS_KEY) || {})) {
+    safeSet(PERIOD_CARDS_KEY, cards);
+  }
+  return cards;
+}
+
+// 存储键：日运细选为 daily_${类别key}；周/月/季/年仍为 weekly/monthly/seasonal/yearly
+export function saveStoredPeriodCard(periodType, data, fortuneType = 'overall') {
   const cards = getStoredPeriodCards();
-  cards[periodType] = data;
+  let key = periodType;
+  if (periodType === 'daily') key = `daily_${fortuneType || 'overall'}`;
+  cards[key] = data;
   return safeSet(PERIOD_CARDS_KEY, cards);
+}
+
+// 读取日运细选的存储数据
+export function getStoredDailyCard(fortuneType = 'overall') {
+  const cards = getStoredPeriodCards();
+  return cards[`daily_${fortuneType}`] || null;
 }
 
 // ---------- 新手引导 ----------
@@ -249,7 +265,7 @@ export function importAllData(jsonStr) {
   }
 }
 
-// 导出全部数据（触发下载）——给 ui.js 的 exportData 使用
+// 导出全部数据（触发下载）
 export function exportAllData() {
   const json = exportAllDataJson();
   const blob = new Blob([json], { type: 'application/json' });

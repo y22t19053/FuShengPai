@@ -16,20 +16,35 @@ function createQRMatrix(text) {
   return null; // 占位，实际逻辑在 loadQRImage 中
 }
 
+// ---------- 颜色归一化：qrcode 库只接受 hex，rgba() 会抛 Invalid hex color ----------
+// rgba 的 alpha 丢弃（半透明由调用方 drawImage 的 globalAlpha 控制）
+export function normalizeHexColor(color) {
+  if (!color) return color;
+  if (typeof color !== 'string') return color;
+  const trimmed = color.trim();
+  if (trimmed.startsWith('#')) return trimmed;
+  const m = trimmed.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (m) {
+    const toHex = (n) => Math.max(0, Math.min(255, Number(n))).toString(16).padStart(2, '0');
+    return '#' + toHex(m[1]) + toHex(m[2]) + toHex(m[3]);
+  }
+  return trimmed;
+}
+
 // ---------- 加载二维码图片 ----------
-export async function loadQRImage(content, size = 100) {
+export async function loadQRImage(content, size = 100, colors = {}) {
   try {
     // 动态加载 qrcode 库（已在 package.json 中）
     const QRCode = (await import('qrcode')).default;
-    // 生成 data URL
+    // 生成 data URL（colors 可传 {dark, light} 做淡色印章效果）
     const dataUrl = await QRCode.toDataURL(content, {
       width: size,
       height: size,
       margin: 1,
       errorCorrectionLevel: 'M',
       color: {
-        dark: '#000000',
-        light: '#ffffff'
+        dark: normalizeHexColor(colors.dark) || '#000000',
+        light: normalizeHexColor(colors.light) || '#ffffff'
       }
     });
     // 创建 Image 对象

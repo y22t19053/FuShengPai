@@ -62,14 +62,6 @@ export function calculateDurianIndex(state) {
   };
 }
 
-export function getDurianIcon(score) {
-  if (score < 3) return '🌰';
-  if (score < 5) return '🥜';
-  if (score < 7) return '🟡';
-  if (score < 9) return '🟠';
-  return '🔴';
-}
-
 export function getDurianColor(score) {
   if (score < 3) return '#4CAF50';
   if (score < 5) return '#8BC34A';

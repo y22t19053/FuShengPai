@@ -1,4 +1,4 @@
-// ===== src/ui.js · 业务主控（无人格卡·含牌格入口·from=share） =====
+// ===== src/ui.js · 业务主控（日运细选+模型选择+AI高级参数+盲抽牌灵+from=share） =====
 import { state } from './state.js';
 import { injectAnimations } from './ui/ui-anim.js';
 import {
@@ -7,10 +7,11 @@ import {
   bindScrollButtons, renderPeriodCards
 } from './ui/ui-render.js';
 import {
-  toast, showOnboarding, showDurianReport,
+  toast, showOnboarding, showDurianReport, showReportsModal,
+  renderPeriodReportInto, replayTimelineEntry,
   togglePanel, showHistoryDetail, generateShareCode,
   importShareCode, generateShareImage, saveShareImage, showAIGuideModal,
-  showDataMigrationModal
+  showDataMigrationModal, showDailyFortunePicker
 } from './ui/ui-modal.js';
 import {
   initDrag, setLine, findCardById, isCardPlaced,
@@ -29,19 +30,34 @@ import {
   createDeck, shuffle, drawTiYong, calcFullBaZi, calcDiff
 } from './engine.js';
 import {
-  API_PROVIDERS, getShengKe, getShengKeLabel, getWangState, getWuxing,
+  API_PROVIDERS, POPULAR_MODELS, getShengKe, getShengKeLabel, getWangState, getWuxing,
   getCardValue, getCardColor, GONG_NAMES, GONG_WUXING, ALL_LINES, TIME_LABELS, GONG_ORDER,
   CATEGORIES, PERIODS, getCurrentPeriodKey, getPeriodTitle, getPeriodDesc,
-  getRecommendedGongForCategory, getGongEnvironment
+  getRecommendedGongForCategory, getGongEnvironment,
+  DAILY_FORTUNE_TYPES, getDailyFortuneType
 } from './data.js';
 import { MAX_DAILY_OBSERVATIONS } from './constants.js';
 import { UI_TEXTS } from './texts/index.js';
+import { getDailyMirrorLine, getSceneLines, getWakeUpLine } from './texts/mirror-pools.js';
+import { getPokerPersona } from './persona.js';
 import { calculateDurianIndex } from './durian.js';
 import { generateFingerprint } from './chaos.js';
 import { interceptQuestion, checkDependency, getSealStatus } from './philosophy/ethics.js';
 import { applyCovenant } from './philosophy/covenant.js';
 import { generateSingleCardMetaphor } from './metaphor.js';
 import { escapeForHTML, setHTML } from './utils/safe.js';
+import { initPWA } from './pwa.js';
+import { resolveApiModel } from './utils/api-config.js';
+import { syncQuestionFromInput, createPeriodShareAction } from './utils/flow-helpers.js';
+import { copyTextWithFeedback } from './utils/clipboard.js';
+
+function safeSetPeriodCards(cards) {
+  try {
+    localStorage.setItem('fsp_period_cards', JSON.stringify(cards));
+  } catch (e) {
+    console.warn('周期卡存储迁移失败', e);
+  }
+}
 
 // --- 全局预备牌堆 ---
 let __PRE_DECK__ = [];
@@ -233,7 +249,7 @@ export async function localInterpretation() {
   const durian = calculateDurianIndex(state);
   if (durian) {
     state.durianIndex = durian;
-    result += `🍈 榴莲指数：${durian.score}/10（${durian.level}）\n${durian.description}\n`;
+    result += `张力指数：${durian.score}/10（${durian.level}）\n${durian.description}\n`;
   }
 
   result = applyCovenant(result);
@@ -246,11 +262,11 @@ function getDiffAnalysisText(diffType, gong, card) {
   const rank = card.isJoker ? card.type : card.rank + (card.suit || '');
   switch (diffType) {
     case '等于':
-      return `· ${gongName}落 ${rank}，差值零，气数相合，事件处于平衡态，吉凶未分，宜静观其变。`;
+      return `· ${gongName}落 ${rank}，差值零，能量相合，事件处于平衡态，吉凶未分，宜静观其变。`;
     case '大于':
-      return `· ${gongName}落 ${rank}，宫气强于牌气，环境压力明显，需借势或待时，不宜强求。`;
+      return `· ${gongName}落 ${rank}，宫的能量强于牌的能量，环境压力明显，需借势或待时，不宜强求。`;
     case '小于':
-      return `· ${gongName}落 ${rank}，牌气强于宫气，自身能量有余，可主动破局，把握主动权。`;
+      return `· ${gongName}落 ${rank}，牌的能量强于宫的能量，自身能量有余，可主动破局，把握主动权。`;
     default:
       return '';
   }
@@ -293,7 +309,8 @@ export async function generateInterpretation() {
         intent: state.intent, ti: state.ti, yong: state.yong, grid: state.grid, line: state.line,
         lineOrder: state.lineOrder, text, chatHistory: state.chatHistory.slice(),
         durianScore: state.durianIndex?.score || 0,
-        durianComponents: state.durianIndex?.components || null
+        durianComponents: state.durianIndex?.components || null,
+        consultName: state.consultMode ? (state.consultName || '求测人') : ''
       };
       saveReading(readingData);
       addTimelineEntry(readingData);
@@ -309,7 +326,7 @@ export async function generateInterpretation() {
 
 export function showFullReport() {
   const text = state.pendingFullReport || '';
-  if (!text) { toast('没有可显示的解读'); return; }
+  if (!text) { toast('没有可显示的解读', 2000, 'info'); return; }
   renderFullReport(text, null);
   updateStep(3);
 }
@@ -319,7 +336,12 @@ export async function buildAIPrompt() {
   const text = state.pendingFullReport || (await localInterpretation()).text;
   const profile = getProfile();
   let personalPrefix = '';
-  if (profile) {
+  let personaLine = '';
+  if (state.consultMode) {
+    const who = state.consultName || '求测人';
+    personalPrefix = `【求测人信息】本次为他人代占，求测人称呼为「${who}」\n\n`;
+    personaLine = `7. 本次是代他人问占，请以「${who}」称呼求测人，解读围绕求测人本人（而非提问者）展开，措辞保持含蓄尊重。\n`;
+  } else if (profile) {
     let parts = [];
     if (profile.name) parts.push(`姓名：${profile.name}`);
     if (profile.gender) parts.push(`性别：${profile.gender}`);
@@ -327,11 +349,18 @@ export async function buildAIPrompt() {
     if (profile.currentPlace) parts.push(`现居地：${profile.currentPlace}`);
     if (parts.length) personalPrefix = `【求测人信息】${parts.join('，')}\n\n`;
   }
-  const prompt = `${personalPrefix}请根据以下浮生牌局象进行详细解读。\n\n要求：\n1. 纯文本格式，严禁使用任何Markdown符号（包括#、*、-、数字编号）。\n2. 用自然语言分段，段落间用空行分隔。\n3. 从体用生克、旺相休囚、宫位差值、天机线、阴阳属性等方面展开。\n4. 结合求测人的八字五行背景，给出针对性建议。\n5. 使用含蓄、留有余地的语气，话不说死，尊重求测人的自主判断。\n\n以下是牌面信息：\n\n${text}\n\n规则：红桃火(阳) 方块金(阳) 梅花木(阴) 黑桃水(阴) JQK土 大王天(阳) 小王人(阴)。`;
+  // 自动带上问题/领域/意向，让 AI 更有上下文
+  const contextParts = [];
+  if (state.question) contextParts.push(`所求问题：${state.question}`);
+  const domain = [state.category, state.subCategory].filter(Boolean);
+  if (domain.length) contextParts.push(`领域：${domain.join(' / ')}`);
+  if (state.intent) contextParts.push(`问事意向：${state.intent}`);
+  const contextPrefix = contextParts.length ? `【本次问占】${contextParts.join('；')}\n\n` : '';
+  const prompt = `${personalPrefix}${contextPrefix}请根据以下浮生牌局象进行详细解读。\n\n要求：\n1. 纯文本格式，严禁使用任何Markdown符号（包括#、*、-、数字编号）。\n2. 用自然语言分段，段落间用空行分隔。\n3. 围绕【本次问占】中的问题与领域展开，不要泛泛而谈。\n4. 从体用生克、旺相休囚、宫位差值、天机线、阴阳属性等方面展开。\n5. 结合求测人的八字五行背景，给出针对性建议。\n6. 使用含蓄、留有余地的语气，话不说死，尊重求测人的自主判断。\n${personaLine}以下是牌面信息：\n\n${text}\n\n规则：红桃火(阳) 方块金(阳) 梅花木(阴) 黑桃水(阴) JQK土 大王天(阳) 小王人(阴)。`;
   return prompt;
 }
 
-// ===== 通用单牌 AI 提示词生成器 =====
+// ===== 通用单牌 AI 提示词生成器（支持细选类别） =====
 export function buildSingleCardPrompt(card, opts = {}) {
   if (!card) return '';
   const wx = getWuxing(card);
@@ -340,6 +369,8 @@ export function buildSingleCardPrompt(card, opts = {}) {
   const yinyang = card.isJoker ? (card.type === '大王' ? '阳' : '阴') : (card.suit === '♥' || card.suit === '♦' ? '阳' : '阴');
   const metaphor = opts.metaphor || '';
   const periodLabel = opts.periodLabel ? `【${opts.periodLabel}】\n` : '';
+  const fortuneType = opts.fortuneType || 'overall';
+  const fortuneTypeLabel = getDailyFortuneType(fortuneType)?.label || '综合';
   const now = new Date().toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   return `${periodLabel}当前时间：${now}
@@ -353,8 +384,8 @@ ${rank}${suit}
 ${metaphor || '（无预设意象，请基于牌面五行与符号与用户对话）'}
 
 【解读要求】
-请基于这张牌的五行能量、阴阳属性，结合当前时间（${now}），从以下角度给出深度解读：
-1. 五行能量对用户当前状态的影响；
+请基于这张牌的五行能量、阴阳属性，结合当前时间（${now}），围绕「${fortuneTypeLabel}」这个主题，给出深度解读：
+1. 这张牌对当前「${fortuneTypeLabel}」状态的影响；
 2. 这张牌在“自身/人际/事业/健康”四个维度上的启示；
 3. 一条具体可执行的建议。
 
@@ -371,7 +402,9 @@ export function resetAll() {
     entropyLevel: 0, chaosSeed: null, sealed: false, sealedAt: null,
     durianIndex: null, pendingFullReport: '', pendingModules: null,
     currentTimeArc: null, periodType: null, periodKey: null, periodCard: null,
-    periodFortune: '', periodAiHistory: [], pendingPeriodDeck: null
+    periodFortune: '', periodAiHistory: [], pendingPeriodDeck: null,
+    fortuneType: 'overall',
+    spreadType: 'jiugong', threeCards: [], consultMode: false, consultName: ''
   });
   const resultArea = document.getElementById('resultArea');
   if (resultArea) setHTML(resultArea, '');
@@ -386,7 +419,7 @@ export function resetAll() {
 
 export function startQuestion() {
   const input = document.getElementById('questionInput');
-  const q = input?.value?.trim() || state.question || '';
+  const q = syncQuestionFromInput(input, state);
   if (q) {
     const intercept = interceptQuestion(q);
     if (intercept.blocked) { toast(intercept.message, 4000); return; }
@@ -395,7 +428,33 @@ export function startQuestion() {
   proceedStartQuestion();
 }
 
+// ===== 在线 / 离线提示（PWA 离线引导） =====
+function setupNetworkHints() {
+  if (!('onLine' in navigator)) return;
+  let offlineNotified = false;
+  const showOffline = () => {
+    if (offlineNotified) return;
+    offlineNotified = true;
+    toast('📴 已离线：牌局与解读照常可用，AI 深度解读需联网', 5000);
+  };
+  const showOnline = () => {
+    if (!offlineNotified) return;
+    offlineNotified = false;
+    toast('📶 已恢复联网', 2500);
+  };
+  window.addEventListener('offline', showOffline);
+  window.addEventListener('online', showOnline);
+  if (!navigator.onLine) showOffline();
+}
+
 // ===== 抽牌 =====
+// 至少洗两次（对应现实洗牌仪式：去王抽体用 → 插回王 → 再洗 → 放九宫）
+function shuffleTwice(arr) {
+  let a = shuffle(arr);
+  a = shuffle(a);
+  return a;
+}
+
 export function proceedStartQuestion() {
   state.manualMode = false;
   state.uid = Date.now() % 1000000;
@@ -407,7 +466,7 @@ export function proceedStartQuestion() {
     state.fingerprint = generateFingerprint(state.deck);
   } else {
     const deck = createDeck(false);
-    state.deck = shuffle(deck);
+    state.deck = shuffleTwice(deck); // 洗两次
     state.fingerprint = generateFingerprint(state.deck);
   }
 
@@ -420,10 +479,148 @@ export function proceedStartQuestion() {
   renderStep2();
 }
 
+// ===== 三牌直断阵（过去 / 现在 / 未来） =====
+export function startThreeSpread() {
+  const input = document.getElementById('questionInput');
+  syncQuestionFromInput(input, state);
+  state.spreadType = 'three';
+  state.uid = Date.now() % 1000000;
+  state.ti = null; state.yong = null; state.grid = {};
+  state.line = null; state.lineOrder = {}; state.sel = null;
+  state.possible = []; state.chatHistory = []; state.gongOrder = [];
+  state.intent = null; state.editCount = 0; state.refinementTags = {};
+  drawThreeCards();
+  updateStep(2);
+  renderStep2();
+}
+
+function drawThreeCards() {
+  const deck = shuffleTwice(createDeck(false));
+  const phases = ['过去', '现在', '未来'];
+  state.threeCards = deck.slice(0, 3).map((card, i) => ({ card, phase: phases[i] }));
+  toast('🃏 已抽三张：过去 / 现在 / 未来');
+}
+
+export function backToJiugong() {
+  state.spreadType = 'jiugong';
+  state.threeCards = [];
+  const modal = document.getElementById('modal');
+  if (modal) modal.setAttribute('hidden', '');
+  if (!state.deck || state.deck.length < 10) {
+    state.deck = shuffleTwice(createDeck(false));
+    state.fingerprint = generateFingerprint(state.deck);
+  }
+  state.ti = null; state.yong = null; state.grid = {};
+  state.line = null; state.lineOrder = {}; state.sel = null;
+  state.possible = []; state.chatHistory = []; state.gongOrder = [];
+  state.intent = null; state.editCount = 0; state.refinementTags = {};
+  updateStep(1);
+  renderStep1();
+  toast('已切回九宫全息阵', 2000, 'success');
+}
+
+// 三牌阵专属张力指数：看五行顺逆与同气
+function computeThreeDurian(cards) {
+  const wxs = cards.map(({ card }) => getWuxing(card));
+  const rels = [];
+  for (let i = 0; i < wxs.length - 1; i++) {
+    rels.push(getShengKe(wxs[i], wxs[i + 1]));
+  }
+  const scoreMap = { '生我': 0.75, '我生': 0.6, '同我': 0.5, '我克': 0.4, '克我': 0.28, null: 0.5 };
+  const base = rels.reduce((s, r) => s + (scoreMap[r] ?? 0.5), 0) / rels.length;
+  const sameCount = (wxs[0] === wxs[1] ? 1 : 0) + (wxs[1] === wxs[2] ? 1 : 0) + (wxs[0] === wxs[2] ? 1 : 0);
+  const raw = base * 0.75 + Math.min(1, sameCount) * 0.25;
+  const score = Math.round(Math.min(10, Math.max(0, raw * 10)) * 10) / 10;
+  const level = score < 3 ? '低' : score < 5 ? '中低' : score < 7 ? '中' : score < 9 ? '高' : '极高';
+  let desc;
+  if (score >= 8) desc = '三张牌气连成一线，五行顺逆皆有呼应，此事气数正旺，顺势可为。';
+  else if (score >= 6) desc = '能量整体顺畅，虽有起伏但可控，按牌面提示慢慢走即可。';
+  else if (score >= 4) desc = '气场偏于拉扯，牌与牌之间互相制约，宜缓不宜急，先看清再动。';
+  else desc = '五行相克较多，此事阻力不小，三思而后行，必要时换个角度再问。';
+  return { score, level, description: desc, components: { rels } };
+}
+
+function buildThreeSpreadText() {
+  const cards = state.threeCards || [];
+  const parts = [];
+  const phases = ['过去', '现在', '未来'];
+  const person = state.consultMode ? (state.consultName || '求测人') : '你';
+  const pronoun = state.consultMode ? 'ta' : '你';
+  const start = state.question
+    ? `【${person}所问】${state.question}\n\n`
+    : `【${person}所问】未具体提问，以牌面直断当下之局。\n\n`;
+  parts.push(start);
+
+  cards.forEach(({ card, phase }, i) => {
+    const p = getPokerPersona(card);
+    const wx = getWuxing(card);
+    const rel = i > 0 ? getShengKe(getWuxing(cards[i - 1].card), wx) : null;
+    const relText = rel ? `，与前牌${getShengKeLabel(rel)}（${rel}）` : '';
+    const personaText = p ? `${p.title}：${p.keywords.join('、')}` : '';
+    parts.push(`【${phase}】落 ${card.isJoker ? card.type : card.rank + (card.suit || '')}（${wx}）${relText}\n${personaText}\n`);
+  });
+
+  const durian = computeThreeDurian(cards);
+  const relLine = [];
+  for (let i = 1; i < cards.length; i++) {
+    const a = getWuxing(cards[i - 1].card);
+    const b = getWuxing(cards[i].card);
+    const rel = getShengKe(a, b);
+    if (rel) {
+      relLine.push(`「${phases[i - 1]}」${a}与「${phases[i]}」${b}：${rel}（${getShengKeLabel(rel)}）`);
+    }
+  }
+  if (relLine.length) parts.push(`【五行流转】\n${relLine.join('\n')}\n`);
+  parts.push(`【直断】\n${durian.description}\n`);
+  parts.push(`张力指数：${durian.score}/10（${durian.level}）\n`);
+  parts.push(`\n※ 三牌直断，重在方向不在细节。若想深入，可换「九宫全息阵」细看。`);
+  return applyCovenant(parts.join('\n').trim());
+}
+
+export async function generateThree() {
+  try {
+    const seal = getSealStatus();
+    if (seal && seal.sealed) { toast(`封卦中，剩余 ${seal.daysRemaining} 天`); return; }
+    const timestamps = getDrawTimestamps();
+    const depCheck = checkDependency(timestamps);
+    if (depCheck.level === 'blocked') { toast(depCheck.message, 4000); return; }
+    const cards = state.threeCards || [];
+    if (cards.length < 3) { toast('三张牌未抽齐'); return; }
+    const text = buildThreeSpreadText();
+    state.pendingFullReport = text;
+    const durian = computeThreeDurian(cards);
+    state.durianIndex = { score: durian.score, level: durian.level, components: durian.components };
+    updateStep(3);
+    renderFullReport(text, null);
+    try {
+      const readingData = {
+        time: Date.now(), question: state.question, category: state.category, subCategory: state.subCategory,
+        intent: state.intent, ti: null, yong: null, grid: {}, line: null,
+        lineOrder: {}, text, chatHistory: state.chatHistory.slice(),
+        durianScore: durian.score,
+        durianComponents: durian.components,
+        spreadType: 'three',
+        threeCards: state.threeCards.map(t => t.card),
+        consultName: state.consultMode ? (state.consultName || '求测人') : ''
+      };
+      saveReading(readingData);
+      addTimelineEntry(readingData);
+    } catch (e) { toast('历史保存失败，但解读有效', 2000); }
+    addDrawTimestamp(Date.now());
+    state.spreadType = 'jiugong';
+    state.threeCards = [];
+    toast('🃏 三牌直断完成');
+  } catch (e) {
+    console.error('[浮生牌] generateThree 出错:', e);
+    toast('生成解读失败: ' + (e.message || '未知错误'), 4000);
+  }
+}
+
 export function startManualEntry() {
   const input = document.getElementById('questionInput');
-  state.question = input?.value?.trim() || '';
+  syncQuestionFromInput(input, state);
   state.manualMode = true;
+  state.manualSeq = true; // 顺序录入：第1张=体，第2张=用，第3张起自动布九宫
   state.uid = Date.now() % 1000000;
   state.deck = createDeck(true);
   state.ti = null; state.yong = null; state.grid = {};
@@ -435,23 +632,45 @@ export function startManualEntry() {
   renderStep2();
 }
 
+// ===== 手动录入 · 顺序放置（第1张=体，第2张=用，第3张起自动布九宫） =====
+export function autoPlaceSequential(card) {
+  if (!card) return;
+  if (state.sealed) { toast('牌局已封印，不可改动'); return; }
+  if (!state.ti) {
+    placeCardOnTiYong(card, 'ti', true);
+    toast('第 1 张 · 已录为「你」\n下一张录「所问之事」');
+    return;
+  }
+  if (!state.yong) {
+    placeCardOnTiYong(card, 'yong', true);
+    toast('第 2 张 · 已录为「所问之事」\n下一张起自动布入九宫');
+    return;
+  }
+  const g = GONG_ORDER.find(g => !state.grid[g] || state.grid[g].length < 3);
+  if (!g) { toast('九宫已满，请先清九宫或重置选牌'); return; }
+  const n = (state.grid[g] ? state.grid[g].length : 0) + 1;
+  placeCardOnGong(card, g, true);
+  const placed = state.grid[g] && state.grid[g].length;
+  toast(`第 ${2 + (placed || 0)} 张 · 已入${GONG_NAMES[g]}宫`);
+}
+
 export function lazyStart() {
   proceedLazyStart();
 }
 
 async function proceedLazyStart() {
   const input = document.getElementById('questionInput');
-  state.question = input?.value?.trim() || '';
+  syncQuestionFromInput(input, state);
   state.manualMode = false;
   state.currentTimeArc = null;
 
-  const shuffled = __PRE_DECK__ && __PRE_DECK__.length > 0 ? [...__PRE_DECK__] : shuffle(createDeck(false));
+  const shuffled = __PRE_DECK__ && __PRE_DECK__.length > 0 ? [...__PRE_DECK__] : shuffleTwice(createDeck(false)); // 洗两次
   state.fingerprint = generateFingerprint(shuffled);
   const { ti, yong, remaining } = drawTiYong(shuffled);
   state.ti = ti; state.yong = yong;
   let remainingDeck = remaining;
   remainingDeck.push({ isJoker: true, type: '大王', _uid: state.uid++ }, { isJoker: true, type: '小王', _uid: state.uid++ });
-  remainingDeck = shuffle(remainingDeck);
+  remainingDeck = shuffleTwice(remainingDeck); // 插回大小王后再洗两次
   const line = ALL_LINES[Math.floor(Math.random() * ALL_LINES.length)];
   state.line = [...line];
   const key = line.join(','); const tl = TIME_LABELS[key] || {};
@@ -479,8 +698,8 @@ export function setTimeArcAuto() {
   toast('时间锚点已恢复自动判定');
 }
 
-// ===== 周期抽牌 =====
-export function openPeriodDeck(periodType) {
+// ===== 周期抽牌（支持日运细选） =====
+export function openPeriodDeck(periodType, fortuneType = 'overall') {
   const modal = document.getElementById('modal');
   const content = document.getElementById('modalContent');
   if (!modal || !content) return;
@@ -488,22 +707,41 @@ export function openPeriodDeck(periodType) {
   if (!cfg) return;
 
   const stored = getStoredPeriodCards();
+
+  // 日运细选专属 key
+  let storeKey = periodType;
+  if (periodType === 'daily') storeKey = `daily_${fortuneType}`;
+
   const periodKey = getCurrentPeriodKey(periodType);
-  if (stored[periodType] && stored[periodType].periodKey === periodKey && stored[periodType].card) {
-    openPeriodDetail(periodType);
+  // 旧数据兼容：若是daily且fortuneType是overall，检查旧daily键
+  if (periodType === 'daily' && fortuneType === 'overall') {
+    const legacy = stored.daily;
+    if (legacy && legacy.periodKey === periodKey && legacy.card) {
+      stored[storeKey] = legacy;
+      delete stored.daily;
+      safeSetPeriodCards(stored);
+    }
+  }
+
+  if (stored[storeKey] && stored[storeKey].periodKey === periodKey && stored[storeKey].card) {
+    openPeriodDetail(periodType, fortuneType);
     return;
   }
 
   const deck = createDeck(true);
   const shuffled = shuffle(deck);
   state.periodType = periodType;
+  state.fortuneType = fortuneType;
   state.pendingPeriodDeck = shuffled;
+
+  const typeLabel = periodType === 'daily' ? getDailyFortuneType(fortuneType).label : cfg.label;
+  const title = `${cfg.label}${periodType === 'daily' ? ` · ${typeLabel}` : ''} · 抽一张`;
 
   const isTouch = window.matchMedia('(pointer: coarse)').matches;
 
   if (isTouch) {
     const html = `
-      <h3 style="text-align:center;">${escapeForHTML(cfg.label)} · 抽一张牌</h3>
+      <h3 style="text-align:center;">${escapeForHTML(title)}</h3>
       <p style="text-align:center;font-size:0.75rem;color:var(--dim);margin-bottom:10px;">点击下方按钮随机抽牌。抽完即锁定，本周期不可重抽。</p>
       <div style="text-align:center;padding:10px 0;">
         <button id="periodTouchDraw" class="primary small" style="padding:12px 32px;font-size:1rem;">抽一张</button>
@@ -522,7 +760,7 @@ export function openPeriodDeck(periodType) {
     document.getElementById('periodTouchDraw').addEventListener('click', () => {
       const idx = Math.floor(Math.random() * shuffled.length);
       const card = shuffled[idx];
-      confirmPeriodPick(periodType, card);
+      confirmPeriodPick(periodType, card, fortuneType);
     });
 
     document.getElementById('periodManualEntry')?.addEventListener('click', () => {
@@ -533,11 +771,11 @@ export function openPeriodDeck(periodType) {
     content.querySelectorAll('[data-manual-card]').forEach(btn => {
       btn.addEventListener('click', function() {
         const label = this.dataset.manualCard;
-        if (label === '大王') { confirmPeriodPick(periodType, { isJoker: true, type: '大王' }); return; }
-        if (label === '小王') { confirmPeriodPick(periodType, { isJoker: true, type: '小王' }); return; }
+        if (label === '大王') { confirmPeriodPick(periodType, { isJoker: true, type: '大王' }, fortuneType); return; }
+        if (label === '小王') { confirmPeriodPick(periodType, { isJoker: true, type: '小王' }, fortuneType); return; }
         const suit = label[0];
         const rank = label.slice(1);
-        confirmPeriodPick(periodType, { suit, rank, isJoker: false });
+        confirmPeriodPick(periodType, { suit, rank, isJoker: false }, fortuneType);
       });
     });
     return;
@@ -549,7 +787,7 @@ export function openPeriodDeck(periodType) {
   }).join('');
 
   const html = `
-    <h3 style="text-align:center;">${escapeForHTML(cfg.label)} · 抽一张牌</h3>
+    <h3 style="text-align:center;">${escapeForHTML(title)}</h3>
     <p style="text-align:center;font-size:0.75rem;color:var(--dim);margin-bottom:10px;">凭直觉选一张，不要多想。抽完即锁定。</p>
     <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-height:400px;overflow-y:auto;padding:10px;">${deckHTML}</div>
     <div style="text-align:center;margin-top:8px;">
@@ -567,7 +805,7 @@ export function openPeriodDeck(periodType) {
     el.addEventListener('click', function() {
       const idx = parseInt(this.dataset.periodCardIdx);
       const card = shuffled[idx];
-      confirmPeriodPick(periodType, card);
+      confirmPeriodPick(periodType, card, fortuneType);
     });
   });
 
@@ -579,11 +817,11 @@ export function openPeriodDeck(periodType) {
   content.querySelectorAll('[data-manual-card]').forEach(btn => {
     btn.addEventListener('click', function() {
       const label = this.dataset.manualCard;
-      if (label === '大王') { confirmPeriodPick(periodType, { isJoker: true, type: '大王' }); return; }
-      if (label === '小王') { confirmPeriodPick(periodType, { isJoker: true, type: '小王' }); return; }
+      if (label === '大王') { confirmPeriodPick(periodType, { isJoker: true, type: '大王' }, fortuneType); return; }
+      if (label === '小王') { confirmPeriodPick(periodType, { isJoker: true, type: '小王' }, fortuneType); return; }
       const suit = label[0];
       const rank = label.slice(1);
-      confirmPeriodPick(periodType, { suit, rank, isJoker: false });
+      confirmPeriodPick(periodType, { suit, rank, isJoker: false }, fortuneType);
     });
   });
 }
@@ -598,8 +836,8 @@ function buildManualCardButtons() {
   return html;
 }
 
-// ===== 周期牌详情 =====
-export function openPeriodDetail(periodType) {
+// ===== 周期牌详情（支持日运细选） =====
+export function openPeriodDetail(periodType, fortuneType = 'overall') {
   const modal = document.getElementById('modal');
   const content = document.getElementById('modalContent');
   if (!modal || !content) return;
@@ -607,13 +845,16 @@ export function openPeriodDetail(periodType) {
   const cfg = PERIODS[periodType];
   if (!cfg) return;
 
+  let storeKey = periodType;
+  if (periodType === 'daily') storeKey = `daily_${fortuneType}`;
+
   const stored = getStoredPeriodCards();
   const periodKey = getCurrentPeriodKey(periodType);
-  const data = stored[periodType];
+  const data = stored[storeKey];
 
   if (!data || data.periodKey !== periodKey || !data.card) {
     toast('本周期还没抽牌');
-    openPeriodDeck(periodType);
+    openPeriodDeck(periodType, fortuneType);
     return;
   }
 
@@ -623,20 +864,32 @@ export function openPeriodDetail(periodType) {
   const rank = card.isJoker ? card.type : card.rank;
   const suit = card.isJoker ? '' : card.suit;
   const metaphor = data.fortune || '';
+  const typeLabel = periodType === 'daily' ? getDailyFortuneType(fortuneType).label : cfg.label;
+  const typeIcon = periodType === 'daily' ? getDailyFortuneType(fortuneType).icon : '';
+
+  // 情绪镜像（顶部）+ 场景短句 + 温和清醒话（仅日运展示，周/月/季/年不打扰）
+  const mirrorLine = getDailyMirrorLine();
+  const sceneLines = getSceneLines(fortuneType);
+  const wakeUpLine = periodType === 'daily' ? getWakeUpLine() : '';
 
   const history = getHistory();
-  const periodHistory = history.find(h => h.type === 'period' && h.periodType === periodType && h.periodKey === periodKey);
+  const periodHistory = history.find(h => h.type === 'period' && h.periodType === periodType && h.periodKey === periodKey && (h.fortuneType || 'overall') === fortuneType);
   const hasAi = periodHistory && periodHistory.chatHistory && periodHistory.chatHistory.length > 0;
 
   const html = `
     <div style="text-align:center;">
-      <div style="font-size:0.8rem;color:var(--dim);margin-bottom:8px;">${escapeForHTML(getPeriodTitle(periodType))} · 你的牌</div>
+      <div style="font-size:0.8rem;color:var(--dim);margin-bottom:8px;">${typeIcon} ${escapeForHTML(typeLabel)} · 你的牌</div>
+      <div style="font-size:0.8rem;color:var(--accent);line-height:1.7;margin:0 0 10px;padding:10px 14px;background:rgba(0,0,0,0.18);border-radius:8px;">
+        <span style="opacity:0.75;margin-right:6px;">☯ 情绪镜像</span>${escapeForHTML(mirrorLine)}
+      </div>
       <div class="card-face-small ${colorCls}" style="margin:10px auto;width:80px;height:112px;display:flex;align-items:center;justify-content:center;flex-direction:column;border-radius:6px;border:2px solid var(--border);background:rgba(0,0,0,0.3);">
         <span style="font-size:2rem;font-weight:bold;">${escapeForHTML(rank)}</span>
         <span style="font-size:1.4rem;">${escapeForHTML(suit)}</span>
         <span style="font-size:0.7rem;color:var(--dim);margin-top:2px;">${escapeForHTML(wx)}</span>
       </div>
       ${metaphor ? `<div style="font-size:0.9rem;color:var(--text);line-height:1.8;margin:12px 0;padding:12px;background:rgba(0,0,0,0.15);border-radius:8px;white-space:pre-wrap;">${escapeForHTML(metaphor)}</div>` : ''}
+      ${sceneLines.length ? `<div style="font-size:0.78rem;color:var(--dim);line-height:1.8;margin:6px 0 10px;padding:10px 14px;background:rgba(0,0,0,0.12);border-radius:8px;">${sceneLines.map(l => `<div>· ${escapeForHTML(l)}</div>`).join('')}</div>` : ''}
+      ${wakeUpLine ? `<div style="font-size:0.78rem;color:#d4a05a;line-height:1.7;margin:4px 0 10px;">⚡ ${escapeForHTML(wakeUpLine)}</div>` : ''}
       
       <p style="font-size:0.7rem;color:var(--dim);">抽于 ${new Date(data.drawnAt).toLocaleString()}</p>
       <p style="font-size:0.7rem;color:#d45050;">⚠️ 此牌已锁定，本周期不可重抽。建议截图保存。</p>
@@ -656,7 +909,7 @@ export function openPeriodDetail(periodType) {
 
       <div class="btn-row">
         <button id="periodCopyPromptBtn2" class="outline small" style="font-size:0.65rem;">📋 复制提示词</button>
-        <button data-action="shareDaily" data-fortune="overall" class="outline small">☯ 生成日运卡</button>
+        <button data-action="shareDaily" data-fortune="${fortuneType}" data-fortune-type="${fortuneType}" class="outline small">☯ 生成分享图</button>
       </div>
     </div>
   `;
@@ -667,9 +920,10 @@ export function openPeriodDetail(periodType) {
   state.periodKey = periodKey;
   state.periodCard = card;
   state.periodFortune = metaphor;
+  state.fortuneType = fortuneType;
 
   document.getElementById('periodLocalBtn2')?.addEventListener('click', () => {
-    const fullText = generateFullPeriodLocal(card, wx, periodType, metaphor);
+    const fullText = generateFullPeriodLocal(card, wx, typeLabel, metaphor, fortuneType);
     const el = document.getElementById('periodAiResult2');
     if (el) {
       el.style.display = 'block';
@@ -689,10 +943,17 @@ export function openPeriodDetail(periodType) {
     const model = settings.model || API_PROVIDERS[provider]?.model || '';
     const prompt = buildSingleCardPrompt(card, {
       metaphor,
-      periodLabel: getPeriodTitle(periodType)
+      periodLabel: typeLabel,
+      fortuneType
     });
     try {
-      const result = await requestReading({ provider, apiKey: settings.apiKey, endpoint, model, prompt });
+      const result = await requestReading({
+        provider, apiKey: settings.apiKey, endpoint, model, prompt,
+        temperature: settings.temperature,
+        maxTokens: settings.maxTokens,
+        topP: settings.topP,
+        headers: settings.headers
+      });
       const el = document.getElementById('periodAiResult2');
       if (el) {
         el.style.display = 'block';
@@ -700,7 +961,8 @@ export function openPeriodDetail(periodType) {
       }
       addPeriodHistoryEntry({
         periodType, periodKey, card, fortune: metaphor,
-        question: `${getPeriodTitle(periodType)} · ${periodKey}`,
+        fortuneType,
+        question: `${typeLabel} · ${periodKey}`,
         time: Date.now(),
         chatHistory: [{ role: 'user', content: prompt }, { role: 'assistant', content: result }]
       });
@@ -713,18 +975,20 @@ export function openPeriodDetail(periodType) {
     }
   });
 
-  document.getElementById('periodCopyPromptBtn2')?.addEventListener('click', () => {
+  document.getElementById('periodCopyPromptBtn2')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
     const prompt = buildSingleCardPrompt(card, {
       metaphor,
-      periodLabel: getPeriodTitle(periodType)
+      periodLabel: typeLabel,
+      fortuneType
     });
-    navigator.clipboard.writeText(prompt)
-      .then(() => toast('✅ 单牌 AI 提示词已复制'))
-      .catch(() => toast('复制失败，请手动复制'));
+    const ok = await copyTextWithFeedback(prompt, btn);
+    toast(ok ? '✅ 单牌 AI 提示词已复制（含领域与时间）' : '复制失败，请长按手动复制');
   });
 }
 
-export function confirmPeriodPick(periodType, card) {
+// ===== 确认周期抽牌 =====
+export function confirmPeriodPick(periodType, card, fortuneType = 'overall') {
   const modal = document.getElementById('modal');
   const content = document.getElementById('modalContent');
   if (!modal || !content) return;
@@ -735,110 +999,62 @@ export function confirmPeriodPick(periodType, card) {
   const colorCls = getCardColor(card);
   const rank = card.isJoker ? card.type : card.rank;
   const suit = card.isJoker ? '' : card.suit;
-  const metaphor = generateSingleCardMetaphor(card, wx, cfg.label);
-
   const periodKey = getCurrentPeriodKey(periodType);
-  saveStoredPeriodCard(periodType, { periodKey, card, fortune: metaphor, drawnAt: Date.now() });
+  const typeLabel = periodType === 'daily' ? getDailyFortuneType(fortuneType).label : cfg.label;
+  const metaphor = generateSingleCardMetaphor(card, wx, typeLabel, fortuneType);
+
+  // 情绪镜像（结果页顶部）+ 场景短句（日运专属）
+  const mirrorLine = getDailyMirrorLine();
+  const sceneLines = getSceneLines(fortuneType);
+
+  // 存储（支持日运细选）
+  saveStoredPeriodCard(periodType, { periodKey, card, fortune: metaphor, drawnAt: Date.now(), fortuneType }, fortuneType);
 
   const html = `
     <div style="text-align:center;">
-      <div style="font-size:0.8rem;color:var(--dim);margin-bottom:8px;">${escapeForHTML(getPeriodTitle(periodType))} · 你抽到了</div>
+      <div style="font-size:0.8rem;color:var(--dim);margin-bottom:8px;">${escapeForHTML(typeLabel)} · 你抽到了</div>
+      <div style="font-size:0.8rem;color:var(--accent);line-height:1.7;margin:0 0 10px;padding:10px 14px;background:rgba(0,0,0,0.18);border-radius:8px;">
+        <span style="opacity:0.75;margin-right:6px;">☯ 情绪镜像</span>${escapeForHTML(mirrorLine)}
+      </div>
       <div class="card-face-small ${colorCls}" style="margin:10px auto;width:80px;height:112px;display:flex;align-items:center;justify-content:center;flex-direction:column;border-radius:6px;border:2px solid var(--border);background:rgba(0,0,0,0.3);">
         <span style="font-size:2rem;font-weight:bold;">${escapeForHTML(rank)}</span>
         <span style="font-size:1.4rem;">${escapeForHTML(suit)}</span>
         <span style="font-size:0.7rem;color:var(--dim);margin-top:2px;">${escapeForHTML(wx)}</span>
       </div>
       <div style="font-size:0.9rem;color:var(--text);line-height:1.8;margin:12px 0;padding:12px;background:rgba(0,0,0,0.15);border-radius:8px;white-space:pre-wrap;">${escapeForHTML(metaphor)}</div>
+      ${sceneLines.length ? `<div style="font-size:0.78rem;color:var(--dim);line-height:1.8;margin:6px 0 10px;padding:10px 14px;background:rgba(0,0,0,0.12);border-radius:8px;">${sceneLines.map(l => `<div>· ${escapeForHTML(l)}</div>`).join('')}</div>` : ''}
       <p style="font-size:0.7rem;color:#d45050;">⚠️ 此牌已锁定，本周期不可重抽。建议截图保存。</p>
       <div class="btn-row">
-        <button id="periodLocalBtn" class="primary small">本地引擎解读</button>
-        <button id="periodAiBtn" class="outline small">✨ AI 深度解读</button>
-      </div>
-      <div id="periodAiResult" style="display:none;margin-top:8px;text-align:left;font-size:0.85rem;"></div>
-      <div class="btn-row">
-        <button id="periodCopyPromptBtn" class="outline small" style="font-size:0.65rem;">📋 复制提示词</button>
-        <button id="periodSaveBtn" class="outline small">保存此牌</button>
-        <button data-action="shareDaily" data-fortune="overall" class="outline small">☯ 生成日运卡</button>
+        <button data-action="closeModal" class="primary small">确认</button>
+        <button data-action="shareDaily" data-fortune="${escapeForHTML(fortuneType)}" data-fortune-type="${escapeForHTML(fortuneType)}" class="outline small">☯ 生成分享图</button>
       </div>
     </div>
   `;
   setHTML(content, html);
+  modal.removeAttribute('hidden');
 
-  state.periodType = periodType;
-  state.periodKey = periodKey;
-  state.periodCard = card;
-  state.periodFortune = metaphor;
-
-  document.getElementById('periodLocalBtn')?.addEventListener('click', () => {
-    const fullText = generateFullPeriodLocal(card, wx, periodType, metaphor);
-    const result = document.getElementById('periodAiResult');
-    if (result) {
-      result.style.display = 'block';
-      setHTML(result, `<div style="color:var(--accent);font-size:0.8rem;margin-bottom:4px;">💡 本地规则推导</div>${escapeForHTML(fullText).replace(/\n/g, '<br>')}`);
-    }
+  // 保存到历史
+  addPeriodHistoryEntry({
+    periodType, periodKey, card, fortune: metaphor,
+    fortuneType,
+    question: `${typeLabel} · ${periodKey}`,
+    time: Date.now(), chatHistory: state.periodAiHistory || [],
   });
 
-  document.getElementById('periodAiBtn')?.addEventListener('click', async function() {
-    const settings = getApiSettings();
-    if (!settings || !settings.apiKey) { showAIGuideModal(); return; }
-    this.disabled = true;
-    this.textContent = '解读中...';
-    const provider = settings.provider || 'deepseek';
-    let endpoint = settings.endpoint || API_PROVIDERS[provider]?.endpoint || '';
-    if (endpoint.endsWith('/v1')) endpoint = endpoint.slice(0, -3);
-    if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
-    const model = settings.model || API_PROVIDERS[provider]?.model || '';
-    const prompt = buildSingleCardPrompt(card, {
-      metaphor,
-      periodLabel: getPeriodTitle(periodType)
-    });
-    try {
-      const result = await requestReading({ provider, apiKey: settings.apiKey, endpoint, model, prompt });
-      const el = document.getElementById('periodAiResult');
-      if (el) {
-        el.style.display = 'block';
-        setHTML(el, `<div style="color:var(--accent);font-size:0.8rem;margin-bottom:4px;">✨ AI 深度解读</div>${escapeForHTML(result).replace(/\n/g, '<br>')}`);
-      }
-      state.periodAiHistory = [{ role: 'user', content: prompt }, { role: 'assistant', content: result }];
-      addPeriodHistoryEntry({
-        periodType, periodKey, card, fortune: metaphor,
-        question: `${getPeriodTitle(periodType)} · ${periodKey}`,
-        time: Date.now(), chatHistory: state.periodAiHistory,
-      });
-      toast('AI 解读已保存');
-    } catch (e) {
-      toast(e.message || 'AI 请求失败', 3000);
-    } finally {
-      this.disabled = false;
-      this.textContent = '✨ AI 深度解读';
-    }
-  });
-
-  document.getElementById('periodCopyPromptBtn')?.addEventListener('click', () => {
-    const prompt = buildSingleCardPrompt(card, {
-      metaphor,
-      periodLabel: getPeriodTitle(periodType)
-    });
-    navigator.clipboard.writeText(prompt)
-      .then(() => toast('✅ 单牌 AI 提示词已复制'))
-      .catch(() => toast('复制失败，请手动复制'));
-  });
-
-  document.getElementById('periodSaveBtn')?.addEventListener('click', () => {
-    toast('此牌已自动保存，无需重复操作');
-  });
   renderPeriodCards();
   renderStep1();
 }
 
-export function savePeriodCard(periodType, card, metaphor) {
+// ===== 保存周期卡 =====
+export function savePeriodCard(periodType, card, metaphor, fortuneType = 'overall') {
   const periodKey = getCurrentPeriodKey(periodType);
   if (!periodKey) return;
-  const data = { periodKey, card, fortune: metaphor, drawnAt: Date.now() };
-  saveStoredPeriodCard(periodType, data);
+  const data = { periodKey, card, fortune: metaphor, drawnAt: Date.now(), fortuneType };
+  saveStoredPeriodCard(periodType, data, fortuneType);
   addPeriodHistoryEntry({
     periodType, periodKey, card, fortune: metaphor,
-    question: `${getPeriodTitle(periodType)} · ${periodKey}`,
+    fortuneType,
+    question: `${periodType === 'daily' ? getDailyFortuneType(fortuneType).label : PERIODS[periodType]?.label} · ${periodKey}`,
     time: Date.now(), chatHistory: state.periodAiHistory || [],
   });
   toast('此牌已保存，本周期内不可重抽');
@@ -848,10 +1064,9 @@ export function savePeriodCard(periodType, card, metaphor) {
   renderStep1();
 }
 
-function generateFullPeriodLocal(card, wx, periodType, metaphor) {
-  const cfg = PERIODS[periodType];
+function generateFullPeriodLocal(card, wx, periodLabel, metaphor, fortuneType = 'overall') {
   let out = metaphor + '\n\n';
-  out += `【${cfg.label}指引】\n`;
+  out += `【${periodLabel}指引】\n`;
   out += `牌面：${card.isJoker ? card.type : card.rank + card.suit}（${wx}）\n`;
   out += `阴阳：${card.isJoker ? (card.type === '大王' ? '阳' : '阴') : (card.suit === '♥' || card.suit === '♦') ? '阳' : '阴'}\n\n`;
   const wxAdvice = {
@@ -881,7 +1096,7 @@ export function resetStep2() {
 }
 
 export function confirmTiYong() {
-  if (!state.ti || !state.yong) { toast('请先选好你（本命）和所问之事'); return; }
+  if (!state.ti || !state.yong) { toast('请先选好「你」和「所问之事」两张牌', 2200, 'warning'); return; }
   if (state.sealed) { toast('牌局已封印'); return; }
   state.deck.push({ isJoker: true, type: '大王', _uid: state.uid++ }, { isJoker: true, type: '小王', _uid: state.uid++ });
   state.deck = shuffle(state.deck);
@@ -907,23 +1122,52 @@ export function sealDeckAction() { sealDeck(); }
 export function switchMode(mode) { state.mode = mode; refreshAll(); }
 export function showDurianReportAction() { showDurianReport(); }
 
-export function copyLocalResult() {
+export async function copyLocalResult(e) {
   const el = document.getElementById('interpretText');
   if (!el) return;
-  navigator.clipboard.writeText(el.innerText).then(
-    () => toast(UI_TEXTS.toastCopied),
-    () => toast(UI_TEXTS.toastCopyFailed)
-  );
+  const btn = e && e.currentTarget ? e.currentTarget : null;
+  const ok = await copyTextWithFeedback(el.innerText, btn);
+  toast(ok ? UI_TEXTS.toastCopied : UI_TEXTS.toastCopyFailed);
 }
 
+// ===== AI 设置（Cherry Studio式：模型+温度+maxtokens+top_p+自定义请求头） =====
 export function saveApiSettingsFromForm() {
   const p = state.selectedProvider || 'deepseek';
   const info = API_PROVIDERS[p] || API_PROVIDERS.deepseek;
   let endpoint = document.getElementById('apiEndpoint')?.value?.trim() || info.endpoint || '';
   if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
   const apiKey = document.getElementById('apiKey')?.value?.trim() || '';
-  const settings = { provider: p, apiKey, endpoint, model: info.model || '', aiStyle: document.getElementById('aiStyle')?.value || 'guide' };
-  saveApiSettings(settings); updateApiStatus(); toast(UI_TEXTS.toastSaved);
+  const model = resolveApiModel(p, document.getElementById('apiModel')?.value?.trim(), info.model || '');
+
+  // 读取高级参数
+  let temperature = parseFloat(document.getElementById('aiTemperature')?.value);
+  if (isNaN(temperature)) temperature = 0.7;
+  let maxTokens = parseInt(document.getElementById('aiMaxTokens')?.value);
+  if (isNaN(maxTokens)) maxTokens = 2048;
+  let topP = parseFloat(document.getElementById('aiTopP')?.value);
+  if (isNaN(topP)) topP = 0.9;
+
+  let headers = {};
+  const headersStr = document.getElementById('aiHeaders')?.value?.trim() || '';
+  if (headersStr) {
+    try { headers = JSON.parse(headersStr); }
+    catch(e) { toast('自定义请求头 JSON 格式错误，已忽略', 2500); }
+  }
+
+  const settings = {
+    provider: p,
+    apiKey,
+    endpoint,
+    model,
+    aiStyle: document.getElementById('aiStyle')?.value || 'guide',
+    temperature,
+    maxTokens,
+    topP,
+    headers
+  };
+  saveApiSettings(settings);
+  updateApiStatus();
+  toast(UI_TEXTS.toastSaved);
 }
 
 export function saveProfileFromForm() {
@@ -937,7 +1181,7 @@ export function saveProfileFromForm() {
   toast(UI_TEXTS.toastProfileSaved);
 }
 
-// ===== AI =====
+// ===== AI 深度解读（透传高级参数） =====
 export async function triggerAI() {
   const btn = document.getElementById('aiReadBtn');
   if (!btn) return;
@@ -948,10 +1192,21 @@ export async function triggerAI() {
   let endpoint = settings.endpoint || API_PROVIDERS[provider]?.endpoint || '';
   if (endpoint.endsWith('/v1')) endpoint = endpoint.slice(0, -3);
   if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
-  const model = settings.model || API_PROVIDERS[provider]?.model || '';
+  const model = resolveApiModel(provider, settings.model, API_PROVIDERS[provider]?.model || '');
   const prompt = await buildAIPrompt();
   try {
-    const result = await requestReading({ provider, apiKey: settings.apiKey, endpoint, model, style: settings.aiStyle || 'guide', prompt });
+    const result = await requestReading({
+      provider,
+      apiKey: settings.apiKey,
+      endpoint,
+      model,
+      style: settings.aiStyle || 'guide',
+      prompt,
+      temperature: settings.temperature,
+      maxTokens: settings.maxTokens,
+      topP: settings.topP,
+      headers: settings.headers
+    });
     const container = document.getElementById('aiResultContainer');
     const content = document.getElementById('aiResultContent');
     if (container) container.style.display = 'block';
@@ -982,7 +1237,7 @@ export async function sendFollowUp() {
   const settings = getApiSettings();
   if (!settings || !settings.apiKey) { toast('未配置 API Key'); return; }
   const history = state.chatHistory;
-  if (!history || history.length < 2) { toast('请先进行一次 AI 解读'); return; }
+  if (!history || history.length < 2) { toast('请先进行一次 AI 解读', 2200, 'warning'); return; }
   history.push({ role: 'user', content: q });
   const chatBlock = document.getElementById('chatHistoryBlock');
   if (chatBlock) chatBlock.innerHTML += `<div class="chat-msg user">${escapeForHTML(q)}</div>`;
@@ -990,9 +1245,19 @@ export async function sendFollowUp() {
   let endpoint = settings.endpoint || API_PROVIDERS[provider]?.endpoint || '';
   if (endpoint.endsWith('/v1')) endpoint = endpoint.slice(0, -3);
   if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
-  const model = settings.model || API_PROVIDERS[provider]?.model || '';
+  const model = resolveApiModel(provider, settings.model, API_PROVIDERS[provider]?.model || '');
   try {
-    const result = await requestFollowUp({ history, provider, apiKey: settings.apiKey, endpoint, model });
+    const result = await requestFollowUp({
+      history,
+      provider,
+      apiKey: settings.apiKey,
+      endpoint,
+      model,
+      temperature: settings.temperature,
+      maxTokens: settings.maxTokens,
+      topP: settings.topP,
+      headers: settings.headers
+    });
     history.push({ role: 'assistant', content: result });
     if (chatBlock) {
       chatBlock.innerHTML += `<div class="chat-msg ai">${escapeForHTML(result).replace(/\n/g, '<br>')}</div>`;
@@ -1012,12 +1277,18 @@ export async function handleTestApiConnection() {
     const provider = state.selectedProvider || 'deepseek';
     let endpoint = document.getElementById('apiEndpoint')?.value?.trim() || '';
     const apiKey = document.getElementById('apiKey')?.value?.trim() || '';
+    const model = resolveApiModel(provider, document.getElementById('apiModel')?.value?.trim(), API_PROVIDERS[provider]?.model || '');
+    let temperature = parseFloat(document.getElementById('aiTemperature')?.value);
+    if (isNaN(temperature)) temperature = 0.7;
+    let maxTokens = parseInt(document.getElementById('aiMaxTokens')?.value);
+    if (isNaN(maxTokens)) maxTokens = 2048;
+    let topP = parseFloat(document.getElementById('aiTopP')?.value);
+    if (isNaN(topP)) topP = 0.9;
     if (!apiKey && provider !== 'custom') throw new Error('请先填写 API Key');
     if (!endpoint && API_PROVIDERS[provider]) endpoint = API_PROVIDERS[provider].endpoint;
     if (endpoint.endsWith('/v1')) endpoint = endpoint.slice(0, -3);
     if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
-    const model = API_PROVIDERS[provider]?.model || '';
-    const msg = await testApiConnection({ provider, apiKey, endpoint, model });
+    const msg = await testApiConnection({ provider, apiKey, endpoint, model, temperature, maxTokens, topP });
     toast(msg, 3000);
   } catch (e) {
     toast(`测试失败: ${e.message}`, 4000);
@@ -1026,14 +1297,30 @@ export async function handleTestApiConnection() {
   }
 }
 
-// ===== 动作分发 =====
-export function handleAction(action, dataset) {
+// ===== 动作分发（支持日运细选+模型高级参数） =====
+export function handleAction(action, dataset, el = null) {
   switch (action) {
     case 'togglePanel': togglePanel(dataset.panel); break;
+    case 'toggleMoreMenu': {
+      const menu = document.getElementById('moreMenu');
+      if (menu) menu.hidden = !menu.hidden;
+      break;
+    }
     case 'resetAll': resetAll(); break;
+    case 'toggleConsultMode':
+      state.consultMode = !state.consultMode;
+      if (!state.consultMode) state.consultName = '';
+      renderStep1();
+      toast(state.consultMode ? '🧑 已开启求测人模式：问题与解读都围绕求测人展开' : '已切回为自己占卜');
+      break;
     case 'confirmQuestion': startQuestion(); break;
     case 'lazyStart': lazyStart(); break;
     case 'manualEntry': startManualEntry(); break;
+    case 'toggleManualSeq':
+      state.manualSeq = !state.manualSeq;
+      toast(state.manualSeq ? '📋 顺序录入：点牌即按 体→用→九宫 依次放置' : '🎯 自由放置：先点牌选中，再点目标位置放置');
+      renderStep2();
+      break;
     case 'selectCategory':
       state.category = state.category === dataset.category ? '' : dataset.category;
       state.subCategory = '';
@@ -1049,19 +1336,27 @@ export function handleAction(action, dataset) {
       break;
     case 'setTimeArc': setTimeArc(dataset.arc); break;
     case 'setTimeArcAuto': setTimeArcAuto(); break;
-    case 'openPeriodDeck': openPeriodDeck(dataset.period); break;
-    case 'openPeriodDetail': openPeriodDetail(dataset.period); break;
+    case 'openPeriodDeck': {
+      const fortuneType = dataset.fortuneType || 'overall';
+      openPeriodDeck(dataset.period, fortuneType);
+      break;
+    }
+    case 'openPeriodDetail': {
+      const fortuneType = dataset.fortuneType || 'overall';
+      openPeriodDetail(dataset.period, fortuneType);
+      break;
+    }
     case 'confirmTiYong': confirmTiYong(); break;
     case 'resetStep2': resetStep2(); break;
     case 'resetGrid': resetGrid(); break;
     case 'generateInterpretation':
-      if (!state.ti || !state.yong) { toast('请先完成「你」和「所问之事」的立极'); break; }
-      if (!state.grid || Object.keys(state.grid).length === 0) { toast('请先在九宫格中布下至少一张牌'); break; }
+      if (!state.ti || !state.yong) { toast('请先放好「你」和「所问之事」', 2200, 'warning'); break; }
+      if (!state.grid || Object.keys(state.grid).length === 0) { toast('请先在九宫格中布下至少一张牌', 2200, 'warning'); break; }
       generateInterpretation();
       break;
     case 'showFullReport': showFullReport(); break;
-    case 'copyLocal': copyLocalResult(); break;
-    case 'shareImage': generateShareImage(); break;
+    case 'copyLocal': copyLocalResult(el ? { currentTarget: el } : null); break;
+    case 'shareImage': generateShareImage({ type: 'divination', template: 'divination' }); break;
     case 'shareCode': generateShareCode(); break;
     case 'exportData': exportAllData(); break;
     case 'triggerAI': triggerAI(); break;
@@ -1071,6 +1366,18 @@ export function handleAction(action, dataset) {
       clearApiSettings();
       const keyInput = document.getElementById('apiKey');
       if (keyInput) keyInput.value = '';
+      const modelInput = document.getElementById('apiModel');
+      if (modelInput) modelInput.value = '';
+      const ep2 = document.getElementById('apiEndpoint');
+      if (ep2) ep2.value = API_PROVIDERS.deepseek.endpoint || '';
+      const tempInput = document.getElementById('aiTemperature');
+      if (tempInput) tempInput.value = 0.7;
+      const mtInput = document.getElementById('aiMaxTokens');
+      if (mtInput) mtInput.value = 2048;
+      const tpInput = document.getElementById('aiTopP');
+      if (tpInput) tpInput.value = 0.9;
+      const hdInput = document.getElementById('aiHeaders');
+      if (hdInput) hdInput.value = '';
       updateApiStatus();
       toast(UI_TEXTS.toastCleared);
       break;
@@ -1081,18 +1388,35 @@ export function handleAction(action, dataset) {
         deleteHistoryItem(parseInt(dataset.historyIndex));
         renderHistoryPanel();
         document.getElementById('modal')?.setAttribute('hidden', '');
-        toast('已删除');
+        toast('已删除', 2000, 'success');
       }
       break;
     case 'importCode': importShareCode(); break;
-    case 'closeModal':
-      document.getElementById('modal')?.setAttribute('hidden', '');
+    case 'closeModal': {
+      const m = document.getElementById('modal');
+      if (m && !m.hasAttribute('hidden')) {
+        m.classList.add('hiding');
+        document.getElementById('modalContent')?.classList.add('closing');
+        setTimeout(() => {
+          m.setAttribute('hidden', '');
+          m.classList.remove('hiding');
+          document.getElementById('modalContent')?.classList.remove('closing');
+        }, 160);
+      }
       document.getElementById('fortuneTypeModal')?.setAttribute('hidden', '');
       break;
+    }
     case 'closeShare': document.getElementById('sharePreview')?.setAttribute('hidden', ''); break;
     case 'saveShareImage': saveShareImage(); break;
     case 'sealDeck': sealDeckAction(); break;
     case 'durianReport': showDurianReportAction(); break;
+    case 'reports': showReportsModal(); break;
+    case 'periodReport':
+      if (dataset.period) renderPeriodReportInto(dataset.period);
+      break;
+    case 'replayTimeline':
+      if (dataset.time !== undefined) replayTimelineEntry(Number(dataset.time));
+      break;
     case 'openRepo': window.open('https://github.com/y22t19053/FuShengPai', '_blank'); break;
     case 'showReward': {
       import('./ui/ui-modal.js').then(m => m.showRewardModal());
@@ -1107,22 +1431,30 @@ export function handleAction(action, dataset) {
       break;
     }
     case 'sharePersona': {
-      // 旧入口：改指牌格
+      // 旧入口：改指牌灵
       import('./ui/ui-paige.js').then(m => m.openPaiGe());
       break;
     }
+    case 'showDailyFortunePicker': {
+      showDailyFortunePicker();
+      break;
+    }
     case 'shareDaily': {
-      let card = state.periodCard || null;
-      const typeKey = dataset.fortune || 'overall';
+      const action = createPeriodShareAction(state, dataset);
+      let card = action.card || null;
+      const typeKey = dataset.fortune || action.fortuneType || 'overall';
+      const fortuneType = action.fortuneType || typeKey || 'overall';
       if (!card) {
         const stored = getStoredPeriodCards();
         const dailyKey = getCurrentPeriodKey('daily');
-        if (stored.daily && stored.daily.periodKey === dailyKey) {
-          card = stored.daily.card;
+        const storedDaily = stored[`daily_${fortuneType}`] || stored[`daily_${typeKey}`] || stored.daily_overall;
+        if (storedDaily && storedDaily.periodKey === dailyKey) {
+          card = storedDaily.card;
           state.periodType = 'daily';
           state.periodKey = dailyKey;
           state.periodCard = card;
-          state.periodFortune = stored.daily.fortune || '';
+          state.periodFortune = storedDaily.fortune || '';
+          state.fortuneType = fortuneType;
         }
       }
       if (!card) {
@@ -1130,11 +1462,12 @@ export function handleAction(action, dataset) {
           const fortModal = document.getElementById('fortuneTypeModal');
           if (fortModal) { fortModal.removeAttribute('hidden'); return; }
         }
-        toast('请先抽取一张周期牌');
+        toast('请先抽取一张周期牌', 2200, 'warning');
         return;
       }
       document.getElementById('fortuneTypeModal')?.setAttribute('hidden', '');
-      import('./ui/ui-modal.js').then(m => m.generateShareImage({ type: 'daily', card, typeKey }));
+      // 走东方国风日运模板（宣纸 + 朱砂印章），不再落到旧版日运报告卡
+      import('./ui/ui-modal.js').then(m => m.generateShareImage({ type: 'daily', card, typeKey, fortuneType, template: 'daily' }));
       break;
     }
     case 'closeClarify': { const guide = document.getElementById('clarifyGuide'); if (guide) guide.style.display = 'none'; break; }
@@ -1144,33 +1477,47 @@ export function handleAction(action, dataset) {
 
 // ===== 事件绑定 =====
 function bindAllEvents() {
-  let onboardingActiveAtPointer = false;
-  document.addEventListener('pointerdown', function() {
-    onboardingActiveAtPointer = !!document.querySelector('.onboard-overlay');
-  }, true);
+  // 注意：此前曾有「引导层存在时吞掉一次点击」的逻辑，
+  // 它会导致引导层一旦残留，页面所有按钮（抽牌/分类等）全部失灵，
+  // 现已移除；引导层使用全屏遮罩（.onboard-overlay）天然阻止误触。
 
   document.addEventListener('click', function(e) {
-    if (onboardingActiveAtPointer) {
-      onboardingActiveAtPointer = false;
+    // 1. 按钮上的 action 优先
+    const btn = e.target.closest('button');
+    if (btn && btn.dataset.action) {
+      handleAction(btn.dataset.action, btn.dataset, btn);
       return;
     }
 
-    const btn = e.target.closest('button');
-    if (btn) {
-      const action = btn.dataset.action;
-      if (action) { handleAction(action, btn.dataset); return; }
+    // 2. 非按钮元素上的 action（周期卡牌面等）
+    const actionEl = e.target.closest('[data-action]');
+    if (actionEl && actionEl.dataset.action) {
+      handleAction(actionEl.dataset.action, actionEl.dataset, actionEl);
+      return;
     }
 
+    // 点击折叠菜单外部时关闭它
+    const moreMenu = document.getElementById('moreMenu');
+    if (moreMenu && !moreMenu.hidden && !e.target.closest('#moreMenu') && !e.target.closest('.more-btn')) {
+      moreMenu.hidden = true;
+    }
+
+    // 牌堆操作
     const cardEl = e.target.closest('.card-back, .card-face-small');
     if (cardEl && cardEl.dataset.cardid) {
       const card = findCardById(cardEl.dataset.cardid);
       if (card && !isCardPlaced(card)) {
+        // 手动录入 · 顺序模式：点牌即按顺序放置（无需先选中）
+        if (state.manualMode && state.manualSeq && !state.sel) {
+          autoPlaceSequential(card);
+          return;
+        }
         if (state.sel === cardEl.dataset.cardid) {
           state.sel = null;
-          toast('已取消选中');
+          toast('已取消选中', 2000, 'info');
         } else {
           state.sel = cardEl.dataset.cardid;
-          toast('已选中一张牌，点击上方目标位置或九宫格放置');
+          toast('已选中一张牌，点击上方目标位置或九宫格放置', 2000, 'info');
         }
         refreshAll();
       }
@@ -1207,7 +1554,23 @@ function bindAllEvents() {
     }
   });
 
+  // 模型预设按钮点击
   document.addEventListener('click', function(e) {
+    const modelBtn = e.target.closest('.model-preset');
+    if (modelBtn && modelBtn.dataset.model) {
+      const modelInput = document.getElementById('apiModel');
+      if (modelInput) modelInput.value = modelBtn.dataset.model;
+      const provider = modelBtn.dataset.provider;
+      if (provider) {
+        document.querySelectorAll('#providerGrid button').forEach(b => {
+          b.classList.toggle('selected', b.dataset.value === provider);
+        });
+        state.selectedProvider = provider;
+      }
+      toast('模型已填入，保存后生效');
+      return;
+    }
+
     const b = e.target.closest('#providerGrid button');
     if (b && b.dataset.value) {
       state.selectedProvider = b.dataset.value;
@@ -1238,10 +1601,13 @@ function bindAllEvents() {
 
 // ===== 初始化 =====
 function init() {
+  // 在线/离线提示（PWA 离线可用性引导）
+  setupNetworkHints();
+
   // 扫码入口识别
   if (window.location.search.includes('from=share')) {
     setTimeout(() => {
-      toast('✨ 朋友邀你入局 · 抽一张牌格吧', 3000);
+      toast('✨ 朋友邀你入局 · 抽一张牌灵吧', 3000, 'info');
       const toolSection = document.getElementById('toolSection');
       if (toolSection) toolSection.scrollIntoView({ behavior: 'smooth' });
     }, 800);
@@ -1259,6 +1625,7 @@ function init() {
     if (!hasCompletedOnboarding()) showOnboarding();
     injectAnimations();
     bindAllEvents();
+    initPWA();
     initDrag();
     bindScrollButtons();
     renderPeriodCards();

@@ -1,0 +1,25 @@
+# ===== electron-builder.yml · 浮生牌桌面打包配置 =====
+# 目标：绿色单文件 exe（portable），双击即用，无需安装
+appId: com.fushengpai.desktop
+productName: 浮生牌
+copyright: AGPL-3.0
+directories:
+  output: release
+files:
+  - dist/**
+  - public/**
+  - electron/**
+  - package.json
+win:
+  target:
+    - target: portable
+      arch:
+        - x64
+  # 有 .ico/.png(256) 图标时填入；缺省用 Electron 默认图标
+  # icon: build/icon.ico
+portable:
+  artifactName: 浮生牌-${version}-win64.exe
+# 直接复用本地已解压的 electron 二进制，避免下载后 rename 被占用
+electronDist: node_modules/electron/dist
+electronDownload:
+  mirror: https://npmmirror.com/mirrors/electron/

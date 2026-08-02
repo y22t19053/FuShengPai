@@ -1,4 +1,4 @@
-// ===== src/ui/ui-paige.js · 牌格卡（巨型扑克牌风格·人生课题） =====
+// ===== src/ui/ui-paige.js · 牌灵卡（盲抽版：背面朝上，点击翻牌确认） =====
 import { state } from '../state.js';
 import { createDeck, shuffle } from '../engine.js';
 import { getCardColor, getWuxing } from '../data.js';
@@ -6,9 +6,8 @@ import { getPaiGeQuestion, PAIGE_HASHTAGS } from '../texts/social.js';
 import { toast } from './ui-modal.js';
 import { escapeForHTML, setHTML } from '../utils/safe.js';
 
-// ---------- 存储（独立key，不依赖storage.js内部结构） ----------
 const STORAGE_KEY = 'fsp_paige';
-const HISTORY_KEY = 'fsp_history'; // 与storage.js中history的key保持一致
+const HISTORY_KEY = 'fsp_history';
 const UNLOCK_THRESHOLD = 3;
 
 export function getStoredPaiGe() {
@@ -21,11 +20,14 @@ export function getStoredPaiGe() {
 export function savePaiGe(card) {
   const data = { card, drawnAt: Date.now() };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  // 保存后通知首页刷新牌灵卡
+  import('./ui-render.js').then(m => m.renderPeriodCards()).catch(() => {});
   return data;
 }
 
 export function clearPaiGe() {
   localStorage.removeItem(STORAGE_KEY);
+  import('./ui-render.js').then(m => m.renderPeriodCards()).catch(() => {});
 }
 
 export function getRealReadingCount() {
@@ -61,45 +63,30 @@ export function openPaiGe() {
   }
 }
 
-// ---------- 抽牌界面 ----------
+// ---------- 盲抽：全部牌背朝上，点击翻牌 ----------
 function showPaiGeDraw(modal, content) {
-  const deck = shuffle(createDeck(true));
+  const deck = shuffle(createDeck(false)); // 52张，不含大小王，保持简洁
   state.pendingPaiGeDeck = deck;
 
   const html = `
     <div style="text-align:center;"> 
-      <h3 style="color:var(--accent);">🃏 抽取你的牌格</h3>
+      <h3 style="color:var(--accent);">🃏 盲抽你的牌灵</h3>
       <p style="font-size:0.8rem;color:var(--dim);margin:8px 0 16px;">
-        凭直觉选一张——它将揭示你未完成的人生课题。<br>
-        <span style="color:#d45050;font-size:0.7rem;">⚠️ 抽取后锁定，需完成至少 ${UNLOCK_THRESHOLD} 次真正占卜才可重抽。</span>
+        凭直觉，点一张牌。<br>
+        翻开的瞬间，你的无意识会借这张牌，
+        说出它想让你看见的课题。
+        <br>
+        <span style="color:#d45050;font-size:0.7rem;">⚜️ 本命守护：需完成 ${UNLOCK_THRESHOLD} 次正式观象，方可重唤新灵</span>
       </p>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-height:300px;overflow-y:auto;padding:8px;">
-        ${deck.map((c, idx) => {
-          const rank = c.isJoker ? (c.type === '大王' ? 'JOKER' : 'joker') : c.rank;
-          const suit = c.isJoker ? '' : c.suit;
-          const color = getCardColor(c);
-          const wx = getWuxing(c);
-          return `<button data-paige-card-idx="${idx}" style="
-            background:rgba(255,255,255,0.1);
-            border:1px solid var(--border);
-            border-radius:8px;
-            width:52px;height:74px;
-            font-size:0.8rem;
-            font-weight:bold;
-            color:${color === 'red' ? '#e74c3c' : color === 'gold' ? '#f1c40f' : '#ecf0f1'};
-            cursor:pointer;
-            display:flex;flex-direction:column;
-            align-items:center;justify-content:center;
-            gap:2px;
-            transition:transform 0.1s;
-          " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
-            <span>${escapeForHTML(rank)}${escapeForHTML(suit)}</span>
-            <span style="font-size:0.5rem;color:var(--dim);">${escapeForHTML(wx)}</span>
-          </button>`;
-        }).join('')}
+      <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-height:320px;overflow-y:auto;padding:12px;">
+        ${deck.map((_, idx) => `
+          <div data-paige-card-idx="${idx}" class="card-back" style="
+            width:64px;height:88px;cursor:pointer;flex-shrink:0;
+            transition:transform 0.15s;
+          " onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'"></div>`).join('')}
       </div>
-      <div style="margin-top:12px;">
-        <button id="paigeRandomBtn" class="outline small">🎲 随机抽一张</button>
+      <div style="margin-top:14px;">
+        <button id="paigeRandomBtn" class="outline small">🎲 完全随机抽一张</button>
         <button data-action="closeModal" class="outline small">算了</button>
       </div>
     </div>
@@ -107,15 +94,19 @@ function showPaiGeDraw(modal, content) {
   setHTML(content, html);
   modal.removeAttribute('hidden');
 
-  content.querySelectorAll('[data-paige-card-idx]').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const card = deck[parseInt(this.dataset.paigeCardIdx)];
-      confirmPaiGePick(card);
+  content.querySelectorAll('[data-paige-card-idx]').forEach(el => {
+    el.addEventListener('click', function() {
+      const idx = parseInt(this.dataset.paigeCardIdx);
+      const card = deck[idx];
+      // 翻牌动画：牌背 → 正面
+      this.outerHTML = `<div class="card-face ${getCardColor(card)}" style="width:64px;height:88px;margin:0 auto;animation:cardFlip 0.5s;">${escapeForHTML(card.isJoker ? card.type : card.rank)}${escapeForHTML(card.isJoker ? '' : card.suit)}</div>`;
+      setTimeout(() => confirmPaiGePick(card), 350);
     });
   });
 
   document.getElementById('paigeRandomBtn')?.addEventListener('click', () => {
     const card = deck[Math.floor(Math.random() * deck.length)];
+    toast('✨ 天命已定，牌灵显现', 2400, 'success');
     confirmPaiGePick(card);
   });
 }
@@ -124,11 +115,11 @@ function showPaiGeDraw(modal, content) {
 export function confirmPaiGePick(card) {
   if (!card) return;
   savePaiGe(card);
-  toast('🔒 牌格已锁定——这是你此刻的人生课题');
+  toast('🔒 牌灵已定——你的无意识，选出了它想让你看见的那一张');
   openPaiGe();
 }
 
-// ---------- 详情界面 ----------
+// ---------- 详情界面（牌灵 = 课题，不再混入人格） ----------
 function showPaiGeDetail(modal, content, status) {
   const stored = status.stored;
   const card = stored.card;
@@ -142,15 +133,14 @@ function showPaiGeDetail(modal, content, status) {
   if (status.unlocked) {
     actionHTML = `<button id="paigeRedrawBtn" class="outline small" style="color:#d45050;border-color:#d45050;">🔄 重新抽取（已解锁）</button>`;
   } else {
-    actionHTML = `<span style="font-size:0.7rem;color:var(--dim);">🔒 需完成至少 ${status.threshold} 次真正占卜才可重抽<br>（当前 ${status.readings} 次）</span>`;
+    actionHTML = `<span style="font-size:0.7rem;color:var(--dim);">⚜️ 本命守护 · 完成 ${status.threshold} 次正式观象后可重抽<br>（当前 ${status.readings}/${status.threshold}）</span>`;
   }
 
   const html = `
     <div style="text-align:center;">
-      <div style="font-size:0.7rem;color:var(--dim);margin-bottom:4px;">你的牌格 · 人生课题</div>
-      
+      <div style="font-size:0.7rem;color:var(--dim);margin-bottom:4px;">你的牌灵 · 人生课题</div>
       <div style="
-        width:120px;height:170px;
+        width:110px;height:155px;
         background:rgba(255,255,255,0.05);
         border:2px solid var(--border);
         border-radius:12px;
@@ -162,7 +152,7 @@ function showPaiGeDetail(modal, content, status) {
         gap:4px;
         box-shadow:0 4px 20px rgba(0,0,0,0.3);
       ">
-        <span style="font-size:2.4rem;font-weight:bold;color:${colorText};">${escapeForHTML(rank)}${escapeForHTML(suit)}</span>
+        <span style="font-size:2.2rem;font-weight:bold;color:${colorText};">${escapeForHTML(rank)}${escapeForHTML(suit)}</span>
         <span style="font-size:0.7rem;color:var(--accent);">${escapeForHTML(question?.title || '')}</span>
       </div>
 
@@ -176,7 +166,7 @@ function showPaiGeDetail(modal, content, status) {
       <p style="font-size:0.65rem;color:var(--dim);">抽于 ${new Date(stored.drawnAt).toLocaleString()}</p>
 
       <div class="btn-row">
-        <button id="paigeShareBtn" class="primary small">🃏 生成牌格分享图</button>
+        <button id="paigeShareBtn" class="primary small">🃏 生成牌灵分享图</button>
         <button data-action="closeModal" class="outline small">关闭</button>
       </div>
       <div style="margin-top:8px;">${actionHTML}</div>
@@ -186,20 +176,19 @@ function showPaiGeDetail(modal, content, status) {
   modal.removeAttribute('hidden');
 
   document.getElementById('paigeShareBtn')?.addEventListener('click', () => {
-    import('./ui-modal.js').then(m => m.generateShareImage({ type: 'paige', card }));
+    // 先收起详情弹窗，避免分享面板与弹窗叠加遮挡
+    const modalEl = document.getElementById('modal');
+    if (modalEl) modalEl.setAttribute('hidden', '');
+    import('./ui-modal.js').then(mod => mod.generateShareImage({ 
+      type: 'paige', 
+      card, 
+      template: 'tarot' // 牌灵专属：西方塔罗·深空星辉
+    }));
   });
 
   document.getElementById('paigeRedrawBtn')?.addEventListener('click', () => {
     clearPaiGe();
-    toast('旧牌格已解除，可重新抽取');
+    toast('旧牌灵已解除，可重新抽取');
     openPaiGe();
   });
-}
-
-// ---------- 首页按钮状态 ----------
-export function getPaiGeBtnInfo() {
-  const status = getPaiGeUnlockStatus();
-  if (!status.hasStored) return { text: '🃏 抽牌格', action: 'openPaiGe' };
-  if (status.unlocked) return { text: '🔄 牌格 · 重抽', action: 'openPaiGe' };
-  return { text: '🔒 牌格 · 查看', action: 'openPaiGe' };
 }
