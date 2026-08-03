@@ -158,6 +158,9 @@ function showMorePeriodsModal() {
 export function renderStep1() {
   const core = document.getElementById('coreArea');
   if (!core) return;
+  // 首页在宽屏下全宽展示（与立极/观象的三栏布局区分开）
+  const panels = document.getElementById('dynamicPanels');
+  if (panels) panels.classList.add('step-home');
 
   const renderCatBtns = (curCat, curSub) => {
     let html = '<div class="category-grid">';

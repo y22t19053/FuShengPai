@@ -224,6 +224,34 @@ select:focus-visible {
     max-height: calc(100vh - 120px);
   }
 
+  /* 首页（起念）：内容区全宽，隐藏左右空栏——桌面首页舒展，不再像移动端窄栏 */
+  #dynamicPanels.step-home {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #dynamicPanels.step-home .tiyong-panel,
+  #dynamicPanels.step-home .result-panel {
+    display: none;
+  }
+
+  #dynamicPanels.step-home .core-panel {
+    max-height: none;
+    overflow-y: visible;
+  }
+
+  /* 首页全宽下：封面区更舒展、标题更大 */
+  #dynamicPanels.step-home #heroSection {
+    padding: 22px 28px !important;
+  }
+
+  #dynamicPanels.step-home .hero-gold-title {
+    font-size: clamp(1.25rem, 2.6vw, 1.7rem) !important;
+  }
+
+  #dynamicPanels.step-home #heroSection .sub-line {
+    font-size: 0.8rem;
+  }
+
   .grid-9 {
     max-width: 480px;
   }
@@ -1674,6 +1702,35 @@ input[type='time']::-webkit-calendar-picker-indicator {
   /* 触摸端牌背网格：牌更紧凑，减少滑动距离 */
   #periodDeckGrid .card-back {
     margin: 3px !important;
+  }
+}
+
+/* ===== 桌面端（精确指针）：紧凑按钮，区别于触屏的大按钮 ===== */
+@media (hover: hover) and (pointer: fine) {
+  button {
+    min-height: 34px;
+  }
+
+  button.small {
+    min-height: 28px;
+    padding: 3px 10px;
+  }
+
+  .category-grid button {
+    min-height: 30px;
+  }
+
+  .more-menu button {
+    min-height: 32px;
+    padding: 6px 12px;
+  }
+
+  .top-btns button {
+    padding: 6px 14px;
+  }
+
+  .gong {
+    min-height: 64px;
   }
 }
 /* ===== 第八轮修复：内联 display:flex 优先级高�?UA 规则，必须显式覆�?===== */

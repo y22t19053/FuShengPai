@@ -75,6 +75,9 @@ let __PRE_DECK__ = [];
 // --- 核心 ---
 export function updateStep(n) {
   state.step = n;
+  // 首页（起念）在宽屏下让内容区全宽，避免左右空栏挤压；立极/观象恢复三栏
+  const panels = document.getElementById('dynamicPanels');
+  if (panels) panels.classList.toggle('step-home', n === 1);
   for (let i = 1; i <= 3; i++) {
     const el = document.getElementById('sd' + i);
     if (!el) continue;
