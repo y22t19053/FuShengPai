@@ -1,8 +1,17 @@
 // ===== src/ai.js · AI请求层（OpenAI兼容协议 + 高级参数透传） =====
 import { UI_TEXTS } from './texts/index.js';
 
-const DEFAULT_TIMEOUT_MS = 30000;
+const DEFAULT_TIMEOUT_MS = 60000;
 const DEFAULT_RETRIES = 2;
+const DEFAULT_MAX_TOKENS = 4096;
+
+// AI 响应内容异常（空内容 / 截断），带 truncated 标记以便自动恢复
+class AIResponseError extends Error {
+  constructor(message, truncated = false) {
+    super(message);
+    this.truncated = truncated;
+  }
+}
 
 async function fetchWithRetry(url, options = {}, { timeoutMs = DEFAULT_TIMEOUT_MS, retries = DEFAULT_RETRIES } = {}) {
   let lastError;
@@ -31,53 +40,59 @@ export async function requestReading({
   if (!endpoint) throw new Error('未配置 API 地址');
 
   const url = buildUrl(endpoint, provider);
-  const body = {
-    model: model || 'gpt-3.5-turbo',
-    messages: [
-      { role: 'system', content: buildSystemPrompt(style) },
-      { role: 'user', content: prompt }
-    ],
-    temperature: temperature !== undefined ? temperature : 0.7,
-    max_tokens: maxTokens || 2048,
-    top_p: topP !== undefined ? topP : 0.9,
-    stream: false
-  };
+  const baseTokens = maxTokens || DEFAULT_MAX_TOKENS;
 
-  const requestHeaders = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${apiKey}`
-  };
-
-  // 自定义请求头合并
-  if (headers && typeof headers === 'object') {
-    Object.assign(requestHeaders, headers);
-  }
-
-  if (provider === 'gemini') {
-    const url2 = buildGeminiUrl(endpoint, provider, body.model, apiKey);
-    const body2 = {
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: body.temperature,
-        maxOutputTokens: body.max_tokens,
-        topP: body.top_p
-      }
+  const callOnce = async (mt) => {
+    const body = {
+      model: model || 'gpt-3.5-turbo',
+      messages: [
+        { role: 'system', content: buildSystemPrompt(style) },
+        { role: 'user', content: prompt }
+      ],
+      temperature: temperature !== undefined ? temperature : 0.7,
+      max_tokens: mt,
+      top_p: topP !== undefined ? topP : 0.9,
+      stream: false
     };
-    const resp = await fetchWithRetry(url2, {
+
+    const requestHeaders = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    };
+
+    // 自定义请求头合并
+    if (headers && typeof headers === 'object') {
+      Object.assign(requestHeaders, headers);
+    }
+
+    if (provider === 'gemini') {
+      const url2 = buildGeminiUrl(endpoint, provider, body.model, apiKey);
+      const body2 = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: body.temperature,
+          maxOutputTokens: body.max_tokens,
+          topP: body.top_p
+        }
+      };
+      const resp = await fetchWithRetry(url2, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body2)
+      });
+      return handleGeminiResponse(resp);
+    }
+
+    const resp = await fetchWithRetry(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body2)
+      headers: requestHeaders,
+      body: JSON.stringify(body)
     });
-    return handleGeminiResponse(resp);
-  }
 
-  const resp = await fetchWithRetry(url, {
-    method: 'POST',
-    headers: requestHeaders,
-    body: JSON.stringify(body)
-  });
+    return handleResponse(resp);
+  };
 
-  return handleResponse(resp);
+  return callWithRecovery(callOnce, baseTokens);
 }
 
 // ---------- 追问 ----------
@@ -94,49 +109,55 @@ export async function requestFollowUp({
   if (ep.endsWith('/')) ep = ep.slice(0, -1);
 
   const url = buildUrl(ep, providerName);
-  const body = {
-    model: model || 'gpt-3.5-turbo',
-    messages: history,
-    temperature: temperature !== undefined ? temperature : 0.7,
-    max_tokens: maxTokens || 2048,
-    top_p: topP !== undefined ? topP : 0.9,
-    stream: false
-  };
+  const baseTokens = maxTokens || DEFAULT_MAX_TOKENS;
 
-  const requestHeaders = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${apiKey}`
-  };
-  if (headers && typeof headers === 'object') {
-    Object.assign(requestHeaders, headers);
-  }
-
-  if (providerName === 'gemini') {
-    const url2 = buildGeminiUrl(ep, providerName, body.model, apiKey);
-    const text = history.map(m => (m.role === 'user' ? '用户：' : 'AI：') + m.content).join('\n\n');
-    const body2 = {
-      contents: [{ parts: [{ text }] }],
-      generationConfig: {
-        temperature: body.temperature,
-        maxOutputTokens: body.max_tokens,
-        topP: body.top_p
-      }
+  const callOnce = async (mt) => {
+    const body = {
+      model: model || 'gpt-3.5-turbo',
+      messages: history,
+      temperature: temperature !== undefined ? temperature : 0.7,
+      max_tokens: mt,
+      top_p: topP !== undefined ? topP : 0.9,
+      stream: false
     };
-    const resp = await fetchWithRetry(url2, {
+
+    const requestHeaders = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    };
+    if (headers && typeof headers === 'object') {
+      Object.assign(requestHeaders, headers);
+    }
+
+    if (providerName === 'gemini') {
+      const url2 = buildGeminiUrl(ep, providerName, body.model, apiKey);
+      const text = history.map(m => (m.role === 'user' ? '用户：' : 'AI：') + m.content).join('\n\n');
+      const body2 = {
+        contents: [{ parts: [{ text }] }],
+        generationConfig: {
+          temperature: body.temperature,
+          maxOutputTokens: body.max_tokens,
+          topP: body.top_p
+        }
+      };
+      const resp = await fetchWithRetry(url2, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body2)
+      });
+      return handleGeminiResponse(resp);
+    }
+
+    const resp = await fetchWithRetry(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body2)
+      headers: requestHeaders,
+      body: JSON.stringify(body)
     });
-    return handleGeminiResponse(resp);
-  }
 
-  const resp = await fetchWithRetry(url, {
-    method: 'POST',
-    headers: requestHeaders,
-    body: JSON.stringify(body)
-  });
+    return handleResponse(resp);
+  };
 
-  return handleResponse(resp);
+  return callWithRecovery(callOnce, baseTokens);
 }
 
 // ---------- 测试连接 ----------
@@ -228,6 +249,46 @@ function buildUrl(endpoint, provider) {
   return ep + '/v1/chat/completions';
 }
 
+// ---------- 内容提取（兼容字符串 / parts 数组 / 推理模型） ----------
+function extractText(data) {
+  const choice = data?.choices?.[0];
+  const msg = choice?.message;
+  let text = '';
+  if (msg) {
+    const c = msg.content;
+    if (typeof c === 'string') text = c;
+    else if (Array.isArray(c)) text = c.map(p => (typeof p === 'string' ? p : p?.text || '')).join('');
+    else if (c && typeof c === 'object') text = c.text || '';
+  }
+  return {
+    text: text.trim(),
+    finishReason: choice?.finish_reason || '',
+    reasoning: typeof msg?.reasoning_content === 'string' ? msg.reasoning_content : ''
+  };
+}
+
+// ---------- 空内容 / 截断自动恢复 ----------
+async function callWithRecovery(callOnce, maxTokens) {
+  try {
+    return await callOnce(maxTokens);
+  } catch (e) {
+    if (!(e instanceof AIResponseError)) throw e;
+    if (e.truncated) {
+      // 输出被截断（推理模型常见）：自动把最大输出翻倍再试一次（上限 32K）
+      const bigger = Math.min((maxTokens || DEFAULT_MAX_TOKENS) * 2, 32768);
+      try {
+        return await callOnce(bigger);
+      } catch (e2) {
+        // 翻倍后仍截断：退回第一次的部分内容，避免用户白等
+        if (e2 instanceof AIResponseError && e2.truncated && e.partialText) return e.partialText;
+        throw e2;
+      }
+    }
+    // 空内容：可能是瞬时抖动，原样再试一次
+    return await callOnce(maxTokens || DEFAULT_MAX_TOKENS);
+  }
+}
+
 // ---------- 处理响应 ----------
 async function handleResponse(resp) {
   if (!resp.ok) {
@@ -243,9 +304,20 @@ async function handleResponse(resp) {
     throw new Error(msg);
   }
   const data = await resp.json();
-  const text = data.choices?.[0]?.message?.content || '';
-  if (!text) throw new Error('AI 返回内容为空');
-  return text.trim();
+  const { text, finishReason, reasoning } = extractText(data);
+  if (!text || finishReason === 'length') {
+    if (finishReason === 'length') {
+      // 输出被截断（推理模型常见，可能正文为空或只有半截）：翻倍重试
+      const err = new AIResponseError('回答被截断（达到最大输出上限），已自动放大输出重试', true);
+      err.partialText = text;
+      throw err;
+    }
+    if (reasoning) {
+      throw new AIResponseError('模型只输出了思考过程、未输出正式回答，请在 AI 设置中增大「最大输出」或换用非推理模型');
+    }
+    throw new AIResponseError('AI 返回内容为空：服务商未返回正文，请检查模型名或稍后重试');
+  }
+  return text;
 }
 
 // ---------- Gemini 响应处理 ----------

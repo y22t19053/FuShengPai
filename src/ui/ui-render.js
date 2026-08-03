@@ -97,6 +97,10 @@ export function renderTeachingPanel() {
         <p style="margin:6px 0;"><strong>${escapeForHTML(s.heading)}</strong><br>${escapeForHTML(s.body)}</p>
       `).join('')}
 
+      <h4 style="color:var(--accent);">🔄 重新开始（重开）</h4>
+      <p>· 想清空当前牌局、重新起念？点顶部「<strong>↺ 重开</strong>」即可（会先弹出确认，不会误删）。</p>
+      <p>· 重开只重置当前牌局，<strong>已保存的历史、日运、牌灵都不会被删除</strong>。</p>
+
       <h4 style="color:var(--accent);">⚠️ 重要提醒：</h4>
       <p>· 不测生死、不窥他人</p>
       <p>· 所有数据仅保存在你的浏览器本地</p>
@@ -615,7 +619,7 @@ export function renderFullReport(text, modules = null) {
     <h3>${escapeForHTML(UI_TEXTS.step3)}</h3>
     ${state.consultMode && state.consultName ? `<p style="font-size:0.8rem;color:var(--dim);text-align:center;margin-bottom:6px;">🧑 为「${escapeForHTML(state.consultName)}」所问</p>` : ''}
     <div id="durianDisplay" style="margin-bottom:8px;"></div>
-    <div class="result-block" id="interpretText" style="font-size:0.9rem;line-height:1.9;max-height:60vh;overflow-y:auto;padding:16px;white-space:pre-wrap;">${escapeForHTML(text)}</div>
+    <div class="result-block" id="interpretText" style="font-size:0.92rem;line-height:1.95;max-height:60vh;overflow-y:auto;padding:16px;white-space:pre-wrap;">${escapeForHTML(text)}</div>
     <div class="btn-row actions-row">
       <button data-action="copyLocal" class="small">复制</button>
       <button id="copyPromptBtn" class="small outline">📋 复制提示词</button>
@@ -846,7 +850,7 @@ export function initSettingsPanel() {
     const temperatureInput = document.getElementById('aiTemperature');
     if (temperatureInput) temperatureInput.value = s.temperature !== undefined ? s.temperature : 0.7;
     const maxTokensInput = document.getElementById('aiMaxTokens');
-    if (maxTokensInput) maxTokensInput.value = s.maxTokens || 2048;
+    if (maxTokensInput) maxTokensInput.value = s.maxTokens || 4096;
     const topPInput = document.getElementById('aiTopP');
     if (topPInput) topPInput.value = s.topP !== undefined ? s.topP : 0.9;
     const headersInput = document.getElementById('aiHeaders');

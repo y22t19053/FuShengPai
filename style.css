@@ -8,7 +8,7 @@
   --border: #33304d;
   --border-soft: #2a2740;
   --text: #e8e6f2;
-  --dim: #9a94b8;
+  --dim: #a5a0c0;
   --accent: #c9a96e;
   --accent-soft: rgba(201, 169, 110, 0.14);
   --accent-glow: rgba(201, 169, 110, 0.35);
@@ -110,7 +110,7 @@ select:focus-visible {
 
 /* ===== 布局容器 ===== */
 #appRoot {
-  max-width: 1400px;
+  max-width: 1080px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -300,8 +300,16 @@ select:focus-visible {
 
 .top-btns {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+}
+
+.top-btns::-webkit-scrollbar {
+  display: none;
 }
 
 .top-btns button {
@@ -322,6 +330,17 @@ select:focus-visible {
   color: var(--text);
   background: var(--accent-soft);
   transform: translateY(-1px);
+}
+
+.top-btns button.danger {
+  color: #e08080;
+  border-color: rgba(212, 80, 80, 0.35);
+}
+
+.top-btns button.danger:hover {
+  color: #ff9a9a;
+  border-color: #e08080;
+  background: rgba(212, 80, 80, 0.12);
 }
 
 /* ··· 折叠菜单 */
@@ -1452,6 +1471,11 @@ input[type='time']::-webkit-calendar-picker-indicator {
   font-size: 0.8rem;
 }
 
+.static-panel p {
+  margin: 0.45em 0;
+  font-size: 0.9rem;
+}
+
 .static-panel label {
   display: block;
   font-size: 0.7rem;
@@ -1624,6 +1648,7 @@ input[type='time']::-webkit-calendar-picker-indicator {
   html,
   body {
     font-family: 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+    font-size: 16.5px;
   }
 
   button,

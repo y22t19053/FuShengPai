@@ -1132,7 +1132,7 @@ export function saveApiSettingsFromForm() {
   let temperature = parseFloat(document.getElementById('aiTemperature')?.value);
   if (isNaN(temperature)) temperature = 0.7;
   let maxTokens = parseInt(document.getElementById('aiMaxTokens')?.value);
-  if (isNaN(maxTokens)) maxTokens = 2048;
+  if (isNaN(maxTokens)) maxTokens = 4096;
   let topP = parseFloat(document.getElementById('aiTopP')?.value);
   if (isNaN(topP)) topP = 0.9;
 
@@ -1270,7 +1270,7 @@ export async function handleTestApiConnection() {
     let temperature = parseFloat(document.getElementById('aiTemperature')?.value);
     if (isNaN(temperature)) temperature = 0.7;
     let maxTokens = parseInt(document.getElementById('aiMaxTokens')?.value);
-    if (isNaN(maxTokens)) maxTokens = 2048;
+    if (isNaN(maxTokens)) maxTokens = 4096;
     let topP = parseFloat(document.getElementById('aiTopP')?.value);
     if (isNaN(topP)) topP = 0.9;
     if (!apiKey && provider !== 'custom') throw new Error('请先填写 API Key');
@@ -1362,7 +1362,7 @@ export function handleAction(action, dataset, el = null) {
       const tempInput = document.getElementById('aiTemperature');
       if (tempInput) tempInput.value = 0.7;
       const mtInput = document.getElementById('aiMaxTokens');
-      if (mtInput) mtInput.value = 2048;
+      if (mtInput) mtInput.value = 4096;
       const tpInput = document.getElementById('aiTopP');
       if (tpInput) tpInput.value = 0.9;
       const hdInput = document.getElementById('aiHeaders');
