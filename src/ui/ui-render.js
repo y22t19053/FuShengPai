@@ -195,10 +195,10 @@ export function renderStep1() {
       box-shadow: 0 2px 12px rgba(0,0,0,0.35);
       color: #c8c8d8;
     ">
-      <div style="font-size: 0.55rem; color: #8b6f47; letter-spacing: 2px; margin-bottom: 2px;">· 浮 生 若 梦 ·</div>
+      <div class="hero-eyebrow" style="font-size: 0.55rem; color: #8b6f47; letter-spacing: 2px; margin-bottom: 2px;">· 浮 生 若 梦 ·</div>
       <div class="hero-gold-title" style="font-size: 1.1rem; font-weight: 600; letter-spacing: 0.06em; margin: 0;">抽 一 张 牌 · 见 一 个 课 题</div>
       <div style="width: 28px; height: 1px; background: #8b6f47; margin: 6px auto;"></div>
-      <div style="font-size: 0.7rem; color: #77778a; margin-bottom: 8px;">牌灵与日运 · 各守一签，只存本机</div>
+      <div class="hero-sub" style="font-size: 0.7rem; color: #77778a; margin-bottom: 8px;">牌灵与日运 · 各守一签，只存本机</div>
       <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
         <button id="paigeBtn" style="
           background: rgba(201,169,110,0.10);
@@ -222,7 +222,7 @@ export function renderStep1() {
           cursor: pointer;
         ">☯ 日运</button>
       </div>
-      <div style="margin-top: 6px; font-size: 0.5rem; color: #77778a; opacity: 0.7;">牌灵需 3 次观象方可重抽 · 日运细选各类别独立锁定</div>
+      <div class="hero-note" style="margin-top: 6px; font-size: 0.5rem; color: #77778a; opacity: 0.7;">牌灵需 3 次观象方可重抽 · 日运细选各类别独立锁定</div>
     </div>
 
     <!-- 🃏 牌灵 + 🌤 今日日运（已抽则直接可见，无需点击；未抽给轻引导） -->
@@ -230,7 +230,7 @@ export function renderStep1() {
 
     <!-- ⚙️ 深度工具区 -->
     <div id="toolSection" style="border-top: 1px dashed #323242; padding-top: 20px;">
-      <div style="font-size: 0.75rem; color: #8b6f47; text-align: center; margin-bottom: 12px;">🪷 深 度 占 卜 台</div>
+      <div class="tool-title" style="font-size: 0.75rem; color: #8b6f47; text-align: center; margin-bottom: 12px;">🪷 深 度 占 卜 台</div>
       <div style="display:flex;justify-content:center;gap:6px;margin-bottom:8px;">
         <button data-action="toggleConsultMode" class="small ${state.consultMode ? 'primary' : 'outline'}" style="font-size:0.7rem;">${state.consultMode ? '🧑 帮别人问 · 已开启' : '🧑 帮别人问'}</button>
       </div>
@@ -247,7 +247,7 @@ export function renderStep1() {
       <div style="display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
         <button id="morePeriodBtn" class="small outline">更多周期运</button>
       </div>
-      <div style="font-size:0.6rem;color:#77778a;text-align:center;margin-top:4px;">日运/周运/月运等抽一次即锁定，建议截图保存</div>
+      <div class="tool-note" style="font-size:0.6rem;color:#77778a;text-align:center;margin-top:4px;">日运/周运/月运等抽一次即锁定，建议截图保存</div>
       <div id="periodCardArea" style="margin-top:12px;display:flex;justify-content:center;"></div>
     </div>
 
