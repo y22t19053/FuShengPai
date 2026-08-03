@@ -474,5 +474,5 @@ export function getSocialTopic(card, fortuneType = 'overall') {
 }
 
 // 通用社交分享文案（用于分享图下方的行动号召）
-export const SOCIAL_CTA = '📱 扫码 · 看看你的今日人设';
-export const SOCIAL_DAILY_LIMIT = '仅限今日 · 过期不候';
+export const SOCIAL_CTA = '📱 扫码 · 观今日牌势';
+export const SOCIAL_DAILY_LIMIT = '今日一观 · 明日复看';

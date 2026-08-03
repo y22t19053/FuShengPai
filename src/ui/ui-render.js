@@ -616,7 +616,7 @@ export function renderFullReport(text, modules = null) {
     ${state.consultMode && state.consultName ? `<p style="font-size:0.8rem;color:var(--dim);text-align:center;margin-bottom:6px;">🧑 为「${escapeForHTML(state.consultName)}」所问</p>` : ''}
     <div id="durianDisplay" style="margin-bottom:8px;"></div>
     <div class="result-block" id="interpretText" style="font-size:0.9rem;line-height:1.9;max-height:60vh;overflow-y:auto;padding:16px;white-space:pre-wrap;">${escapeForHTML(text)}</div>
-    <div class="btn-row">
+    <div class="btn-row actions-row">
       <button data-action="copyLocal" class="small">复制</button>
       <button id="copyPromptBtn" class="small outline">📋 复制提示词</button>
       <button data-action="shareImage" class="outline small">分享图</button>

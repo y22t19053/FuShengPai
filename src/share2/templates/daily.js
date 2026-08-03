@@ -4,7 +4,7 @@
 //       朱砂只用于牌面红字与「忌」，金色只用于「宜」与标签，克制不夺目。
 
 import {
-  W, H, M, LIGHT, SERIF, NUM, font,
+  W, H, M, CW, LIGHT, SERIF, NUM, font,
   roundRectPath, wrapText, hairline, paintBackground, drawBrandBar, drawFooter,
 } from '../theme.js';
 import { drawPokerCard } from '../poker.js';

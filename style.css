@@ -873,6 +873,11 @@ select:focus-visible {
   margin: 8px 0;
 }
 
+/* 解读结果操作行：按钮多、容器窄，换行后各行左对齐避免错位 */
+.actions-row {
+  justify-content: flex-start;
+}
+
 button {
   padding: 8px 16px;
   border-radius: 20px;
