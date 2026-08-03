@@ -15,8 +15,8 @@ win:
     - target: portable
       arch:
         - x64
-  # 有 .ico/.png(256) 图标时填入；缺省用 Electron 默认图标
-  # icon: build/icon.ico
+  # 应用图标（512x512 PNG，electron-builder 自动转 ICO）
+  icon: public/icons/fsp-icon.png
 portable:
   artifactName: 浮生牌-${version}-win64.exe
 # 直接复用本地已解压的 electron 二进制，避免下载后 rename 被占用

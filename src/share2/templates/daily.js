@@ -1,23 +1,23 @@
-// ===== src/share2/templates/daily.js · 日运海报（统一设计系统 · 浅色宣纸） =====
-// 基于 theme.js 骨架（LIGHT 色板）：品牌栏 → 超大日期 → 中央扑克牌 + 今日气象
-//   → 宜/忌两栏 → 底部金句 → 落款+二维码。
-// 原则：左对齐网格、1px 墨线分隔、无噪点无光斑、朱砂只用于气象与牌面红字。
+// ===== src/share2/templates/daily.js · 日运海报（宣纸 · 垂直中轴） =====
+// 布局：品牌栏 → 日期组（居中） → 中央牌 → 五行标签 → 宜/忌双栏 → 金句 → 落款。
+// 原则：全图以 W/2 为垂直中轴线对称；hairline 分段；无噪点无光晕；
+//       朱砂只用于牌面红字与「忌」，金色只用于「宜」与标签，克制不夺目。
 
 import {
-  W, H, M, CW, LIGHT, SERIF, SANS, NUM, font,
+  W, H, M, LIGHT, SERIF, NUM, font,
   roundRectPath, wrapText, hairline, paintBackground, drawBrandBar, drawFooter,
 } from '../theme.js';
 import { drawPokerCard } from '../poker.js';
 
-/** 五行 → 宜 / 忌（知识库取象，可读无术语） */
+/** 五行 → 宜 / 忌（传统取象，平实可读） */
 const YI_JI = {
-  '木': { yi: '扎根', ji: '内耗' },
-  '火': { yi: '表达', ji: '急躁' },
-  '土': { yi: '守成', ji: '投机' },
-  '金': { yi: '决断', ji: '拖延' },
-  '水': { yi: '流动', ji: '硬撑' },
-  '天': { yi: '定方向', ji: '犹豫' },
-  '人': { yi: '合作', ji: '独断' },
+  '木': { yi: '生长', ji: '壅塞' },
+  '火': { yi: '明动', ji: '虚浮' },
+  '土': { yi: '承载', ji: '停滞' },
+  '金': { yi: '收敛', ji: '刚愎' },
+  '水': { yi: '流动', ji: '泛滥' },
+  '天': { yi: '定志', ji: '游移' },
+  '人': { yi: '和合', ji: '独断' },
 };
 const WEATHER = { '木': '风', '火': '暑', '土': '湿', '金': '燥', '水': '寒', '天': '清', '人': '和' };
 
@@ -37,7 +37,7 @@ function weekday(dateText) {
 }
 
 /**
- * 日运宣纸海报（1080×1440）
+ * 日运宣纸海报（1080×1440，垂直中轴）
  * data: { cardMain{rank,suit,wx,color}, title, line, quote, dateText, fortuneType, element }
  */
 export async function renderDaily(ctx, w, h, data) {
@@ -48,7 +48,8 @@ export async function renderDaily(ctx, w, h, data) {
   const weather = WEATHER[wx] || '和';
   const dateText = data.dateText || '';
   const line = (data.line || data.quote || '观牌知势').replace(/^“|”$/g, '');
-  const isRed = card.color === 'red' || card.suit === '♥' || card.suit === '♦';
+  const wd = weekday(dateText);
+  const metaLine = wd ? `${wd} · ${weather}象` : `${weather}象`;
 
   // ---------- 1. 背景 + 品牌栏 ----------
   paintBackground(ctx, t, w, h);
@@ -57,26 +58,28 @@ export async function renderDaily(ctx, w, h, data) {
     rightLabel: `今日气象 · ${weather}`,
   });
 
-  // ---------- 2. 超大日期（左对齐，成为视觉锚点） ----------
+  // ---------- 2. 日期组（居中收拢，成为第一视觉锚点） ----------
   ctx.save();
-  ctx.textAlign = 'left';
+  ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = t.ink;
-  ctx.font = font(700, 148, NUM);
-  ctx.fillText(mmdd(dateText) || '—', M, 300);
+  ctx.fillStyle = t.goldDim;
   ctx.font = font(400, 24, SERIF);
+  ctx.fillText('观 于 今 日', W / 2, 232);
+  ctx.fillStyle = t.ink;
+  ctx.font = font(700, 92, NUM);
+  ctx.fillText(mmdd(dateText) || '—', W / 2, 322);
   ctx.fillStyle = t.inkDim;
-  ctx.fillText('观 于 今 日', M + 4, 352);
+  ctx.font = font(400, 22, SERIF);
+  ctx.fillText(metaLine, W / 2, 360);
   ctx.restore();
 
-  // ---------- 3. 中央扑克牌（真实牌面，白底 + 细线 + 角标/花色/宫廷） ----------
-  const bw = 300, bh = 420;
-  const bx = W / 2 - bw / 2, by = 420;
-  // 极淡投影（克制：只有一层，无光晕）
+  // ---------- 3. 中央扑克牌（白底 + 细线 + 角标/花色/宫廷，投影仅一层） ----------
+  const bw = 340, bh = 480;
+  const bx = W / 2 - bw / 2, by = 400;
   ctx.save();
-  ctx.shadowColor = 'rgba(61,53,39,0.18)';
-  ctx.shadowBlur = 14;
-  ctx.shadowOffsetY = 6;
+  ctx.shadowColor = 'rgba(61,53,39,0.15)';
+  ctx.shadowBlur = 12;
+  ctx.shadowOffsetY = 5;
   roundRectPath(ctx, bx, by, bw, bh, 6);
   ctx.fillStyle = '#fdfaf3';
   ctx.fill();
@@ -88,14 +91,13 @@ export async function renderDaily(ctx, w, h, data) {
     border: 'rgba(61,53,39,0.55)',
   });
 
-  // ---------- 4. 牌下信息行：等级标签 + 五行 ----------
-  const infoY = by + bh + 46;
-  // 朱砂标签「今日 · X运势」
+  // ---------- 4. 五行标签（朱砂系 pill，克制） ----------
+  const infoY = by + bh + 42;
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const tagText = `今日 · ${wx}五行`;
-  const tagW = Math.min(ctx.measureText(tagText).width + 56, 260);
+  const tagText = `今日五行 · ${wx}`;
+  const tagW = Math.min(ctx.measureText(tagText).width + 60, 280);
   ctx.fillStyle = t.goldFaint;
   roundRectPath(ctx, W / 2 - tagW / 2, infoY - 24, tagW, 48, 24);
   ctx.fill();
@@ -104,41 +106,41 @@ export async function renderDaily(ctx, w, h, data) {
   ctx.fillText(tagText, W / 2, infoY + 2);
   ctx.restore();
 
-  // ---------- 5. 宜 / 忌 两栏（左右分置，细线分隔，克制） ----------
-  const rowY = infoY + 92;
+  // ---------- 5. 宜 / 忌 双栏（左右各半，hairline 分隔，横竖各一条） ----------
+  const rowY = infoY + 58;
   hairline(ctx, M, rowY, W - M, rowY, t.line);
-  const colW = CW / 2;
+  const halfY = rowY + 84;
 
   ctx.save();
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  // 宜（左）
+  // 宜（左半，从 M 起）
   ctx.fillStyle = t.gold;
-  ctx.font = font(600, 30, SERIF);
-  ctx.fillText('宜', M, rowY + 72);
+  ctx.font = font(600, 26, SERIF);
+  ctx.fillText('宜', M, halfY);
   ctx.fillStyle = t.ink;
-  ctx.font = font(400, 30, SERIF);
-  ctx.fillText(yiji.yi, M + 68, rowY + 72);
-  // 忌（右）
+  ctx.font = font(400, 26, SERIF);
+  ctx.fillText(yiji.yi, M + 62, halfY);
+  // 忌（右半，从 W/2 起）
   ctx.fillStyle = t.red;
-  ctx.font = font(600, 30, SERIF);
-  ctx.fillText('忌', M + colW, rowY + 72);
+  ctx.font = font(600, 26, SERIF);
+  ctx.fillText('忌', W / 2, halfY);
   ctx.fillStyle = t.ink;
-  ctx.font = font(400, 30, SERIF);
-  ctx.fillText(yiji.ji, M + colW + 68, rowY + 72);
+  ctx.font = font(400, 26, SERIF);
+  ctx.fillText(yiji.ji, W / 2 + 62, halfY);
   ctx.restore();
 
-  // 两栏之间极淡竖线
-  hairline(ctx, M + colW, rowY + 16, M + colW, rowY + 84, t.line);
+  // 两栏之间极淡竖线（中轴）
+  hairline(ctx, W / 2, rowY + 20, W / 2, rowY + 92, t.line);
 
-  // ---------- 6. 底部金句（左对齐） ----------
+  // ---------- 6. 金句（居中，1-2 行，克制小字） ----------
   ctx.save();
-  ctx.textAlign = 'left';
+  ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = t.goldDim;
-  ctx.font = font(400, 22, SERIF);
-  const qLines = wrapText(ctx, `“${line}”`, CW, 2);
-  qLines.forEach((ln, i) => ctx.fillText(ln, M, h - 200 + i * 36));
+  ctx.font = font(400, 26, SERIF);
+  const qLines = wrapText(ctx, `“${line}”`, CW - 160, 2);
+  qLines.forEach((ln, i) => ctx.fillText(ln, W / 2, h - 250 + i * 40));
   ctx.restore();
 
   // ---------- 7. 落款 + 二维码 ----------
