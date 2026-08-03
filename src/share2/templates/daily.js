@@ -139,7 +139,7 @@ export async function renderDaily(ctx, w, h, data) {
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = t.goldDim;
   ctx.font = font(400, 26, SERIF);
-  const qLines = wrapText(ctx, `“${line}”`, CW - 160, 2);
+  const qLines = wrapText(ctx, `「${line}」`, CW - 160, 2);
   qLines.forEach((ln, i) => ctx.fillText(ln, W / 2, h - 250 + i * 40));
   ctx.restore();
 

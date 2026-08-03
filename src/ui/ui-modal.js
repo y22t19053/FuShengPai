@@ -4,7 +4,7 @@ import { API_PROVIDERS, getWuxing, getShengKe, DAILY_FORTUNE_TYPES, getDailyFort
 import { requestReading, requestFollowUp } from '../ai.js';
 import {
   getApiSettings, getProfile, getHistory, deleteHistoryItem,
-  exportAllDataJson, importAllData,
+  exportAllDataJson, importAllData, updateHistoryChatAt,
   hasCompletedOnboarding, completeOnboarding,
   getTimeline, getTimeCapsule, getStoredPeriodCards
 } from '../storage.js';
@@ -13,6 +13,7 @@ import { renderTeachingPanel } from './ui-render.js';
 import { escapeForHTML, setHTML } from '../utils/safe.js';
 import { loadQRImage } from '../utils/qr.js';
 import { copyTextWithFeedback } from '../utils/clipboard.js';
+import { resolveApiModel } from '../utils/api-config.js';
 
 // ===== 新增 Share 架构导入 =====
 import { buildShareData, buildSingleCardShareData } from '../share/share-data.js';
@@ -226,22 +227,33 @@ export function showHistoryDetail(index) {
   const content = document.getElementById('modalContent');
   if (!modal || !content || !r) return;
 
-  let aiBlock = '';
-  let fullText = r.text || '';
-  if (r.chatHistory && r.chatHistory.length) {
-    aiBlock = '<div class="result-block" style="max-height:150px;margin-top:10px;font-size:0.85rem;">' + r.chatHistory.map(m => `<div class="chat-msg ${m.role === 'user' ? 'user' : 'ai'}">${escapeForHTML(m.content).replace(/\n/g, '<br>')}</div>`).join('') + '</div>';
-    const chatText = r.chatHistory.map(m => (m.role === 'user' ? '用户：' : 'AI：') + m.content).join('\n\n');
-    fullText += '\n\n===== AI 对话 =====\n' + chatText;
-  } else {
-    aiBlock = '<p style="color:var(--dim);font-size:0.85rem;">暂无 AI 对话记录</p>';
-  }
+  // 对话上下文：有 chatHistory 用之；否则用「问题 + 解读正文」构造初始一轮
+  const chat = (Array.isArray(r.chatHistory) && r.chatHistory.length)
+    ? r.chatHistory.slice()
+    : [
+        { role: 'user', content: r.question || '（未提问）' },
+        { role: 'assistant', content: r.text || '' }
+      ];
+
+  const renderAiBlock = () => {
+    if (!chat.length) return '<p style="color:var(--dim);font-size:0.85rem;">暂无 AI 对话记录</p>';
+    return '<div class="result-block" style="max-height:150px;margin-top:10px;font-size:0.85rem;overflow-y:auto;" id="historyChatBlock">' + chat.map(m => `<div class="chat-msg ${m.role === 'user' ? 'user' : 'ai'}">${escapeForHTML(m.content).replace(/\n/g, '<br>')}</div>`).join('') + '</div>';
+  };
 
   const html = `<h3>历史详情</h3>
     <p style="font-size:0.85rem;color:var(--dim);"><strong>时间：</strong>${escapeForHTML(new Date(r.time).toLocaleString())}</p>
     <p style="font-size:0.85rem;color:var(--dim);"><strong>问题：</strong>${escapeForHTML(r.question || '未提问')}</p>
     <p style="font-size:0.85rem;color:var(--dim);"><strong>类别：</strong>${escapeForHTML(r.category || '无')}</p>
     <div class="result-block" style="font-size:0.85rem;max-height:200px;overflow-y:auto;white-space:pre-wrap;">${escapeForHTML(r.text || '')}</div>
-    <h4 style="margin-top:10px;color:var(--accent);font-size:0.9rem;">AI 对话</h4>${aiBlock}
+    <h4 style="margin-top:10px;color:var(--accent);font-size:0.9rem;">AI 对话</h4>${renderAiBlock()}
+    <div id="historyFollowUp" style="margin-top:12px;border-top:1px dashed var(--border);padding-top:10px;">
+      <div style="display:flex;gap:6px;">
+        <input id="historyFollowUpInput" placeholder="继续追问这张牌 / 这份解读……" autocomplete="off"
+          style="flex:1;font-size:0.85rem;padding:8px;border:1px solid var(--border);border-radius:6px;background:rgba(0,0,0,0.2);color:var(--text);">
+        <button id="historyFollowUpSend" class="primary small" style="white-space:nowrap;">💬 追问</button>
+      </div>
+      <div id="historyFollowUpStatus" style="font-size:0.7rem;color:var(--dim);margin-top:6px;display:none;"></div>
+    </div>
     <div class="btn-row" style="margin-top:10px;">
       <button id="copyFullBtn" class="small outline">📋 复制全部</button>
       <button data-action="deleteHistoryItem" data-history-index="${index}" class="outline small">删除此条</button>
@@ -253,9 +265,68 @@ export function showHistoryDetail(index) {
 
   document.getElementById('copyFullBtn')?.addEventListener('click', async (e) => {
     const btn = e.currentTarget;
+    const fullText = [r.text || '', '===== AI 对话 =====', chat.map(m => (m.role === 'user' ? '用户：' : 'AI：') + m.content).join('\n\n')].join('\n\n');
     const ok = await copyTextWithFeedback(fullText, btn);
     toast(ok ? '完整记录已复制' : '复制失败');
   });
+
+  // ---- 继续追问（多轮，基于该条历史的对话上下文） ----
+  const sendBtn = document.getElementById('historyFollowUpSend');
+  const input = document.getElementById('historyFollowUpInput');
+  const status = document.getElementById('historyFollowUpStatus');
+  let asking = false;
+
+  async function sendAsk() {
+    if (asking) return;
+    const q = input.value.trim();
+    if (!q) return;
+    const settings = getApiSettings();
+    if (!settings || !settings.apiKey) { toast('未配置 API Key，请先到「AI」设置'); return; }
+    asking = true;
+    sendBtn.disabled = true;
+    status.style.display = 'block';
+    status.textContent = '思考中…';
+
+    chat.push({ role: 'user', content: q });
+    input.value = '';
+    const provider = settings.provider || 'deepseek';
+    let endpoint = settings.endpoint || API_PROVIDERS[provider]?.endpoint || '';
+    if (endpoint.endsWith('/v1')) endpoint = endpoint.slice(0, -3);
+    if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
+    const model = resolveApiModel(provider, settings.model, API_PROVIDERS[provider]?.model || '');
+    try {
+      const result = await requestFollowUp({
+        history: chat,
+        provider,
+        apiKey: settings.apiKey,
+        endpoint,
+        model,
+        temperature: settings.temperature,
+        maxTokens: settings.maxTokens,
+        topP: settings.topP,
+        headers: settings.headers
+      });
+      chat.push({ role: 'assistant', content: result });
+      updateHistoryChatAt(index, chat);
+      const block = document.getElementById('historyChatBlock');
+      if (block) {
+        block.innerHTML += `<div class="chat-msg ai">${escapeForHTML(result).replace(/\n/g, '<br>')}</div>`;
+        block.scrollTop = block.scrollHeight;
+      }
+      status.style.display = 'none';
+      toast('AI 回复已保存');
+    } catch (e) {
+      chat.pop(); // 撤回未成功的提问，保留原上下文
+      status.style.display = 'block';
+      status.innerHTML = `<span style="color:#d45050;">失败：${escapeForHTML(e.message || '未知错误')}</span>`;
+    } finally {
+      asking = false;
+      sendBtn.disabled = false;
+    }
+  }
+
+  sendBtn?.addEventListener('click', sendAsk);
+  input?.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendAsk(); });
 }
 
 // ===== 观测报告中心（完整时间线 + 周期报告 + 回看“当时的我”） =====
@@ -648,9 +719,13 @@ export function showDataMigrationModal() {
     <p style="color:var(--accent);font-size:0.8rem;line-height:1.8;margin:12px 0;">
       💡 建议习惯：<strong>每月初导出一次</strong>存到网盘/相册；换设备时先导出，再导入。
     </p>
+    <p style="color:var(--dim);font-size:0.75rem;line-height:1.7;margin:4px 0 12px;">
+      🔄 导入为<strong>合并模式</strong>：历史、时间线双向去重合并；本机已有的周期牌、牌灵、AI 设置不会被覆盖，
+      导入的牌灵只在本机未抽时补入——手机与电脑双端互导即可同一位玩家。
+    </p>
     <div style="display:flex;flex-direction:column;gap:8px;margin:16px 0;">
       <button id="exportAllDataBtn" class="primary small">⬇️ 导出全部数据（存为备份文件）</button>
-      <button id="importAllDataBtn" class="outline small">⬆️ 导入备份（覆盖当前数据）</button>
+      <button id="importAllDataBtn" class="outline small">⬆️ 导入备份（合并·不覆盖本机）</button>
     </div>
     <input type="file" id="importDataFile" accept=".json" style="display:none;">
     <div class="btn-row"><button data-action="closeModal" class="small">关闭</button></div>

@@ -195,7 +195,7 @@ export async function renderArcana(ctx, w, h, data) {
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = t.goldDim;
   ctx.font = font(400, 22);
-  const qLines = wrapText(ctx, `“${quote}”`, CW, 2);
+  const qLines = wrapText(ctx, `「${quote}」`, CW, 2);
   qLines.forEach((ln, i) => ctx.fillText(ln, L, h - 200 + i * 36));
   ctx.restore();
 

@@ -32,12 +32,14 @@ html,
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: Georgia, 'Songti SC', serif;
+  font-family: Georgia, 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'SimSun', serif;
   font-size: 16px;
-  line-height: 1.6;
+  line-height: 1.7;
   min-height: 100%;
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   touch-action: manipulation;
 }
 
@@ -635,6 +637,78 @@ select:focus-visible {
   text-shadow: 0 0 8px rgba(201, 169, 110, 0.4);
 }
 
+/* 翻牌动画：背面 → 正面（牌灵/日运抽牌通用） */
+@keyframes cardFlip {
+  0% {
+    transform: perspective(700px) rotateY(180deg) scale(0.85);
+    opacity: 0.35;
+  }
+  55% {
+    transform: perspective(700px) rotateY(300deg) scale(1.06);
+    opacity: 1;
+  }
+  100% {
+    transform: perspective(700px) rotateY(360deg) scale(1);
+  }
+}
+
+/* 牌背入场：轻浮现，抽牌仪式感 */
+@keyframes dealIn {
+  from {
+    transform: translateY(14px) scale(0.92);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* 页面入场 */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* hero 金渐变标题：不支持 background-clip:text 时回退为金色实色（避免文字透明丢失） */
+.hero-gold-title {
+  color: #e8cf9a;
+  background: linear-gradient(90deg, #c9a96e, #e8cf9a, #c9a96e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@supports not ((background-clip: text) or (-webkit-background-clip: text)) {
+  .hero-gold-title {
+    background: none;
+    color: #e8cf9a;
+  }
+}
+
+/* 翻牌后的正面牌面（牌灵/日运抽牌结果） */
+.card-face {
+  flex-shrink: 0;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, #f7f3e9 0%, #ece5d2 100%);
+  border: 1px solid #c9a96e77;
+  color: #3d3527;
+  font-family: Georgia, 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+  font-weight: 700;
+  font-size: 1.35rem;
+  line-height: 1.1;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  user-select: none;
+}
+
+.card-face.red { color: #c0392b; }
+.card-face.black { color: #2b2b33; }
+.card-face.gold { color: #9c7c43; }
+
 .card-back.selected {
   border-color: var(--accent);
   transform: translateY(-6px);
@@ -1130,20 +1204,18 @@ input[type='time']::-webkit-calendar-picker-indicator {
   background: linear-gradient(90deg, #6a6a8a, #9a9ab8);
 }
 
-/* ===== 模态框（毛玻璃 + 微上浮淡入） ===== */
+/* ===== 模态框（深色遮罩 + 微上浮淡入） ===== */
 #modal {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(6, 5, 12, 0.72);
+  background: rgba(6, 5, 12, 0.78);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 800;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   padding: 20px;
 }
 
@@ -1231,13 +1303,11 @@ input[type='time']::-webkit-calendar-picker-indicator {
   border-radius: 4px;
 }
 
-/* ===== 新手引导（毛玻璃遮罩 + 卡片微上浮） ===== */
+/* ===== 新手引导（深色遮罩 + 卡片微上浮） ===== */
 .onboard-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(6, 5, 12, 0.7);
-  backdrop-filter: blur(14px) saturate(0.9);
-  -webkit-backdrop-filter: blur(14px) saturate(0.9);
+  background: rgba(6, 5, 12, 0.84);
   z-index: 950;
   display: flex;
   align-items: center;
@@ -1543,12 +1613,19 @@ input[type='time']::-webkit-calendar-picker-indicator {
 
   #modalContent {
     padding: 16px;
-    margin: 12px;
+    margin: 8px;
+    max-height: 88vh;
   }
 }
 
 /* ===== 触摸优化 ===== */
 @media (pointer: coarse) {
+  /* 移动端用系统无衬线栈（更快、小屏更清晰），桌面端保留 Noto Serif SC 宋体观感 */
+  html,
+  body {
+    font-family: 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  }
+
   button,
   .card-back,
   .card-face-small,
@@ -1562,10 +1639,16 @@ input[type='time']::-webkit-calendar-picker-indicator {
   .card-face-small:active,
   .gong:active {
     transform: scale(0.97);
+    opacity: 0.92;
   }
 
   .deck-grid {
     padding-bottom: 14px;
+  }
+
+  /* 触摸端牌背网格：牌更紧凑，减少滑动距离 */
+  #periodDeckGrid .card-back {
+    margin: 3px !important;
   }
 }
 /* ===== 第八轮修复：内联 display:flex 优先级高�?UA 规则，必须显式覆�?===== */

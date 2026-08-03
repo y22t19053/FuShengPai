@@ -47,7 +47,9 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,webp,woff2}'],
+        // 排除 noto-serif 中文字体字集（~5MB 分片）：桌面在线按需请求、离线回退系统宋体，
+        // 移动端完全不加载字体，避免拖累 PWA 安装与首屏
+        globPatterns: ['**/*.{js,css,html,svg,png,webp}'],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true
       }

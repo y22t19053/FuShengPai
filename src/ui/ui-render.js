@@ -189,7 +189,7 @@ export function renderStep1() {
       color: #c8c8d8;
     ">
       <div style="font-size: 0.55rem; color: #8b6f47; letter-spacing: 2px; margin-bottom: 2px;">· 浮 生 若 梦 ·</div>
-      <div style="font-size: 1.1rem; font-weight: 600; background: linear-gradient(90deg, #c9a96e, #e8cf9a, #c9a96e); -webkit-background-clip: text; background-clip: text; color: transparent; letter-spacing: 0.06em; margin: 0;">抽 一 张 牌 · 见 一 个 课 题</div>
+      <div class="hero-gold-title" style="font-size: 1.1rem; font-weight: 600; letter-spacing: 0.06em; margin: 0;">抽 一 张 牌 · 见 一 个 课 题</div>
       <div style="width: 28px; height: 1px; background: #8b6f47; margin: 6px auto;"></div>
       <div style="font-size: 0.7rem; color: #77778a; margin-bottom: 8px;">牌灵与日运 · 各守一签，只存本机</div>
       <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">

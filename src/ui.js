@@ -1,4 +1,14 @@
 // ===== src/ui.js · 业务主控（日运细选+模型选择+AI高级参数+盲抽牌灵+from=share） =====
+// 中文字体：仅桌面端异步加载（Noto Serif SC 全字集较大，移动端用系统无衬线栈更快，
+// 不阻塞首屏，font-display:swap 生效后按需下载所需字集）
+if (!window.matchMedia('(pointer: coarse)').matches) {
+  Promise.all([
+    import('@fontsource/noto-serif-sc/400.css'),
+    import('@fontsource/noto-serif-sc/600.css'),
+    import('@fontsource/noto-serif-sc/700.css'),
+  ]).catch(() => {});
+}
+
 import { state } from './state.js';
 import { injectAnimations } from './ui/ui-anim.js';
 import {
@@ -738,62 +748,22 @@ export function openPeriodDeck(periodType, fortuneType = 'overall') {
   const title = `${cfg.label}${periodType === 'daily' ? ` · ${typeLabel}` : ''} · 抽一张`;
 
   const isTouch = window.matchMedia('(pointer: coarse)').matches;
+  const cardW = isTouch ? 52 : 60;
+  const cardH = isTouch ? 72 : 84;
 
-  if (isTouch) {
-    const html = `
-      <h3 style="text-align:center;">${escapeForHTML(title)}</h3>
-      <p style="text-align:center;font-size:0.75rem;color:var(--dim);margin-bottom:10px;">点击下方按钮随机抽牌。抽完即锁定，本周期不可重抽。</p>
-      <div style="text-align:center;padding:10px 0;">
-        <button id="periodTouchDraw" class="primary small" style="padding:12px 32px;font-size:1rem;">抽一张</button>
-      </div>
-      <div style="text-align:center;margin-top:16px;">
-        <button id="periodManualEntry" class="outline small" style="font-size:0.75rem;">我已抽了实体牌，自己选</button>
-      </div>
-      <div id="periodManualPicker" style="display:none;margin-top:12px;max-height:300px;overflow-y:auto;padding:8px;">
-        <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">${buildManualCardButtons()}</div>
-      </div>
-      <div style="text-align:center;font-size:0.65rem;color:var(--dim);margin-top:6px;">⚠️ 此牌将自动保存，无法重抽。建议截图或保存分享图。</div>
-    `;
-    setHTML(content, html);
-    modal.removeAttribute('hidden');
-
-    document.getElementById('periodTouchDraw').addEventListener('click', () => {
-      const idx = Math.floor(Math.random() * shuffled.length);
-      const card = shuffled[idx];
-      confirmPeriodPick(periodType, card, fortuneType);
-    });
-
-    document.getElementById('periodManualEntry')?.addEventListener('click', () => {
-      const picker = document.getElementById('periodManualPicker');
-      if (picker) picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
-    });
-
-    content.querySelectorAll('[data-manual-card]').forEach(btn => {
-      btn.addEventListener('click', function() {
-        const label = this.dataset.manualCard;
-        if (label === '大王') { confirmPeriodPick(periodType, { isJoker: true, type: '大王' }, fortuneType); return; }
-        if (label === '小王') { confirmPeriodPick(periodType, { isJoker: true, type: '小王' }, fortuneType); return; }
-        const suit = label[0];
-        const rank = label.slice(1);
-        confirmPeriodPick(periodType, { suit, rank, isJoker: false }, fortuneType);
-      });
-    });
-    return;
-  }
-
-  // 桌面端
-  let deckHTML = shuffled.map((c, idx) => {
-    return `<div class="card-back" data-period-card-idx="${idx}" style="flex-shrink:0;width:60px;height:84px;cursor:pointer;margin:4px;"></div>`;
-  }).join('');
-
+  // 统一抽牌界面：牌背网格 + 点击翻牌动画（触摸/桌面一致，牌灵同款仪式感）
   const html = `
     <h3 style="text-align:center;">${escapeForHTML(title)}</h3>
-    <p style="text-align:center;font-size:0.75rem;color:var(--dim);margin-bottom:10px;">凭直觉选一张，不要多想。抽完即锁定。</p>
-    <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-height:400px;overflow-y:auto;padding:10px;">${deckHTML}</div>
-    <div style="text-align:center;margin-top:8px;">
-      <button id="periodManualEntryDesktop" class="outline small" style="font-size:0.75rem;">我已抽了实体牌，自己选</button>
+    <p style="text-align:center;font-size:0.75rem;color:var(--dim);margin-bottom:10px;">凭直觉，点一张牌——翻开的瞬间即定，本周期不可重抽。</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-height:${isTouch ? 300 : 400}px;overflow-y:auto;padding:10px;" id="periodDeckGrid">
+      ${shuffled.map((c, idx) => `
+        <div class="card-back" data-period-card-idx="${idx}" style="flex-shrink:0;width:${cardW}px;height:${cardH}px;cursor:pointer;margin:4px;animation:dealIn 0.4s var(--ease) backwards;animation-delay:${Math.min(idx * 12, 500)}ms;"></div>`).join('')}
     </div>
-    <div id="periodManualPickerDesktop" style="display:none;margin-top:8px;max-height:250px;overflow-y:auto;padding:8px;">
+    <div style="text-align:center;margin-top:10px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+      <button id="periodRandomBtn" class="outline small" style="font-size:0.75rem;">🎲 完全随机抽一张</button>
+      <button id="periodManualEntry" class="outline small" style="font-size:0.75rem;">我已抽了实体牌，自己选</button>
+    </div>
+    <div id="periodManualPicker" style="display:none;margin-top:10px;max-height:250px;overflow-y:auto;padding:8px;">
       <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;">${buildManualCardButtons()}</div>
     </div>
     <div style="text-align:center;font-size:0.65rem;color:var(--dim);margin-top:6px;">⚠️ 此牌将自动保存，无法重抽。建议截图或保存分享图。</div>
@@ -801,16 +771,35 @@ export function openPeriodDeck(periodType, fortuneType = 'overall') {
   setHTML(content, html);
   modal.removeAttribute('hidden');
 
-  content.querySelectorAll('.card-back').forEach(el => {
+  let periodLocked = false;
+  function flipAndConfirm(idx) {
+    if (periodLocked) return;
+    periodLocked = true;
+    const card = shuffled[idx];
+    const el = content.querySelector(`[data-period-card-idx="${idx}"]`);
+    content.querySelectorAll('#periodDeckGrid .card-back').forEach(b => {
+      b.style.pointerEvents = 'none';
+      b.style.opacity = '0.45';
+    });
+    if (el) {
+      el.style.opacity = '1';
+      el.outerHTML = `<div class="card-face ${getCardColor(card)}" style="width:${cardW}px;height:${cardH}px;margin:0 auto;animation:cardFlip 0.5s;">${escapeForHTML(card.isJoker ? card.type : card.rank)}${escapeForHTML(card.isJoker ? '' : card.suit)}</div>`;
+    }
+    setTimeout(() => confirmPeriodPick(periodType, card, fortuneType), 350);
+  }
+
+  content.querySelectorAll('#periodDeckGrid .card-back').forEach(el => {
     el.addEventListener('click', function() {
-      const idx = parseInt(this.dataset.periodCardIdx);
-      const card = shuffled[idx];
-      confirmPeriodPick(periodType, card, fortuneType);
+      flipAndConfirm(parseInt(this.dataset.periodCardIdx));
     });
   });
 
-  document.getElementById('periodManualEntryDesktop')?.addEventListener('click', () => {
-    const picker = document.getElementById('periodManualPickerDesktop');
+  document.getElementById('periodRandomBtn')?.addEventListener('click', () => {
+    flipAndConfirm(Math.floor(Math.random() * shuffled.length));
+  });
+
+  document.getElementById('periodManualEntry')?.addEventListener('click', () => {
+    const picker = document.getElementById('periodManualPicker');
     if (picker) picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
   });
 

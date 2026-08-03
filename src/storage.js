@@ -8,6 +8,7 @@ const TIMECAPSULE_KEY = 'fsp_timecapsule';
 const DRAW_TIMESTAMPS_KEY = 'fsp_draw_timestamps';
 const PERIOD_CARDS_KEY = 'fsp_period_cards';
 const ONBOARDING_KEY = 'fsp_onboarding_done';
+const PAIGE_KEY = 'fsp_paige';
 
 const MAX_HISTORY = 200;
 const MAX_TIMELINE = 100;
@@ -114,6 +115,18 @@ export function updateHistoryChat(chatHistory) {
     const history = getHistory();
     if (!history.length) return false;
     history[0].chatHistory = Array.isArray(chatHistory) ? chatHistory.slice() : [];
+    return safeSet(HISTORY_KEY, history);
+  } catch (e) {
+    console.error('更新历史AI对话失败:', e);
+    return false;
+  }
+}
+
+export function updateHistoryChatAt(index, chatHistory) {
+  try {
+    const history = getHistory();
+    if (index < 0 || index >= history.length) return false;
+    history[index].chatHistory = Array.isArray(chatHistory) ? chatHistory.slice() : [];
     return safeSet(HISTORY_KEY, history);
   } catch (e) {
     console.error('更新历史AI对话失败:', e);
@@ -237,27 +250,78 @@ export function exportAllDataJson() {
     timeline: getTimeline(),
     timeCapsule: getTimeCapsule(),
     drawTimestamps: getDrawTimestamps(),
-    periodCards: getStoredPeriodCards()
+    periodCards: getStoredPeriodCards(),
+    paige: safeGet(PAIGE_KEY)
   };
   return JSON.stringify(data, null, 2);
 }
 
+// 历史合并：按周期键/时间+问题去重，保留较新的一条
+function mergeHistory(a, b) {
+  const map = new Map();
+  for (const h of [...(a || []), ...(b || [])]) {
+    if (!h || typeof h !== 'object') continue;
+    const key = h.periodKey
+      ? `p:${h.periodType}:${h.periodKey}:${h.fortuneType || 'overall'}`
+      : `q:${h.time}:${h.question || ''}`;
+    const prev = map.get(key);
+    if (!prev || (h.time || 0) >= (prev.time || 0)) map.set(key, h);
+  }
+  return [...map.values()].sort((x, y) => (y.time || 0) - (x.time || 0));
+}
+
+// 合并导入（合并去重，不覆盖本机已有数据）：
+// - history/timeline/drawTimestamps：双向合并去重
+// - periodCards：本机已有周期保留，缺的补上
+// - profile：字段补全（本机优先）
+// - settings/timeCapsule/paige：本机已有保留，缺的才导入
 export function importAllData(jsonStr) {
   try {
     const data = JSON.parse(jsonStr);
     if (!data || data.version !== 1) throw new Error('版本不兼容');
-    const keys = [
-      ['history', HISTORY_KEY],
-      ['profile', PROFILE_KEY],
-      ['settings', SETTINGS_KEY],
-      ['timeline', TIMELINE_KEY],
-      ['timeCapsule', TIMECAPSULE_KEY],
-      ['drawTimestamps', DRAW_TIMESTAMPS_KEY],
-      ['periodCards', PERIOD_CARDS_KEY]
-    ];
-    for (const [field, key] of keys) {
-      if (data[field] !== undefined) safeSet(key, data[field]);
+
+    // 历史记录：合并去重，保留较新
+    if (Array.isArray(data.history)) {
+      const merged = mergeHistory(getHistory(), data.history);
+      safeSet(HISTORY_KEY, merged.slice(0, MAX_HISTORY));
     }
+    // 时间线：按 time 去重合并
+    if (Array.isArray(data.timeline)) {
+      const map = new Map();
+      for (const t of [...getTimeline(), ...data.timeline]) {
+        if (t && typeof t === 'object') map.set(t.time, t);
+      }
+      safeSet(TIMELINE_KEY, [...map.values()].sort((a, b) => (b.time || 0) - (a.time || 0)).slice(0, MAX_TIMELINE));
+    }
+    // 观测时间戳：去重合并
+    if (Array.isArray(data.drawTimestamps)) {
+      const set = new Set([...getDrawTimestamps(), ...data.drawTimestamps]);
+      safeSet(DRAW_TIMESTAMPS_KEY, [...set].sort((a, b) => b - a));
+    }
+    // 周期卡：导入的只补缺口，不覆盖本机当前周期的牌；同 key 取更晚抽取的
+    if (data.periodCards && typeof data.periodCards === 'object') {
+      const local = getStoredPeriodCards();
+      const merged = { ...local };
+      for (const [k, v] of Object.entries(data.periodCards)) {
+        if (!v || typeof v !== 'object') continue;
+        if (!merged[k]) {
+          merged[k] = v;
+        } else if ((v.time || v.drawnAt || 0) > (merged[k].time || merged[k].drawnAt || 0)) {
+          merged[k] = v;
+        }
+      }
+      safeSet(PERIOD_CARDS_KEY, merged);
+    }
+    // 个人信息：字段补全，本机已有字段不被覆盖
+    if (data.profile && typeof data.profile === 'object') {
+      safeSet(PROFILE_KEY, { ...data.profile, ...getProfile() });
+    }
+    // AI 设置：本机已有则保留（避免 API Key 被冲掉），无则导入
+    if (data.settings && !getApiSettings()) safeSet(SETTINGS_KEY, data.settings);
+    // 时间胶囊：本机已有保留
+    if (data.timeCapsule && !getTimeCapsule()) safeSet(TIMECAPSULE_KEY, data.timeCapsule);
+    // 牌灵：本机已抽保留，未抽才导入
+    if (data.paige && !safeGet(PAIGE_KEY)) safeSet(PAIGE_KEY, data.paige);
     return true;
   } catch (e) {
     console.error('导入失败:', e);

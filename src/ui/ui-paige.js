@@ -78,11 +78,12 @@ function showPaiGeDraw(modal, content) {
         <br>
         <span style="color:#d45050;font-size:0.7rem;">⚜️ 本命守护：需完成 ${UNLOCK_THRESHOLD} 次正式观象，方可重唤新灵</span>
       </p>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-height:320px;overflow-y:auto;padding:12px;">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-height:320px;overflow-y:auto;padding:12px;" id="paigeDeckGrid">
         ${deck.map((_, idx) => `
           <div data-paige-card-idx="${idx}" class="card-back" style="
             width:64px;height:88px;cursor:pointer;flex-shrink:0;
             transition:transform 0.15s;
+            animation:dealIn 0.4s var(--ease) backwards;animation-delay:${Math.min(idx * 12, 500)}ms;
           " onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'"></div>`).join('')}
       </div>
       <div style="margin-top:14px;">
@@ -94,20 +95,34 @@ function showPaiGeDraw(modal, content) {
   setHTML(content, html);
   modal.removeAttribute('hidden');
 
+  let paigeLocked = false;
+  function flipPaiGeCard(idx, card) {
+    if (paigeLocked) return;
+    paigeLocked = true;
+    const el = content.querySelector(`[data-paige-card-idx="${idx}"]`);
+    content.querySelectorAll('#paigeDeckGrid .card-back').forEach(b => {
+      b.style.pointerEvents = 'none';
+      b.style.opacity = '0.4';
+    });
+    if (el) {
+      el.style.opacity = '1';
+      // 翻牌动画：牌背 → 正面
+      el.outerHTML = `<div class="card-face ${getCardColor(card)}" style="width:64px;height:88px;margin:0 auto;animation:cardFlip 0.5s;">${escapeForHTML(card.isJoker ? card.type : card.rank)}${escapeForHTML(card.isJoker ? '' : card.suit)}</div>`;
+    }
+    setTimeout(() => confirmPaiGePick(card), 350);
+  }
+
   content.querySelectorAll('[data-paige-card-idx]').forEach(el => {
     el.addEventListener('click', function() {
       const idx = parseInt(this.dataset.paigeCardIdx);
-      const card = deck[idx];
-      // 翻牌动画：牌背 → 正面
-      this.outerHTML = `<div class="card-face ${getCardColor(card)}" style="width:64px;height:88px;margin:0 auto;animation:cardFlip 0.5s;">${escapeForHTML(card.isJoker ? card.type : card.rank)}${escapeForHTML(card.isJoker ? '' : card.suit)}</div>`;
-      setTimeout(() => confirmPaiGePick(card), 350);
+      flipPaiGeCard(idx, deck[idx]);
     });
   });
 
   document.getElementById('paigeRandomBtn')?.addEventListener('click', () => {
-    const card = deck[Math.floor(Math.random() * deck.length)];
+    const idx = Math.floor(Math.random() * deck.length);
     toast('✨ 天命已定，牌灵显现', 2400, 'success');
-    confirmPaiGePick(card);
+    flipPaiGeCard(idx, deck[idx]);
   });
 }
 

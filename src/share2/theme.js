@@ -169,9 +169,13 @@ export async function drawFooter(ctx, t, { note = '牌是提示，不是命令�
   ctx.fillText(sub, M, y + 34);
   ctx.restore();
 
-  // 二维码：白底墨点（深浅底色通用）
+  // 朱砂落款印（二维码左侧，书画落款式克制装饰）
   const qrSize = 88;
   const qrX = W - M - qrSize;
+  const sealSize = 52;
+  drawSeal(ctx, t, qrX - sealSize - 34, y - sealSize + 4, sealSize);
+
+  // 二维码：白底墨点（深浅底色通用）
   const qrY = y - qrSize + 4;
   // 死链接钉死：不用 window.location，防止本地环境干扰
   const qrTarget = 'https://y22t19053.github.io/FuShengPai/';
@@ -185,6 +189,26 @@ export async function drawFooter(ctx, t, { note = '牌是提示，不是命令�
   ctx.lineWidth = 1;
   ctx.stroke();
   ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+  ctx.restore();
+}
+
+/** 落款朱砂印章：细描边 + 竖排两字（克制高级感，不喧宾夺主） */
+export function drawSeal(ctx, t, x, y, size = 52) {
+  const sealColor = '#a83b32'; // 朱砂
+  ctx.save();
+  ctx.fillStyle = 'rgba(168,59,50,0.06)';
+  roundRectPath(ctx, x, y, size, size, 6);
+  ctx.fill();
+  ctx.strokeStyle = sealColor;
+  ctx.lineWidth = 1.6;
+  roundRectPath(ctx, x, y, size, size, 6);
+  ctx.stroke();
+  ctx.fillStyle = sealColor;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = font(600, 19);
+  ctx.fillText('浮', x + size / 2, y + size * 0.33);
+  ctx.fillText('生', x + size / 2, y + size * 0.72);
   ctx.restore();
 }
 
