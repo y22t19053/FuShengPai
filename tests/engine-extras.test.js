@@ -21,7 +21,7 @@ describe('createDeck 参数语义（回归测试）', () => {
   });
 });
 
-describe('calcDiff 算术差（回归测试）', () => {
+describe('calcDiff 算术差（JQK 当 1/2/3、大小王当 0）', () => {
   it('巽宫4放梅花5 → 差值 4-5 = -1', () => {
     const card = { suit: '♣', rank: '5', isJoker: false };
     expect(calcDiff(4, card)).toBe(-1);
@@ -32,14 +32,29 @@ describe('calcDiff 算术差（回归测试）', () => {
     expect(calcDiff(6, card)).toBe(5);
   });
 
-  it('宫位5放小王 → 差值 = 5 - 15 = -10（与统一后数值一致）', () => {
-    const joker = { isJoker: true, type: '小王' };
-    expect(calcDiff(5, joker)).toBe(-10);
+  it('兑宫7放J → 差值 7-1 = 6（J 当 1 算）', () => {
+    const card = { suit: '♠', rank: 'J', isJoker: false };
+    expect(calcDiff(7, card)).toBe(6);
   });
 
-  it('宫位5放大王 → 差值 = 5 - 14 = -9', () => {
+  it('兑宫7放Q → 差值 7-2 = 5（Q 当 2 算）', () => {
+    const card = { suit: '♣', rank: 'Q', isJoker: false };
+    expect(calcDiff(7, card)).toBe(5);
+  });
+
+  it('兑宫7放K → 差值 7-3 = 4（K 当 3 算）', () => {
+    const card = { suit: '♥', rank: 'K', isJoker: false };
+    expect(calcDiff(7, card)).toBe(4);
+  });
+
+  it('宫位5放小王 → 差值 = 5 - 0 = 5（大小王当 0 算）', () => {
+    const joker = { isJoker: true, type: '小王' };
+    expect(calcDiff(5, joker)).toBe(5);
+  });
+
+  it('宫位5放大王 → 差值 = 5 - 0 = 5', () => {
     const joker = { isJoker: true, type: '大王' };
-    expect(calcDiff(5, joker)).toBe(-9);
+    expect(calcDiff(5, joker)).toBe(5);
   });
 
   it('getDiffMagnitude 返回绝对值', () => {

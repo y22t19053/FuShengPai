@@ -8,7 +8,7 @@ import {
   getRecommendedGongForCategory,
   DAILY_FORTUNE_TYPES, getDailyFortuneType
 } from '../data.js';
-import { createDeck, shuffle, calcFullBaZi, calcDiff, getDiffLevel, getCardValue } from '../engine.js';
+import { createDeck, shuffle, calcFullBaZi, calcDiff, getDiffLevel, getDiffValue } from '../engine.js';
 import { getApiSettings, getProfile, getHistory, getStoredPeriodCards } from '../storage.js';
 import { UI_TEXTS, HISTORY_EMPTY, PHYSICAL_GUIDE } from '../texts/index.js';
 import { calculateDurianIndex, getDurianColor } from '../durian.js';
@@ -87,7 +87,13 @@ export function renderTeachingPanel() {
       <p>木生火、火生土、土生金、金生水、水生木</p>
       <p>木克土、土克水、水克火、火克金、金克木</p>
 
-      <h4 style="color:var(--accent);">🔄 其他功能：</h4>
+      <h4 style="color:var(--accent);">🧭 九宫差值怎么算：</h4>
+      <p>· 差值 = 宫位数 − 牌面数值，每张牌单独计算。</p>
+      <p>· A 算 1，2~10 按面值；<strong>J 算 1、Q 算 2、K 算 3</strong>。</p>
+      <p>· <strong>大小王（天/人）当 0 算</strong>。</p>
+      <p>· 差值越小，牌越贴合宫位；差值越大，越说明此处有距离。</p>
+
+      <h4 style="color:var(--accent);">🧭 其他功能：</h4>
       <p>· 张力指数：数值越高代表牌局张力越大，注意节奏。</p>
       <p>· AI解读：需要配置API Key（顶部「AI」按钮）。</p>
 <p>· 数据备份：点顶部「备份」可导出/导入全部数据。</p>
@@ -755,7 +761,7 @@ export function renderGrid() {
         const abs = Math.abs(d);
         const direction = d > 0 ? '大于' : d < 0 ? '小于' : '等于';
         const level = getDiffLevel(d);
-        return `<span class="diff-label" style="color:${level.color}">差值：${g} - ${getCardValue(c)} = ${abs}（${level.label}，${direction}）</span>`;
+        return `<span class="diff-label" style="color:${level.color}">差值：${g} - ${getDiffValue(c)} = ${abs}（${level.label}，${direction}）</span>`;
       }).join('<br>');
       inner += diffLabels;
     } else {

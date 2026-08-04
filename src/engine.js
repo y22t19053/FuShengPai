@@ -16,6 +16,18 @@ export function getCardValue(card) {
   return CARD_VALUE_MAP[String(card.rank)] || 0;
 }
 
+// ---- 差值专用数值（九宫差值计算用）----
+// JQK 当 1/2/3 算，大小王（天/人）当 0 算；A=1，2~10 按面值。
+// 与 getCardValue 分离：getCardValue 保持 J=11/Q=12/K=13/大小王14/15，
+// 供旺衰等其它用途；差值计算统一走本映射，保证九宫、解读、张力指数一致。
+export const DIFF_CARD_VALUES = { A: 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, J: 1, Q: 2, K: 3 };
+
+export function getDiffValue(card) {
+  if (!card) return 0;
+  if (card.isJoker) return 0; // 大小王当零算
+  return DIFF_CARD_VALUES[String(card.rank)] || 0;
+}
+
 // ---- 节气（日期级近似）----
 const JIEQI = [
   { month: 1,  day: 6,  branch: 1  },  // 小寒 → 丑月
@@ -132,10 +144,10 @@ export function drawTiYong(deck) {
   return { ti, yong, remaining: d };
 }
 
-// ===== 差值：宫位数 - 牌面数值（恢复算术差）=====
+// ===== 差值：宫位数 - 牌面数值（JQK 当 1/2/3，大小王当 0）=====
 export function calcDiff(gong, card) {
   const gongNum = (typeof gong === 'number') ? gong : parseInt(String(gong), 10) || 0;
-  return gongNum - getCardValue(card);
+  return gongNum - getDiffValue(card);
 }
 
 // ===== 差值绝对值（供 durian.js / texts-readings.js 用）=====

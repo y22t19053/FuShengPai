@@ -1,4 +1,4 @@
-/* ===== 浮生�?· 暗夜金主�?===== */
+/* ===== 浮生牌 · 暗夜金主题 ===== */
 :root {
   --bg: #12101c;
   --bg2: #1a1628;
@@ -74,7 +74,7 @@ body {
   border-radius: 6px;
 }
 
-/* ===== 触摸目标 �?44px ===== */
+/* ===== 触摸目标 ≥ 44px ===== */
 button,
 .card-back,
 .card-face-small,
@@ -118,7 +118,7 @@ select:focus-visible {
   padding: 8px;
 }
 
-/* ===== 主内容区：默认纵向堆�?===== */
+/* ===== 主内容区：默认纵向堆叠 ===== */
 #dynamicPanels {
   display: flex;
   flex-direction: column;
@@ -130,7 +130,7 @@ select:focus-visible {
   min-width: 0;
 }
 
-/* ===== 面板（双线嵌套边�?+ 四角星标 + 三层阴影�?===== */
+/* ===== 面板（双线嵌套边框 + 四角星标 + 三层阴影） ===== */
 .panel {
   background: linear-gradient(180deg, var(--panel2), var(--panel));
   border: 1px solid var(--border-soft);
@@ -445,7 +445,7 @@ select:focus-visible {
   background: rgba(212, 80, 80, 0.12);
 }
 
-/* ===== 步骤条（数字标签 + 连接金线 + 文字�?===== */
+/* ===== 步骤条（数字标签 + 连接金线 + 文字） ===== */
 .step-row {
   display: flex;
   justify-content: center;
@@ -538,7 +538,7 @@ select:focus-visible {
   color: var(--good);
 }
 
-/* ===== 体用�?===== */
+/* ===== 体用区 ===== */
 .tiyong-bar {
   display: flex;
   justify-content: center;
@@ -654,7 +654,7 @@ select:focus-visible {
   display: none;
 }
 
-/* 长按拖拽激活时的视觉提�?*/
+/* 长按拖拽激活时的视觉提示 */
 .card-back,
 .card-face-small {
   flex-shrink: 0;
@@ -678,7 +678,7 @@ select:focus-visible {
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-/* 牌背：径向渐�?+ CSS噪点 */
+/* 牌背：径向渐变 + CSS噪点 */
 .card-back {
   background:
     radial-gradient(circle at 50% 40%, rgba(201, 169, 110, 0.16) 0%, transparent 55%),
@@ -796,7 +796,7 @@ select:focus-visible {
     0 0 20px rgba(201, 169, 110, 0.3);
 }
 
-/* 长按激活拖拽时的视觉反�?*/
+/* 长按激活拖拽时的视觉反馈 */
 .card-back.dragging,
 .card-face-small.dragging {
   border-color: var(--accent);
@@ -883,14 +883,14 @@ select:focus-visible {
   pointer-events: none;
 }
 
-/* 拖拽高亮可放置区�?*/
+/* 拖拽高亮可放置区域 */
 .gong.drag-highlight,
 .empty-dash.drag-highlight {
   border-color: var(--accent) !important;
   box-shadow: 0 0 12px rgba(201, 169, 110, 0.3) !important;
 }
 
-/* ===== 九宫�?===== */
+/* ===== 九宫格 ===== */
 .grid-9 {
   display: flex;
   flex-wrap: wrap;
@@ -1180,7 +1180,7 @@ input[type='time']::-webkit-calendar-picker-indicator {
   background: rgba(201, 169, 110, 0.08);
 }
 
-/* ===== 导入�?===== */
+/* ===== 导入区 ===== */
 .import-row {
   display: flex;
   gap: 6px;
@@ -1193,7 +1193,7 @@ input[type='time']::-webkit-calendar-picker-indicator {
   font-size: 0.8rem;
 }
 
-/* ===== Toast（金=成功 / �?警告 / �?提示 + 进度条） ===== */
+/* ===== Toast（金=成功 / 红=警告 / 蓝=提示 + 进度条） ===== */
 #toast {
   position: fixed;
   bottom: 24px;
@@ -1223,7 +1223,7 @@ input[type='time']::-webkit-calendar-picker-indicator {
   transform: translateX(-50%) translateY(0);
 }
 
-/* 进度条（自动消失�?*/
+/* 进度条（自动消失） */
 #toast .toast-bar {
   position: absolute;
   bottom: 0;
@@ -1455,7 +1455,7 @@ input[type='time']::-webkit-calendar-picker-indicator {
   background: var(--accent);
 }
 
-/* ===== AI 解读�?===== */
+/* ===== AI 解读区 ===== */
 #aiResultContainer {
   margin-top: 12px;
   border-top: 1px solid var(--border);
@@ -1480,7 +1480,7 @@ input[type='time']::-webkit-calendar-picker-indicator {
   color: var(--text);
 }
 
-/* ===== 结果�?===== */
+/* ===== 结果区 ===== */
 .result-block {
   background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
@@ -1494,7 +1494,7 @@ input[type='time']::-webkit-calendar-picker-indicator {
   border: 1px solid var(--border);
 }
 
-/* ===== 静态面�?===== */
+/* ===== 静态面板 ===== */
 .static-panel[hidden] {
   display: none;
 }
@@ -1536,7 +1536,7 @@ input[type='time']::-webkit-calendar-picker-indicator {
   margin-bottom: 2px;
 }
 
-/* ===== API提供商网�?===== */
+/* ===== API提供商网络 ===== */
 .api-provider-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
@@ -1587,7 +1587,7 @@ input[type='time']::-webkit-calendar-picker-indicator {
   margin: 2px;
 }
 
-/* ===== 时间弧标�?===== */
+/* ===== 时间弧标签 ===== */
 .time-arc-tag {
   display: block;
   font-size: 0.6rem;
@@ -1623,7 +1623,7 @@ input[type='time']::-webkit-calendar-picker-indicator {
   animation: shuffling 0.3s ease-in-out 2;
 }
 
-/* ===== 响应式微�?===== */
+/* ===== 响应式微调 ===== */
 @media (max-width: 480px) {
   body {
     padding: 4px;
@@ -1757,7 +1757,7 @@ input[type='time']::-webkit-calendar-picker-indicator {
     min-height: 64px;
   }
 }
-/* ===== 第八轮修复：内联 display:flex 优先级高�?UA 规则，必须显式覆�?===== */
+/* ===== 第八轮修复：内联 display:flex 优先级高于 UA 规则，必须显式覆盖 ===== */
 #fortuneTypeModal[hidden],
 #toast[hidden],
 #sharePreview[hidden],
