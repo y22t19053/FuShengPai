@@ -21,6 +21,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/fsp-icon.svg'],
       manifest: {
+        id: '/',
         name: '浮生牌 · 观测者的镜子',
         short_name: '浮生牌',
         description: '献给高敏感人群的AI时代玄学工具：不替你做决定，但帮你把心里的话说出来。',
@@ -33,15 +34,21 @@ export default defineConfig({
         scope: '.',
         icons: [
           {
-            src: 'icons/fsp-icon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
+            src: 'icons/fsp-icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
             purpose: 'any'
           },
           {
-            src: 'icons/fsp-icon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
+            src: 'icons/fsp-icon.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: 'icons/fsp-icon-maskable.png',
+            sizes: '512x512',
+            type: 'image/png',
             purpose: 'maskable'
           }
         ]

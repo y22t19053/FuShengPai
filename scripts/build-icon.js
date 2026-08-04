@@ -43,41 +43,49 @@ function sdEllipse(px, py, cx, cy, rx, ry) {
 const cov = (d) => clamp01(0.5 - d); // 1px 过渡带覆盖率
 
 // ---------- 像素合成 ----------
-function render() {
-  const px = Buffer.alloc(SIZE * (1 + SIZE * 4));
-  for (let y = 0; y < SIZE; y++) {
-    const rowStart = y * (1 + SIZE * 4);
+// size: 输出边长；maskable: true 时背景铺满全幅 + 主体缩放至安全区（Android maskable 图标）
+function render(size, opts = {}) {
+  const { maskable = false } = opts;
+  const SCALE = 512; // 设计分辨率（所有形状坐标基于 512 设计稿）
+  const px = Buffer.alloc(size * (1 + size * 4));
+  for (let y = 0; y < size; y++) {
+    const rowStart = y * (1 + size * 4);
     px[rowStart] = 0; // filter: None
-    for (let x = 0; x < SIZE; x++) {
-      const X = x + 0.5;
-      const Y = y + 0.5;
+    for (let x = 0; x < size; x++) {
+      const X = ((x + 0.5) / size) * SCALE;
+      const Y = ((y + 0.5) / size) * SCALE;
       const o = rowStart + 1 + x * 4;
 
-      // 背景：对角渐变，裁切在外层圆角矩形内
+      // 背景：对角渐变，非 maskable 时裁切在外层圆角矩形内；maskable 时全幅铺满
       let c = gradColor(X, Y, BG0, BG1);
-      let a = cov(sdRoundRect(X, Y, 256, 256, 240, 240, 104));
+      let a = maskable ? 1 : cov(sdRoundRect(X, Y, 256, 256, 240, 240, 104));
       const gold = gradColor(X, Y, GOLD0, GOLD1);
+
+      // maskable 安全区：主体（卡/月/眼）整体缩小至 72% 并居中，避开系统裁切圈
+      const k = maskable ? 1 / 0.72 : 1;
+      const MX = 256 + (X - 256) * k;
+      const MY = 256 + (Y - 256) * k;
 
       // 内框描边（16px，圆角 36）
       const frame =
-        cov(sdRoundRect(X, Y, 256, 256, 160, 160, 36)) *
-        cov(-sdRoundRect(X, Y, 256, 256, 152, 152, 28));
+        cov(sdRoundRect(MX, MY, 256, 256, 160, 160, 36)) *
+        cov(-sdRoundRect(MX, MY, 256, 256, 152, 152, 28));
       if (frame > 0) { c = mix(c, gold, frame); a = Math.max(a, frame); }
 
       // 半月（圆 r62 @262,216 减去 背景圆 r68 @236,188）
       const moon =
-        cov(sdCircle(X, Y, 262, 216, 62)) *
-        cov(-sdCircle(X, Y, 236, 188, 68));
+        cov(sdCircle(MX, MY, 262, 216, 62)) *
+        cov(-sdCircle(MX, MY, 236, 188, 68));
       if (moon > 0) { c = mix(c, gold, moon); a = Math.max(a, moon); }
 
       // 眼（椭圆描边 12px）
       const eye =
-        cov(sdEllipse(X, Y, 256, 352, 42, 26)) *
-        cov(-sdEllipse(X, Y, 256, 352, 36, 20));
+        cov(sdEllipse(MX, MY, 256, 352, 42, 26)) *
+        cov(-sdEllipse(MX, MY, 256, 352, 36, 20));
       if (eye > 0) { c = mix(c, gold, eye); a = Math.max(a, eye); }
 
       // 瞳孔（r11 实心）
-      const pupil = cov(sdCircle(X, Y, 256, 352, 11));
+      const pupil = cov(sdCircle(MX, MY, 256, 352, 11));
       if (pupil > 0) { c = mix(c, gold, pupil); a = Math.max(a, pupil); }
 
       px[o] = Math.round(c[0] * a + 255 * (1 - a));
@@ -112,10 +120,10 @@ function chunk(type, data) {
   crc.writeUInt32BE(crc32(Buffer.concat([typeBuf, data])));
   return Buffer.concat([len, typeBuf, data, crc]);
 }
-function encodePNG(raw) {
+function encodePNG(raw, size) {
   const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(SIZE, 0);
-  ihdr.writeUInt32BE(SIZE, 4);
+  ihdr.writeUInt32BE(size, 0);
+  ihdr.writeUInt32BE(size, 4);
   ihdr[8] = 8;  // bit depth
   ihdr[9] = 6;  // color type RGBA
   ihdr[10] = 0; // compression
@@ -129,10 +137,26 @@ function encodePNG(raw) {
   ]);
 }
 
-// ---------- 主流程 ----------
-const raw = render();
-const png = encodePNG(raw);
-const out = join(__dirname, '..', 'public', 'icons', 'fsp-icon.png');
-mkdirSync(dirname(out), { recursive: true });
-writeFileSync(out, png);
-console.log(`icon written: ${out} (${png.length} bytes)`);
+// ---------- 主流程：生成 PWA 所需全套图标 ----------
+// 输出：
+//   fsp-icon.png            512x512  常规（manifest any）
+//   fsp-icon-192.png        192x192  常规（manifest any，Chrome 安装必需）
+//   fsp-icon-maskable.png   512x512  maskable（Android 自适应图标）
+//   apple-touch-icon.png    180x180  iOS 主屏图标（PNG，不支持 SVG）
+const iconDir = join(__dirname, '..', 'public', 'icons');
+mkdirSync(iconDir, { recursive: true });
+
+const targets = [
+  { file: 'fsp-icon.png', size: 512 },
+  { file: 'fsp-icon-192.png', size: 192 },
+  { file: 'apple-touch-icon.png', size: 180 },
+  { file: 'fsp-icon-maskable.png', size: 512, maskable: true },
+];
+
+for (const t of targets) {
+  const raw = render(t.size, { maskable: !!t.maskable });
+  const png = encodePNG(raw, t.size);
+  const out = join(iconDir, t.file);
+  writeFileSync(out, png);
+  console.log(`icon written: ${out} (${png.length} bytes)`);
+}
