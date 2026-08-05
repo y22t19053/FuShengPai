@@ -47,6 +47,27 @@ export const LIGHT = {
   line: 'rgba(61,53,39,0.22)',
 };
 
+/** 浅色薄荷（日运 · 清新款：墨绿字 + 青绿金 + 暖赭忌） */
+export const MINT = {
+  bg0: '#eef3ee',
+  bg1: '#e4ece5',
+  bg2: '#e9f0ea',
+  ink: '#274038',                 // 墨绿
+  inkDim: 'rgba(39,64,56,0.55)',
+  inkFaint: 'rgba(39,64,56,0.3)',
+  gold: '#3f7d66',                // 青绿金（薄荷主色）
+  goldDim: 'rgba(63,125,102,0.45)',
+  goldFaint: 'rgba(63,125,102,0.16)',
+  red: '#b0563f',                 // 暖赭（忌）
+  line: 'rgba(39,64,56,0.2)',
+  // 纸牌配色（由模板按主题取用）
+  cardRed: '#b0563f',
+  cardBlack: '#2f4a41',
+  cardPaper: '#fbfcf6',
+  cardBorder: 'rgba(39,64,56,0.5)',
+  shadow: 'rgba(39,64,56,0.14)',
+};
+
 // ---------- 字体栈 ----------
 
 export const SERIF = '"Noto Serif SC","Source Han Serif SC","Songti SC","SimSun","STSong","KaiTi",serif';

@@ -190,56 +190,19 @@ export function renderStep1() {
   const storedPeriods = getStoredPeriodCards();
 
   const html = `
-    <!-- � 主入口区（普通人打开即用：一个大牌背，点一下） -->
-    <div id="heroSection" style="
-      background: linear-gradient(135deg, #0d0b1c 0%, #191530 100%);
-      border: 1px solid #c9a96e44;
-      border-radius: 14px;
-      padding: 22px 16px;
-      margin-bottom: 14px;
-      text-align: center;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.35);
-      color: #c8c8d8;
-    ">
-      <div class="hero-eyebrow" style="font-size: 0.6rem; color: #8b6f47; letter-spacing: 2px; margin-bottom: 4px;">· 浮 生 若 梦 ·</div>
-      <div class="hero-gold-title" style="font-size: 1.6rem; font-weight: 700; letter-spacing: 0.04em; margin: 0;">抽 一 张 牌</div>
-      <div class="hero-sub" style="font-size: 0.8rem; color: #8b8ba0; margin: 8px 0 14px;">不预测命运，只聊聊今天可以怎么过</div>
-      <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-        <button id="quickDrawBtn" style="
-          background: rgba(201,169,110,0.14);
-          color: #e8cf9a;
-          border: 1px solid #c9a96e99;
-          padding: 11px 34px;
-          border-radius: 26px;
-          font-size: 0.95rem;
-          font-family: 'Noto Serif SC', 'Songti SC', serif;
-          font-weight: 700;
-          cursor: pointer;
-        ">🃏 抽一张</button>
-        <button id="quickDailyBtn" style="
-          background: rgba(176,58,46,0.16);
-          color: #e07a66;
-          border: 1px solid #b03a2eaa;
-          padding: 11px 34px;
-          border-radius: 26px;
-          font-size: 0.95rem;
-          font-family: 'Noto Serif SC', 'Songti SC', serif;
-          font-weight: 700;
-          cursor: pointer;
-        ">☯ 今日运势</button>
+    <!-- 🃏 主入口区（普通人打开即用：一个大牌背，点一下） -->
+    <div id="heroSection" class="hero">
+      <div class="hero-eyebrow">· 浮 生 若 梦 ·</div>
+      <div class="hero-gold-title">抽 一 张 牌</div>
+      <div class="hero-sub">不预测命运，只聊聊今天可以怎么过</div>
+      <div class="hero-actions">
+        <button id="quickDrawBtn" class="btn-hero btn-hero-gold">🃏 抽一张</button>
+        <button id="quickDailyBtn" class="btn-hero btn-hero-cinnabar">☯ 今日运势</button>
       </div>
-      <div style="margin-top: 12px;">
-        <button id="paigeBtn" style="
-          background: transparent;
-          color: #77778a;
-          border: 1px dashed #8b6f4766;
-          padding: 6px 18px;
-          border-radius: 20px;
-          font-size: 0.75rem;
-          cursor: pointer;
-        ">我的牌灵 · 长期课题</button>
+      <div class="hero-link-row">
+        <button id="paigeBtn" class="btn-hero-link">我的牌灵 · 长期课题</button>
       </div>
-      <div class="hero-note" style="margin-top: 8px; font-size: 0.55rem; color: #77778a; opacity: 0.75;">默念一件事，点一下 · 30 秒读完 · 只存本机</div>
+      <div class="hero-note">默念一件事，点一下 · 30 秒读完 · 只存本机</div>
     </div>
 
     <!-- 🃏 牌灵 + 🌤 今日日运（已抽则直接可见，无需点击；未抽给轻引导） -->
@@ -249,13 +212,13 @@ export function renderStep1() {
     <div id="periodCardArea" style="margin: 0 0 14px; display: flex; justify-content: center;"></div>
 
     <!-- ⚙️ 进阶玩法（默认折叠：普通用户不打扰，行家自己进来） -->
-    <details id="toolSection" style="border-top: 1px dashed #323242; padding-top: 14px; margin-top: 4px;">
-      <summary style="cursor: pointer; font-size: 0.75rem; color: #8b6f47; text-align: center; padding: 4px 0 12px; user-select: none;">🪷 进阶玩法 · 九宫占卜台 <span style="opacity:0.6;">（想认真玩的朋友点这里）</span></summary>
+    <details id="toolSection" class="tool-section">
+      <summary class="tool-summary">🪷 进阶玩法 · 九宫占卜台 <span style="opacity:0.6;">（想认真玩的朋友点这里）</span></summary>
       <div style="padding: 0 2px;">
         <div style="display:flex;justify-content:center;gap:6px;margin-bottom:8px;">
           <button data-action="toggleConsultMode" class="small ${state.consultMode ? 'primary' : 'outline'}" style="font-size:0.7rem;">${state.consultMode ? '🧑 帮别人问 · 已开启' : '🧑 帮别人问'}</button>
         </div>
-        ${state.consultMode ? `<input type="text" id="consultNameInput" placeholder="求测人称呼（可选，如：朋友小王）" autocomplete="off" value="${escapeForHTML(state.consultName)}" style="position:relative;z-index:2;pointer-events:auto;margin-bottom:6px;border:1px solid #c9a96e55;">` : ''}
+        ${state.consultMode ? `<input type="text" id="consultNameInput" placeholder="求测人称呼（可选，如：朋友小王）" autocomplete="off" value="${escapeForHTML(state.consultName)}" style="position:relative;z-index:2;pointer-events:auto;margin-bottom:6px;border:1px solid rgba(var(--accent-rgb),0.33);">` : ''}
         <input type="text" id="questionInput" placeholder="${escapeForHTML(state.consultMode ? '求测人想问什么？' : UI_TEXTS.placeholderQuestion)}" autocomplete="off" value="${escapeForHTML(state.question)}" style="position:relative;z-index:2;pointer-events:auto;">
         ${renderCatBtns(state.category, state.subCategory)}
         <div class="btn-row">
@@ -268,14 +231,14 @@ export function renderStep1() {
         <div style="display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
           <button id="morePeriodBtn" class="small outline">更多周期运</button>
         </div>
-        <div class="tool-note" style="font-size:0.6rem;color:#77778a;text-align:center;margin-top:4px;">日运/周运/月运等抽一次即锁定，建议截图保存</div>
+        <div class="tool-note" style="font-size:0.6rem;color:var(--ink-faint);text-align:center;margin-top:4px;">日运/周运/月运等抽一次即锁定，建议截图保存</div>
       </div>
     </details>
 
-    <div style="text-align:center;font-size:0.7rem;color:#77778a;margin-top:6px;">
-      <a href="#" id="helpClarifyBtn" style="color:#c9a96e;">🤔 感觉自己没问清楚？</a>
+    <div style="text-align:center;font-size:0.7rem;color:var(--ink-faint);margin-top:6px;">
+      <a href="#" id="helpClarifyBtn" style="color:var(--accent);">🤔 感觉自己没问清楚？</a>
     </div>
-    <div id="clarifyGuide" style="display:none;margin-top:12px;padding:16px;background:rgba(201,169,110,0.05);border:1px solid #323242;border-radius:8px;font-size:0.8rem;color:#77778a;"></div>
+    <div id="clarifyGuide" style="display:none;margin-top:12px;padding:16px;background:rgba(var(--accent-rgb),0.05);border:1px solid var(--line-faint);border-radius:8px;font-size:0.8rem;color:var(--ink-faint);"></div>
   `;
   setHTML(core, html);
 
@@ -479,18 +442,18 @@ export function renderTodayFortuneStrip() {
       cardCls: colorCls, cardText: rank + suit, goldBorder: false,
       title: hook.title, line: hook.line, tags,
       shareId: 'dailyBannerShareBtn',
-      viewHTML: `<button class="small outline" style="color:#e07a66;border-color:#e07a66aa;" data-action="openPeriodDetail" data-period="daily" data-fortune-type="${main.t.key}">查看解读</button>`,
+      viewHTML: `<button class="small outline" style="color:var(--cinnabar-text);border-color:rgba(var(--cinnabar-rgb),0.67);" data-action="openPeriodDetail" data-period="daily" data-fortune-type="${main.t.key}">查看解读</button>`,
     });
   }
 
   if (!dailyBanner) {
     dailyBanner = `
-      <div style="flex:1 1 300px;min-width:280px;background:rgba(25,22,28,0.85);border:1px dashed #b03a2e88;border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;backdrop-filter:blur(4px);">
-        <div style="font-size:0.78rem;color:#a89a82;">
-          <span style="color:#e07a66;font-weight:700;">🌤 今日日运</span>
+      <div style="flex:1 1 300px;min-width:280px;background:rgba(25,22,28,0.85);border:1px dashed rgba(var(--cinnabar-rgb),0.53);border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;backdrop-filter:blur(4px);">
+        <div style="font-size:0.78rem;color:var(--ink-ghost);">
+          <span style="color:var(--cinnabar-text);font-weight:700;">🌤 今日日运</span>
           <span style="opacity:0.85;"> · 每天一签 · 只存本机</span>
         </div>
-        <button id="drawDailyBannerBtn" style="background:#b03a2e;color:#f6efdd;border:none;padding:7px 18px;border-radius:18px;font-size:0.8rem;font-weight:700;cursor:pointer;">抽一张</button>
+        <button id="drawDailyBannerBtn" style="background:var(--cinnabar);color:#f6efdd;border:none;padding:7px 18px;border-radius:18px;font-size:0.8rem;font-weight:700;cursor:pointer;">抽一张</button>
       </div>
     `;
   }
@@ -515,12 +478,27 @@ export function renderTodayFortuneStrip() {
   });
   el.querySelector('#dailyBannerShareBtn')?.addEventListener('click', () => {
     if (dailyCard) {
-      import('./ui-modal.js').then(m => m.generateShareImage({ type: 'daily', card: dailyCard, typeKey: dailyTypeKey, fortuneType: dailyTypeKey, template: 'daily' }));
+      import('./ui-modal.js').then(m => m.generateShareImage({ type: 'daily', card: dailyCard, typeKey: dailyTypeKey, fortuneType: dailyTypeKey, template: 'mint' }));
     }
   });
 }
 
 // ===== 周期卡渲染（牌灵卡 + 日运细选 + 周/月/季/年） =====
+
+// 财运连续打卡天数（从今天向前数，断签即停）
+function getDailyStreak(storedPeriods, typeKey, maxDays = 7) {
+  let streak = 0;
+  for (let i = 0; i < maxDays; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+    const rec = storedPeriods[`daily_${typeKey}`];
+    if (rec && rec.periodKey === key) streak++;
+    else break;
+  }
+  return streak;
+}
+
 export function renderPeriodCards() {
   const area = document.getElementById('periodCardArea');
   if (!area) return;
@@ -543,9 +521,9 @@ export function renderPeriodCards() {
         const wx = getWuxing(card);
         paigeHTML = `
           <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;padding:6px;border-radius:8px;flex-shrink:0;" data-action="openPaiGe" title="我的牌灵">
-            <div class="mini-card ${colorCls}" style="width:44px;height:62px;font-size:0.9rem;border-radius:6px;border:2px solid #c9a96e;">${escapeForHTML(rank + suit)}</div>
-            <div style="font-size:0.5rem;color:#c9a96e;margin-top:3px;">♟ 牌灵</div>
-            <div style="font-size:0.45rem;color:#77778a;">${wx}</div>
+            <div class="mini-card ${colorCls}" style="width:44px;height:62px;font-size:0.9rem;border-radius:6px;border:2px solid var(--accent);">${escapeForHTML(rank + suit)}</div>
+            <div style="font-size:0.5rem;color:var(--accent);margin-top:3px;">♟ 牌灵</div>
+            <div style="font-size:0.45rem;color:var(--ink-faint);">${wx}</div>
           </div>
         `;
       }
@@ -565,8 +543,8 @@ export function renderPeriodCards() {
     dailyCardsHTML += `
       <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;padding:6px;border-radius:8px;flex-shrink:0;" data-action="openPeriodDetail" data-period="daily" data-fortune-type="${t.key}" title="${t.label}运势">
         <div class="mini-card ${colorCls}" style="width:44px;height:62px;font-size:0.9rem;border-radius:6px;">${escapeForHTML(rank + suit)}</div>
-        <div style="font-size:0.5rem;color:#c9a96e;margin-top:3px;">${t.icon} ${t.label}</div>
-        <div style="font-size:0.45rem;color:#77778a;">${wx}</div>
+        <div style="font-size:0.5rem;color:var(--accent);margin-top:3px;">${t.icon} ${t.label}</div>
+        <div style="font-size:0.45rem;color:var(--ink-faint);">${wx}</div>
       </div>
     `;
   });
@@ -585,18 +563,31 @@ export function renderPeriodCards() {
     otherCardsHTML += `
       <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;padding:6px;border-radius:8px;flex-shrink:0;" data-action="openPeriodDetail" data-period="${key}" title="${p.label}">
         <div class="mini-card ${colorCls}" style="width:44px;height:62px;font-size:0.9rem;border-radius:6px;">${escapeForHTML(rank + suit)}</div>
-        <div style="font-size:0.5rem;color:#c9a96e;margin-top:3px;">${p.label}</div>
-        <div style="font-size:0.45rem;color:#77778a;">${wx}</div>
+        <div style="font-size:0.5rem;color:var(--accent);margin-top:3px;">${p.label}</div>
+        <div style="font-size:0.45rem;color:var(--ink-faint);">${wx}</div>
       </div>
     `;
   });
 
   const html = paigeHTML + dailyCardsHTML + otherCardsHTML;
-  if (!html) {
-    setHTML(area, `<div style="font-size:0.7rem;color:#77778a;text-align:center;padding:12px;">还没有签：点上方「今日运势」或「抽一张」开始</div>`);
+
+  // 收藏向心力：财运连续打卡徽章（灰 → 满 7 天变金）
+  const wealthStreak = getDailyStreak(storedPeriods, 'wealth');
+  const streakBadge = wealthStreak > 0
+    ? `<div class="streak-badge ${wealthStreak >= 7 ? 'lit' : ''}">${wealthStreak >= 7 ? '🏆 财运连续 7 天' : `💰 财运打卡 ${wealthStreak}/7`}</div>`
+    : '';
+
+  if (!html && !streakBadge) {
+    setHTML(area, `
+      <div class="empty-state" style="flex:1 1 100%;">
+        <div class="empty-card">◆</div>
+        <div class="empty-text">还没有签：点上方「今日运势」或「抽一张」开始</div>
+        <div class="empty-sub">日运 · 周运 · 月运 · 牌灵，都在这条横条里安家</div>
+      </div>
+    `);
     return;
   }
-  setHTML(area, `<div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;">${html}</div>`);
+  setHTML(area, `<div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;">${html}${streakBadge}</div>`);
 }
 
 // ===== 布阵步骤 =====
@@ -851,7 +842,7 @@ export function renderDurianDisplay() {
     <div style="flex:1;min-width:0;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;">
         <span style="font-size:0.75rem;color:var(--dim);">张力指数</span>
-        <span style="font-weight:bold;font-size:0.9rem;">${result.score}/10 <span style="color:${color};font-size:0.7rem;">（${result.level}）</span></span>
+        <span class="num" style="font-weight:bold;font-size:0.9rem;">${result.score}/10 <span style="color:${color};font-size:0.7rem;">（${result.level}）</span></span>
       </div>
       <div style="height:4px;background:rgba(255,255,255,0.12);border-radius:2px;margin:6px 0 4px;overflow:hidden;">
         <div style="width:${pct}%;height:100%;background:${color};border-radius:2px;transition:width .3s ease;"></div>
@@ -956,7 +947,7 @@ export function renderHistoryPanel() {
     setHTML(list, `<p style="color:var(--dim);">${escapeForHTML(HISTORY_EMPTY)}</p>`);
     return;
   }
-  const html = history.map((r, i) => `<div class="history-item" data-index="${i}" style="cursor:pointer;margin:8px 0;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid rgba(255,255,255,0.05);"><strong>${escapeForHTML(new Date(r.time).toLocaleString())}</strong><span style="color:var(--dim);margin-left:8px;">${escapeForHTML(r.question || '未提问')} (${escapeForHTML(r.category || '无')})</span></div>`).join('');
+  const html = history.map((r, i) => `<div class="history-item" data-index="${i}" style="cursor:pointer;margin:8px 0;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid rgba(255,255,255,0.05);"><strong class="num">${escapeForHTML(new Date(r.time).toLocaleString())}</strong><span style="color:var(--dim);margin-left:8px;">${escapeForHTML(r.question || '未提问')} (${escapeForHTML(r.category || '无')})</span></div>`).join('');
   setHTML(list, html);
 }
 

@@ -49,13 +49,15 @@ import {
 import { MAX_DAILY_OBSERVATIONS, pick } from './constants.js';
 import { UI_TEXTS, STATUS_POOL, REMINDER_POOL, ACTION_POOL } from './texts/index.js';
 import { getDailyMirrorLine, getSceneLines, getWakeUpLine } from './texts/mirror-pools.js';
+import { buildDailyOracle } from './texts/daily-oracle.js';
 import { getPokerPersona } from './persona.js';
 import { calculateDurianIndex } from './durian.js';
-import { generateFingerprint } from './chaos.js';
+import { generateFingerprint, seedToX0, chaoticGenerator, chaoticShuffle } from './chaos.js';
 import { interceptQuestion, checkDependency, getSealStatus } from './philosophy/ethics.js';
 import { applyCovenant } from './philosophy/covenant.js';
 import { generateSingleCardMetaphor } from './metaphor.js';
 import { escapeForHTML, setHTML } from './utils/safe.js';
+import { playCardSound, playJokerSound, playPlaceSound } from './utils/sound.js';
 import { initPWA } from './pwa.js';
 import { resolveApiModel } from './utils/api-config.js';
 import { syncQuestionFromInput, createPeriodShareAction } from './utils/flow-helpers.js';
@@ -68,9 +70,6 @@ function safeSetPeriodCards(cards) {
     console.warn('周期卡存储迁移失败', e);
   }
 }
-
-// --- 全局预备牌堆 ---
-let __PRE_DECK__ = [];
 
 // --- 核心 ---
 export function updateStep(n) {
@@ -341,19 +340,19 @@ export async function generateInterpretation() {
       };
       saveReading(readingData);
       addTimelineEntry(readingData);
-    } catch (e) { toast('历史保存失败，但解读有效', 2000); }
+    } catch (e) { toast('历史保存失败，但解读有效', 2000, 'warning'); }
     addDrawTimestamp(Date.now());
     if (!getTimeCapsule()) saveTimeCapsule({ question: state.question, text: text.slice(0, 500), timestamp: Date.now() });
-    if (todayCount >= MAX_DAILY_OBSERVATIONS) toast('今日已抽牌多次，注意休息。', 3000);
+    if (todayCount >= MAX_DAILY_OBSERVATIONS) toast('今日已抽牌多次，注意休息。', 3000, 'warning');
   } catch (e) {
     console.error('[浮生牌] generateInterpretation 出错:', e);
-    toast('生成解读失败: ' + (e.message || '未知错误'), 4000);
+    toast('生成解读失败: ' + (e.message || '未知错误'), 4000, 'warning');
   }
 }
 
 export function showFullReport() {
   const text = state.pendingFullReport || '';
-  if (!text) { toast('没有可显示的解读', 2000, 'info'); return; }
+  if (!text) { toast('没有可显示的解读', 2000, 'warning'); return; }
   renderFullReport(text, null, buildSummary());
   updateStep(3);
 }
@@ -468,7 +467,7 @@ function setupNetworkHints() {
   const showOnline = () => {
     if (!offlineNotified) return;
     offlineNotified = false;
-    toast('📶 已恢复联网', 2500);
+    toast('📶 已恢复联网', 2500, 'success');
   };
   window.addEventListener('offline', showOffline);
   window.addEventListener('online', showOnline);
@@ -476,11 +475,12 @@ function setupNetworkHints() {
 }
 
 // ===== 抽牌 =====
-// 至少洗两次（对应现实洗牌仪式：去王抽体用 → 插回王 → 再洗 → 放九宫）
-function shuffleTwice(arr) {
-  let a = shuffle(arr);
-  a = shuffle(a);
-  return a;
+// 真随机：每次抽牌都用 crypto 熵重新播种混沌引擎洗牌。
+// 同一会话里连点多次「抽一张」，每次都是全新顺序——杜绝「洗一次牌摸一整页」的伪随机。
+function chaosShuffleDeck(deck) {
+  const seed = new Uint8Array(32);
+  window.crypto.getRandomValues(seed);
+  return chaoticShuffle(deck, chaoticGenerator(seedToX0(seed)));
 }
 
 export function proceedStartQuestion() {
@@ -490,14 +490,8 @@ export function proceedStartQuestion() {
   state.summary = null;
   state.sealed = false;
 
-  if (__PRE_DECK__ && __PRE_DECK__.length > 0) {
-    state.deck = [...__PRE_DECK__];
-    state.fingerprint = generateFingerprint(state.deck);
-  } else {
-    const deck = createDeck(false);
-    state.deck = shuffleTwice(deck); // 洗两次
-    state.fingerprint = generateFingerprint(state.deck);
-  }
+  state.deck = chaosShuffleDeck(createDeck(false));
+  state.fingerprint = generateFingerprint(state.deck);
 
   state.ti = null; state.yong = null; state.grid = {};
   state.line = null; state.lineOrder = {}; state.sel = null;
@@ -524,10 +518,10 @@ export function startThreeSpread() {
 }
 
 function drawThreeCards() {
-  const deck = shuffleTwice(createDeck(false));
+  const deck = chaosShuffleDeck(createDeck(false));
   const phases = ['过去', '现在', '未来'];
   state.threeCards = deck.slice(0, 3).map((card, i) => ({ card, phase: phases[i] }));
-  toast('🃏 已抽三张：过去 / 现在 / 未来');
+  toast('🃏 已抽三张：过去 / 现在 / 未来', 2400, 'success');
 }
 
 export function backToJiugong() {
@@ -536,7 +530,7 @@ export function backToJiugong() {
   const modal = document.getElementById('modal');
   if (modal) modal.setAttribute('hidden', '');
   if (!state.deck || state.deck.length < 10) {
-    state.deck = shuffleTwice(createDeck(false));
+    state.deck = chaosShuffleDeck(createDeck(false));
     state.fingerprint = generateFingerprint(state.deck);
   }
   state.ti = null; state.yong = null; state.grid = {};
@@ -614,7 +608,7 @@ export async function generateThree() {
     const depCheck = checkDependency(timestamps);
     if (depCheck.level === 'warning') { toast(depCheck.message, 4000); }
     const cards = state.threeCards || [];
-    if (cards.length < 3) { toast('三张牌未抽齐'); return; }
+    if (cards.length < 3) { toast('三张牌未抽齐', 2200, 'warning'); return; }
     const text = buildThreeSpreadText();
     state.pendingFullReport = text;
     const durian = computeThreeDurian(cards);
@@ -634,14 +628,14 @@ export async function generateThree() {
       };
       saveReading(readingData);
       addTimelineEntry(readingData);
-    } catch (e) { toast('历史保存失败，但解读有效', 2000); }
+    } catch (e) { toast('历史保存失败，但解读有效', 2000, 'warning'); }
     addDrawTimestamp(Date.now());
     state.spreadType = 'jiugong';
     state.threeCards = [];
-    toast('🃏 三牌直断完成');
+    toast('🃏 三牌直断完成', 2400, 'success');
   } catch (e) {
     console.error('[浮生牌] generateThree 出错:', e);
-    toast('生成解读失败: ' + (e.message || '未知错误'), 4000);
+    toast('生成解读失败: ' + (e.message || '未知错误'), 4000, 'warning');
   }
 }
 
@@ -664,19 +658,19 @@ export function startManualEntry() {
 // ===== 手动录入 · 顺序放置（第1张=体，第2张=用，第3张起自动布九宫） =====
 export function autoPlaceSequential(card) {
   if (!card) return;
-  if (state.sealed) { toast('牌局已封印，不可改动'); return; }
+  if (state.sealed) { toast('牌局已封印，不可改动', 2200, 'warning'); return; }
   if (!state.ti) {
     placeCardOnTiYong(card, 'ti', true);
-    toast('第 1 张 · 已录为「你」\n下一张录「所问之事」');
+    toast('第 1 张 · 已录为「你」\n下一张录「所问之事」', 2400, 'success');
     return;
   }
   if (!state.yong) {
     placeCardOnTiYong(card, 'yong', true);
-    toast('第 2 张 · 已录为「所问之事」\n下一张起自动布入九宫');
+    toast('第 2 张 · 已录为「所问之事」\n下一张起自动布入九宫', 2400, 'success');
     return;
   }
   const g = GONG_ORDER.find(g => !state.grid[g] || state.grid[g].length < 3);
-  if (!g) { toast('九宫已满，请先清九宫或重置选牌'); return; }
+  if (!g) { toast('九宫已满，请先清九宫或重置选牌', 2200, 'warning'); return; }
   const n = (state.grid[g] ? state.grid[g].length : 0) + 1;
   placeCardOnGong(card, g, true);
   const placed = state.grid[g] && state.grid[g].length;
@@ -694,13 +688,13 @@ async function proceedLazyStart() {
   state.currentTimeArc = null;
   state.summary = null; // 新局新摘要
 
-  const shuffled = __PRE_DECK__ && __PRE_DECK__.length > 0 ? [...__PRE_DECK__] : shuffleTwice(createDeck(false)); // 洗两次
+  const shuffled = chaosShuffleDeck(createDeck(false));
   state.fingerprint = generateFingerprint(shuffled);
   const { ti, yong, remaining } = drawTiYong(shuffled);
   state.ti = ti; state.yong = yong;
   let remainingDeck = remaining;
   remainingDeck.push({ isJoker: true, type: '大王', _uid: state.uid++ }, { isJoker: true, type: '小王', _uid: state.uid++ });
-  remainingDeck = shuffleTwice(remainingDeck); // 插回大小王后再洗两次
+  remainingDeck = chaosShuffleDeck(remainingDeck); // 插回大小王后再洗一次
   const line = ALL_LINES[Math.floor(Math.random() * ALL_LINES.length)];
   state.line = [...line];
   const key = line.join(','); const tl = TIME_LABELS[key] || {};
@@ -712,7 +706,7 @@ async function proceedLazyStart() {
   updateStep(3);
   const { text, summary } = await localInterpretation();
   renderFullReport(text, null, summary);
-  toast('🃏 牌已落定，看看它怎么说', 3000);
+  toast('🃏 牌已落定，看看它怎么说', 3000, 'success');
 }
 
 // ===== 时间弧 =====
@@ -725,7 +719,7 @@ export function setTimeArc(arc) {
 export function setTimeArcAuto() {
   state.currentTimeArc = null;
   refreshAll();
-  toast('时间锚点已恢复自动判定');
+  toast('时间锚点已恢复自动判定', 2200, 'info');
 }
 
 // ===== 周期抽牌（支持日运细选） =====
@@ -796,6 +790,7 @@ export function openPeriodDeck(periodType, fortuneType = 'overall') {
     if (periodLocked) return;
     periodLocked = true;
     const card = shuffled[idx];
+    const isJoker = !!(card && card.isJoker);
     const el = content.querySelector(`[data-period-card-idx="${idx}"]`);
     content.querySelectorAll('#periodDeckGrid .card-back').forEach(b => {
       b.style.pointerEvents = 'none';
@@ -803,9 +798,30 @@ export function openPeriodDeck(periodType, fortuneType = 'overall') {
     });
     if (el) {
       el.style.opacity = '1';
-      el.outerHTML = `<div class="card-face ${getCardColor(card)}" style="width:${cardW}px;height:${cardH}px;margin:0 auto;animation:cardFlip 0.5s;">${escapeForHTML(card.isJoker ? card.type : card.rank)}${escapeForHTML(card.isJoker ? '' : card.suit)}</div>`;
+      // 张力窗口：点击 → 牌背轻微抖动 + 震感 30ms → 停顿 400ms → 才翻牌
+      el.classList.add('card-tension');
+      if (navigator.vibrate) navigator.vibrate(30);
+      playCardSound('tap');
+      setTimeout(() => {
+        if (isJoker) {
+          // 天命时刻：金色光晕 + 更长翻牌 + 专属音效
+          el.outerHTML = `<div class="card-face gold joker-flip" style="width:${cardW}px;height:${cardH}px;margin:0 auto;">${escapeForHTML(card.type)}</div>`;
+          playJokerSound();
+        } else {
+          el.outerHTML = `<div class="card-face ${getCardColor(card)}" style="width:${cardW}px;height:${cardH}px;margin:0 auto;animation:cardFlip 0.5s;">${escapeForHTML(card.rank)}${escapeForHTML(card.suit)}</div>`;
+          playCardSound('flip');
+        }
+      }, 420);
     }
-    setTimeout(() => confirmPeriodPick(periodType, card, fortuneType), 350);
+    // 天命时刻翻牌更久（0.8s），确认延迟随之拉长
+    const settle = isJoker ? 420 + 900 : 420 + 550;
+    setTimeout(() => {
+      if (isJoker) {
+        const persona = getPokerPersona(card);
+        if (persona) toast(`⚡ ${card.type} · ${persona.core}`, 3200, 'success');
+      }
+      confirmPeriodPick(periodType, card, fortuneType);
+    }, settle);
   }
 
   content.querySelectorAll('#periodDeckGrid .card-back').forEach(el => {
@@ -845,6 +861,17 @@ function buildManualCardButtons() {
   return html;
 }
 
+// ===== 赛博黄历（仅日运展示）：宜/忌/建除/冲煞，按当日确定性取，不娱乐化 =====
+function buildDailyOracleBlock(wx, dateStr) {
+  const oracle = buildDailyOracle({ wx, dateStr });
+  return `
+    <div style="font-size:0.82rem;color:var(--text);line-height:1.9;margin:6px 0 10px;padding:10px 14px;background:rgba(0,0,0,0.12);border-radius:8px;text-align:left;">
+      <div style="color:var(--accent);font-size:0.75rem;margin-bottom:2px;">📅 今日黄历 · ${escapeForHTML(oracle.jianchu.name)}　<span style="opacity:0.7;">冲${escapeForHTML(oracle.chong.name)}·${escapeForHTML(oracle.chong.animal)}</span></div>
+      <div>宜 · ${oracle.yi.map(escapeForHTML).join('、')}</div>
+      <div style="color:#d45050;">忌 · ${oracle.ji.map(escapeForHTML).join('、')}</div>
+    </div>`;
+}
+
 // ===== 周期牌详情（支持日运细选） =====
 export function openPeriodDetail(periodType, fortuneType = 'overall') {
   const modal = document.getElementById('modal');
@@ -862,7 +889,7 @@ export function openPeriodDetail(periodType, fortuneType = 'overall') {
   const data = stored[storeKey];
 
   if (!data || data.periodKey !== periodKey || !data.card) {
-    toast('本周期还没抽牌');
+    toast('本周期还没抽牌', 2200, 'warning');
     openPeriodDeck(periodType, fortuneType);
     return;
   }
@@ -880,6 +907,7 @@ export function openPeriodDetail(periodType, fortuneType = 'overall') {
   const mirrorLine = getDailyMirrorLine();
   const sceneLines = getSceneLines(fortuneType);
   const wakeUpLine = periodType === 'daily' ? getWakeUpLine() : '';
+  const oracleBlock = periodType === 'daily' ? buildDailyOracleBlock(wx, periodKey) : '';
 
   const history = getHistory();
   const periodHistory = history.find(h => h.type === 'period' && h.periodType === periodType && h.periodKey === periodKey && (h.fortuneType || 'overall') === fortuneType);
@@ -897,10 +925,11 @@ export function openPeriodDetail(periodType, fortuneType = 'overall') {
         <span style="font-size:0.7rem;color:var(--dim);margin-top:2px;">${escapeForHTML(wx)}</span>
       </div>
       ${metaphor ? `<div style="font-size:0.9rem;color:var(--text);line-height:1.8;margin:12px 0;padding:12px;background:rgba(0,0,0,0.15);border-radius:8px;white-space:pre-wrap;">${escapeForHTML(metaphor)}</div>` : ''}
+      ${oracleBlock}
       ${sceneLines.length ? `<div style="font-size:0.78rem;color:var(--dim);line-height:1.8;margin:6px 0 10px;padding:10px 14px;background:rgba(0,0,0,0.12);border-radius:8px;">${sceneLines.map(l => `<div>· ${escapeForHTML(l)}</div>`).join('')}</div>` : ''}
       ${wakeUpLine ? `<div style="font-size:0.78rem;color:#d4a05a;line-height:1.7;margin:4px 0 10px;">⚡ ${escapeForHTML(wakeUpLine)}</div>` : ''}
       
-      <p style="font-size:0.7rem;color:var(--dim);">抽于 ${new Date(data.drawnAt).toLocaleString()}</p>
+      <p class="num" style="font-size:0.7rem;color:var(--dim);">抽于 ${new Date(data.drawnAt).toLocaleString()}</p>
       <p style="font-size:0.7rem;color:#d45050;">⚠️ 此牌已锁定，本周期不可重抽。建议截图保存。</p>
 
       ${hasAi ? `
@@ -975,9 +1004,9 @@ export function openPeriodDetail(periodType, fortuneType = 'overall') {
         time: Date.now(),
         chatHistory: [{ role: 'user', content: prompt }, { role: 'assistant', content: result }]
       });
-      toast('AI 解读已保存');
+      toast('AI 解读已保存', 2400, 'success');
     } catch (e) {
-      toast(e.message || 'AI 请求失败', 3000);
+      toast(e.message || 'AI 请求失败', 3000, 'warning');
     } finally {
       this.disabled = false;
       this.textContent = hasAi ? '🔄 重新 AI 深度解读' : '✨ AI 深度解读';
@@ -1019,6 +1048,8 @@ export function confirmPeriodPick(periodType, card, fortuneType = 'overall') {
   // 存储（支持日运细选）
   saveStoredPeriodCard(periodType, { periodKey, card, fortune: metaphor, drawnAt: Date.now(), fortuneType }, fortuneType);
 
+  const oracleBlock = periodType === 'daily' ? buildDailyOracleBlock(wx, periodKey) : '';
+
   const html = `
     <div style="text-align:center;">
       <div style="font-size:0.8rem;color:var(--dim);margin-bottom:8px;">${escapeForHTML(typeLabel)} · 你抽到了</div>
@@ -1031,6 +1062,7 @@ export function confirmPeriodPick(periodType, card, fortuneType = 'overall') {
         <span style="font-size:0.7rem;color:var(--dim);margin-top:2px;">${escapeForHTML(wx)}</span>
       </div>
       <div style="font-size:0.9rem;color:var(--text);line-height:1.8;margin:12px 0;padding:12px;background:rgba(0,0,0,0.15);border-radius:8px;white-space:pre-wrap;">${escapeForHTML(metaphor)}</div>
+      ${oracleBlock}
       ${sceneLines.length ? `<div style="font-size:0.78rem;color:var(--dim);line-height:1.8;margin:6px 0 10px;padding:10px 14px;background:rgba(0,0,0,0.12);border-radius:8px;">${sceneLines.map(l => `<div>· ${escapeForHTML(l)}</div>`).join('')}</div>` : ''}
       <p style="font-size:0.7rem;color:#d45050;">⚠️ 此牌已锁定，本周期不可重抽。建议截图保存。</p>
       <div class="btn-row">
@@ -1066,7 +1098,7 @@ export function savePeriodCard(periodType, card, metaphor, fortuneType = 'overal
     question: `${periodType === 'daily' ? getDailyFortuneType(fortuneType).label : PERIODS[periodType]?.label} · ${periodKey}`,
     time: Date.now(), chatHistory: state.periodAiHistory || [],
   });
-  toast('此牌已保存，本周期内不可重抽');
+  toast('此牌已保存，本周期内不可重抽', 2600, 'warning');
   const modal = document.getElementById('modal');
   if (modal) modal.setAttribute('hidden', '');
   renderPeriodCards();
@@ -1095,18 +1127,18 @@ function generateFullPeriodLocal(card, wx, periodLabel, metaphor, fortuneType = 
 
 // ===== 布阵相关 =====
 export function resetStep2() {
-  if (state.sealed) { toast('牌局已封印，不可重置'); return; }
+  if (state.sealed) { toast('牌局已封印，不可重置', 2200, 'warning'); return; }
   if (state.ti) { state.deck.push(state.ti); state.ti = null; }
   if (state.yong) { state.deck.push(state.yong); state.yong = null; }
   state.deck = shuffle(state.deck); state.sel = null;
   refreshAll();
   if (state.step === 2) renderStep2(); else { updateStep(2); renderStep2(); }
-  toast('选牌已重置');
+  toast('选牌已重置', 2000, 'info');
 }
 
 export function confirmTiYong() {
   if (!state.ti || !state.yong) { toast('请先选好「你」和「所问之事」两张牌', 2200, 'warning'); return; }
-  if (state.sealed) { toast('牌局已封印'); return; }
+  if (state.sealed) { toast('牌局已封印', 2200, 'warning'); return; }
   state.deck.push({ isJoker: true, type: '大王', _uid: state.uid++ }, { isJoker: true, type: '小王', _uid: state.uid++ });
   state.deck = shuffle(state.deck);
   const gridArea = document.getElementById('gridArea');
@@ -1118,7 +1150,7 @@ export function confirmTiYong() {
 }
 
 export function resetGrid() {
-  if (state.sealed) { toast('牌局已封印，不可修改'); return; }
+  if (state.sealed) { toast('牌局已封印，不可修改', 2200, 'warning'); return; }
   for (const g in state.grid) state.deck.push(...state.grid[g]);
   state.grid = {}; state.line = null; state.lineOrder = {};
   state.possible = []; state.gongOrder = []; state.sel = null;
@@ -1162,7 +1194,7 @@ export function saveApiSettingsFromForm() {
   const headersStr = document.getElementById('aiHeaders')?.value?.trim() || '';
   if (headersStr) {
     try { headers = JSON.parse(headersStr); }
-    catch(e) { toast('自定义请求头 JSON 格式错误，已忽略', 2500); }
+    catch(e) { toast('自定义请求头 JSON 格式错误，已忽略', 2500, 'warning'); }
   }
 
   const settings = {
@@ -1226,13 +1258,13 @@ export async function triggerAI() {
     updateHistoryChat(state.chatHistory);
     const followUp = document.getElementById('followUpArea');
     if (followUp) followUp.style.display = 'block';
-    toast('AI 解读完成，已保存至历史记录');
+    toast('AI 解读完成，已保存至历史记录', 2400, 'success');
   } catch (e) {
     const container = document.getElementById('aiResultContainer');
     if (container) container.style.display = 'block';
     const content = document.getElementById('aiResultContent');
     setHTML(content, `<div style="color:#d45050;border:1px solid #d45050;padding:8px;border-radius:6px;margin-bottom:8px;font-size:0.85rem;">⚠️ AI 服务不可用：${escapeForHTML(e.message || '未知错误')}</div>`);
-    toast('AI 解析失败，请尝试复制提示词或检查 API Key', 3000);
+    toast('AI 解析失败，请尝试复制提示词或检查 API Key', 3000, 'warning');
   } finally {
     btn.disabled = false;
     btn.textContent = '✨ AI 深度解读';
@@ -1246,7 +1278,7 @@ export async function sendFollowUp() {
   if (!q) return;
   input.value = '';
   const settings = getApiSettings();
-  if (!settings || !settings.apiKey) { toast('未配置 API Key'); return; }
+  if (!settings || !settings.apiKey) { toast('未配置 API Key', 2200, 'warning'); return; }
   const history = state.chatHistory;
   if (!history || history.length < 2) { toast('请先进行一次 AI 解读', 2200, 'warning'); return; }
   history.push({ role: 'user', content: q });
@@ -1275,7 +1307,7 @@ export async function sendFollowUp() {
       chatBlock.scrollTop = chatBlock.scrollHeight;
     }
     updateHistoryChat(history);
-    toast('AI 回复已保存');
+    toast('AI 回复已保存', 2400, 'success');
   } catch (e) {
     if (chatBlock) chatBlock.innerHTML += `<div class="chat-msg" style="color:#d45050">失败：${escapeForHTML(e.message)}</div>`;
   }
@@ -1480,7 +1512,7 @@ export function handleAction(action, dataset, el = null) {
       }
       document.getElementById('fortuneTypeModal')?.setAttribute('hidden', '');
       // 走东方国风日运模板（宣纸 + 朱砂印章），不再落到旧版日运报告卡
-      import('./ui/ui-modal.js').then(m => m.generateShareImage({ type: 'daily', card, typeKey, fortuneType, template: 'daily' }));
+      import('./ui/ui-modal.js').then(m => m.generateShareImage({ type: 'daily', card, typeKey, fortuneType, template: 'mint' }));
       break;
     }
     case 'closeClarify': { const guide = document.getElementById('clarifyGuide'); if (guide) guide.style.display = 'none'; break; }
@@ -1580,7 +1612,7 @@ function bindAllEvents() {
         });
         state.selectedProvider = provider;
       }
-      toast('模型已填入，保存后生效');
+      toast('模型已填入，保存后生效', 2200, 'info');
       return;
     }
 
@@ -1627,9 +1659,6 @@ function init() {
   }
 
   try {
-    const deck = createDeck(false);
-    __PRE_DECK__ = shuffle(deck);
-
     updateStep(1);
     renderStep1();
     updateApiStatus();

@@ -105,7 +105,7 @@ export function renderOnboardStep() {
     } else {
       overlay.remove();
       completeOnboarding();
-      toast('有什么想问的，默念后抽牌即可');
+      toast('有什么想问的，默念后抽牌即可', 2600, 'info');
       focusQuestionInputAfterOnboarding();
     }
   });
@@ -130,7 +130,7 @@ function focusQuestionInputAfterOnboarding() {
 export function showAIGuideModal() {
   const modal = document.getElementById('modal');
   const content = document.getElementById('modalContent');
-  if (!modal || !content) { toast('弹窗系统尚未加载'); return; }
+  if (!modal || !content) { toast('弹窗系统尚未加载', 2200, 'warning'); return; }
   const html = `
     <div style="text-align:center;padding:8px;">
       <h3 style="color:var(--accent);">🤖 AI 深度解读</h3>
@@ -204,7 +204,7 @@ export function importShareCode() {
   const input = document.getElementById('importCode');
   if (!input) return;
   const code = input.value.trim();
-  if (!code) { toast('请粘贴分享码'); return; }
+  if (!code) { toast('请粘贴分享码', 2200, 'warning'); return; }
   try {
     const json = decodeURIComponent(atob(code));
     const data = JSON.parse(json);
@@ -241,7 +241,7 @@ export function showHistoryDetail(index) {
   };
 
   const html = `<h3>历史详情</h3>
-    <p style="font-size:0.85rem;color:var(--dim);"><strong>时间：</strong>${escapeForHTML(new Date(r.time).toLocaleString())}</p>
+    <p style="font-size:0.85rem;color:var(--dim);"><strong>时间：</strong><span class="num">${escapeForHTML(new Date(r.time).toLocaleString())}</span></p>
     <p style="font-size:0.85rem;color:var(--dim);"><strong>问题：</strong>${escapeForHTML(r.question || '未提问')}</p>
     <p style="font-size:0.85rem;color:var(--dim);"><strong>类别：</strong>${escapeForHTML(r.category || '无')}</p>
     <div class="result-block" style="font-size:0.85rem;max-height:200px;overflow-y:auto;white-space:pre-wrap;">${escapeForHTML(r.text || '')}</div>
@@ -281,7 +281,7 @@ export function showHistoryDetail(index) {
     const q = input.value.trim();
     if (!q) return;
     const settings = getApiSettings();
-    if (!settings || !settings.apiKey) { toast('未配置 API Key，请先到「AI」设置'); return; }
+    if (!settings || !settings.apiKey) { toast('未配置 API Key，请先到「AI」设置', 2200, 'warning'); return; }
     asking = true;
     sendBtn.disabled = true;
     status.style.display = 'block';
@@ -314,7 +314,7 @@ export function showHistoryDetail(index) {
         block.scrollTop = block.scrollHeight;
       }
       status.style.display = 'none';
-      toast('AI 回复已保存');
+      toast('AI 回复已保存', 2400, 'success');
     } catch (e) {
       chat.pop(); // 撤回未成功的提问，保留原上下文
       status.style.display = 'block';
@@ -398,7 +398,7 @@ function findHistoryIndexByTime(ts) {
 export function replayTimelineEntry(time) {
   const idx = findHistoryIndexByTime(Number(time));
   if (idx >= 0) { showHistoryDetail(idx); return; }
-  toast('这条记录没有对应的解读');
+  toast('这条记录没有对应的解读', 2200, 'warning');
 }
 
 // 渲染周期报告到 modal 内的周期报告区
@@ -531,7 +531,7 @@ export function showDurianReport() {
   const modal = document.getElementById('modal');
   const content = document.getElementById('modalContent');
   if (!modal || !content) return;
-  if (timeline.length < 3) { toast('需要至少3次记录才能生成报告'); return; }
+  if (timeline.length < 3) { toast('需要至少3次记录才能生成报告', 2400, 'warning'); return; }
 
   const recent = timeline.slice(0, 30);
   const scores = recent.map(t => t.durianScore || 0);
@@ -645,7 +645,7 @@ export async function showRewardModal() {
 export async function generateShareImage(options = {}) {
   const container = document.getElementById('sharePreview');
   const canvas = document.getElementById('shareCanvas');
-  if (!container || !canvas) { toast('分享组件未就绪'); return; }
+  if (!container || !canvas) { toast('分享组件未就绪', 2200, 'warning'); return; }
 
   const type = options.type || 'divination';
   const card = options.card || null;
@@ -654,8 +654,8 @@ export async function generateShareImage(options = {}) {
   const text = options.text || document.getElementById('interpretText')?.innerText || '';
   const template = options.template || '';
 
-  const TEMPLATES = ['tarot', 'daily', 'divination'];
-  if (!TEMPLATES.includes(template)) { toast('未知分享模板'); return; }
+  const TEMPLATES = ['tarot', 'daily', 'mint', 'divination'];
+  if (!TEMPLATES.includes(template)) { toast('未知分享模板', 2200, 'warning'); return; }
 
   canvas.width = 1080;
   canvas.height = 1440;
@@ -690,7 +690,7 @@ export function saveShareImage() {
   if (!canvas) { toast('没有图片可保存', 2000, 'info'); return; }
 
   canvas.toBlob(function(blob) {
-    if (!blob) { toast('保存失败'); return; }
+    if (!blob) { toast('保存失败', 2200, 'warning'); return; }
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.download = getUniqueFilename();
@@ -699,7 +699,7 @@ export function saveShareImage() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    toast('💾 图片已保存（如果未自动下载，请长按图片保存）');
+    toast('💾 图片已保存（如果未自动下载，请长按图片保存）', 2400, 'success');
   }, 'image/png');
 }
 
@@ -745,7 +745,7 @@ export function showDataMigrationModal() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast('📦 数据已导出，请妥善保存');
+    toast('📦 数据已导出，请妥善保存', 2400, 'success');
   });
 
   document.getElementById('importAllDataBtn')?.addEventListener('click', () => {
@@ -764,10 +764,10 @@ export function showDataMigrationModal() {
           modal.setAttribute('hidden', '');
           setTimeout(() => location.reload(), 800);
         } else {
-          toast('❌ 导入失败，文件格式无效');
+          toast('❌ 导入失败，文件格式无效', 2600, 'warning');
         }
       } catch (err) {
-        toast('❌ 导入失败: ' + err.message);
+        toast('❌ 导入失败: ' + err.message, 2600, 'warning');
       }
     };
     reader.readAsText(file);

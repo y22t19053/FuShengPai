@@ -5,6 +5,7 @@ import { getCardColor, getWuxing } from '../data.js';
 import { getPaiGeQuestion, PAIGE_HASHTAGS } from '../texts/social.js';
 import { toast } from './ui-modal.js';
 import { escapeForHTML, setHTML } from '../utils/safe.js';
+import { playCardSound } from '../utils/sound.js';
 
 const STORAGE_KEY = 'fsp_paige';
 const HISTORY_KEY = 'fsp_history';
@@ -54,7 +55,7 @@ export function openPaiGe() {
   const status = getPaiGeUnlockStatus();
   const modal = document.getElementById('modal');
   const content = document.getElementById('modalContent');
-  if (!modal || !content) { toast('弹窗未就绪'); return; }
+  if (!modal || !content) { toast('弹窗未就绪', 2200, 'warning'); return; }
 
   if (!status.hasStored) {
     showPaiGeDraw(modal, content);
@@ -106,10 +107,16 @@ function showPaiGeDraw(modal, content) {
     });
     if (el) {
       el.style.opacity = '1';
-      // 翻牌动画：牌背 → 正面
-      el.outerHTML = `<div class="card-face ${getCardColor(card)}" style="width:64px;height:88px;margin:0 auto;animation:cardFlip 0.5s;">${escapeForHTML(card.isJoker ? card.type : card.rank)}${escapeForHTML(card.isJoker ? '' : card.suit)}</div>`;
+      // 张力窗口：抖动 + 震感 30ms → 停顿 400ms → 翻牌
+      el.classList.add('card-tension');
+      if (navigator.vibrate) navigator.vibrate(30);
+      playCardSound('tap');
+      setTimeout(() => {
+        el.outerHTML = `<div class="card-face ${getCardColor(card)}" style="width:64px;height:88px;margin:0 auto;animation:cardFlip 0.5s;">${escapeForHTML(card.isJoker ? card.type : card.rank)}${escapeForHTML(card.isJoker ? '' : card.suit)}</div>`;
+        playCardSound('flip');
+      }, 420);
     }
-    setTimeout(() => confirmPaiGePick(card), 350);
+    setTimeout(() => confirmPaiGePick(card), 420 + 550);
   }
 
   content.querySelectorAll('[data-paige-card-idx]').forEach(el => {
@@ -130,7 +137,7 @@ function showPaiGeDraw(modal, content) {
 export function confirmPaiGePick(card) {
   if (!card) return;
   savePaiGe(card);
-  toast('🔒 牌灵已定——你的无意识，选出了它想让你看见的那一张');
+  toast('🔒 牌灵已定——你的无意识，选出了它想让你看见的那一张', 2800, 'success');
   openPaiGe();
 }
 
@@ -178,7 +185,7 @@ function showPaiGeDetail(modal, content, status) {
         ${(question?.keywords || []).map(kw => `<span style="font-size:0.7rem;background:rgba(201,160,96,0.15);border:1px solid rgba(201,160,96,0.3);border-radius:12px;padding:4px 10px;color:var(--accent);">${escapeForHTML(kw)}</span>`).join('')}
       </div>
 
-      <p style="font-size:0.65rem;color:var(--dim);">抽于 ${new Date(stored.drawnAt).toLocaleString()}</p>
+      <p class="num" style="font-size:0.65rem;color:var(--dim);">抽于 ${new Date(stored.drawnAt).toLocaleString()}</p>
 
       <div class="btn-row">
         <button id="paigeShareBtn" class="primary small">🃏 生成牌灵分享图</button>
@@ -203,7 +210,7 @@ function showPaiGeDetail(modal, content, status) {
 
   document.getElementById('paigeRedrawBtn')?.addEventListener('click', () => {
     clearPaiGe();
-    toast('旧牌灵已解除，可重新抽取');
+    toast('旧牌灵已解除，可重新抽取', 2400, 'success');
     openPaiGe();
   });
 }

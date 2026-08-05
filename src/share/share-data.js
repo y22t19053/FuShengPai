@@ -9,6 +9,13 @@ import {
   getPaiGeQuestion,
   getPaiGeQuote,
 } from '../texts/social.js';
+import { buildDailyOracle } from '../texts/daily-oracle.js';
+
+// 本地日期（YYYY-MM-DD，补零）：日运/牌灵的「今日」按用户本地时区算
+function localDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 // 牌面→安全 cardMain 对象（不存在时返回 null，模板负责兜底）
 function buildCardMain(card) {
@@ -84,6 +91,7 @@ export function buildSingleCardShareData(card, fortuneType = 'overall') {
   const wx = cardMain ? cardMain.wx : '土';
   const hook = getFriendCircleHook(card);
   const paige = card ? getPaiGeQuestion(card) : null;
+  const dateStr = localDateStr();
 
   return {
     type: 'single',
@@ -97,7 +105,7 @@ export function buildSingleCardShareData(card, fortuneType = 'overall') {
     quote: card ? (getPaiGeQuote(card)?.text || '') : hook.line,
     title: hook.title,
     line: hook.line,
-    // 牌灵课题原文（西方塔罗模板优先使用：课题标题 + 课题正文）
+    // 牌灵课题原文（arcana 模板优先使用：课题标题 + 课题正文）
     paige: paige ? {
       title: paige.title || hook.title,
       question: paige.question || hook.line,
@@ -105,9 +113,11 @@ export function buildSingleCardShareData(card, fortuneType = 'overall') {
     tags: getFortuneTags(card, fortuneType),
     topic: getSocialTopic(card, fortuneType),
     fortuneType,
+    // 赛博黄历：宜/忌/建除/冲煞/五行基调，按当日确定性取（日运分享图模板消费）
+    oracle: buildDailyOracle({ wx, dateStr }),
     fingerprint: buildShareFingerprint(card ? [card] : [], String(Date.now())),
     timestamp: Date.now(),
-    dateText: new Date().toISOString().slice(0, 10),
+    dateText: dateStr,
   };
 }
 

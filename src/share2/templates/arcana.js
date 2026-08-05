@@ -35,7 +35,9 @@ export async function renderArcana(ctx, w, h, data) {
   const wx = card.wx || data.element || '土';
   const relation = data.relation || `克我 · ${KE[wx] || '金'}`;
   const power = POWER[wx] || 3;
-  const quote = (data.quote || data.line || '观牌知势').replace(/^“|”$/g, '');
+  // 底部金句：优先取牌灵课题原文（paige.question）——「牌是镜子」的定位下，
+  // 课题比名人名言更像这面镜子；无课题时才回退名人名言/兜底文案。
+  const quote = (data.paige?.question || data.quote || data.line || '观牌知势').replace(/^“|”$/g, '');
   const dateText = data.dateText || '';
   const wxColor = WX_COLOR[wx] || '#c9a96e';
   const wxLabel = WX_LABEL[wx] || '';

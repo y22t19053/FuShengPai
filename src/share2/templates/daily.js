@@ -4,7 +4,7 @@
 //       朱砂只用于牌面红字与「忌」，金色只用于「宜」与标签，克制不夺目。
 
 import {
-  W, H, M, CW, LIGHT, SERIF, NUM, font,
+  W, H, M, CW, LIGHT, MINT, SERIF, NUM, font,
   roundRectPath, wrapText, hairline, paintBackground, drawBrandBar, drawFooter,
 } from '../theme.js';
 import { drawPokerCard } from '../poker.js';
@@ -37,25 +37,41 @@ function weekday(dateText) {
 }
 
 /**
- * 日运宣纸海报（1080×1440，垂直中轴）
+ * 日运海报（1080×1440，垂直中轴）
  * data: { cardMain{rank,suit,wx,color}, title, line, quote, dateText, fortuneType, element }
+ * t: 主题色板（LIGHT 宣纸 / MINT 薄荷）
  */
-export async function renderDaily(ctx, w, h, data) {
-  const t = LIGHT;
+async function renderDailyCore(ctx, w, h, data, t) {
   const card = data.cardMain || { rank: '?', suit: '', wx: '土', color: 'black' };
   const wx = card.wx || data.element || '土';
   const yiji = YI_JI[wx] || YI_JI['土'];
   const weather = WEATHER[wx] || '和';
   const dateText = data.dateText || '';
-  const line = (data.line || data.quote || '观牌知势').replace(/^“|”$/g, '');
+  // 赛博黄历：宜/忌/建除/冲煞/气象/金句优先取 oracle（当日确定性），缺数据时回退静态池
+  const oracle = data.oracle || null;
+  const yi = oracle?.yi?.length ? oracle.yi : [yiji.yi];
+  const ji = oracle?.ji?.length ? oracle.ji : [yiji.ji];
+  const jianchu = oracle?.jianchu || null;
+  const chong = oracle?.chong || null;
+  const moodTitle = oracle?.mood?.title || weather;
+  const line = (oracle?.combo?.text || data.line || data.quote || '观牌知势').replace(/^“|”$/g, '');
   const wd = weekday(dateText);
   const metaLine = wd ? `${wd} · ${weather}象` : `${weather}象`;
+
+  // 纸牌配色随主题走（宣纸=墨棕，薄荷=墨绿）
+  const cardStyle = {
+    red: t.cardRed || '#b03a2e',
+    black: t.cardBlack || '#3a3226',
+    paper: t.cardPaper || '#fdfaf3',
+    border: t.cardBorder || 'rgba(61,53,39,0.55)',
+  };
+  const cardShadow = t.shadow || 'rgba(61,53,39,0.15)';
 
   // ---------- 1. 背景 + 品牌栏 ----------
   paintBackground(ctx, t, w, h);
   drawBrandBar(ctx, t, {
     dateText: `${mmdd(dateText)} · ${weekday(dateText)}`,
-    rightLabel: `今日气象 · ${weather}`,
+    rightLabel: `今日气象 · ${moodTitle}`,
   });
 
   // ---------- 2. 日期组（居中收拢，成为第一视觉锚点） ----------
@@ -77,19 +93,14 @@ export async function renderDaily(ctx, w, h, data) {
   const bw = 340, bh = 480;
   const bx = W / 2 - bw / 2, by = 400;
   ctx.save();
-  ctx.shadowColor = 'rgba(61,53,39,0.15)';
+  ctx.shadowColor = cardShadow;
   ctx.shadowBlur = 12;
   ctx.shadowOffsetY = 5;
   roundRectPath(ctx, bx, by, bw, bh, 6);
-  ctx.fillStyle = '#fdfaf3';
+  ctx.fillStyle = cardStyle.paper;
   ctx.fill();
   ctx.restore();
-  drawPokerCard(ctx, card, bx, by, bw, bh, {
-    red: '#b03a2e',
-    black: '#3a3226',
-    paper: '#fdfaf3',
-    border: 'rgba(61,53,39,0.55)',
-  });
+  drawPokerCard(ctx, card, bx, by, bw, bh, cardStyle);
 
   // ---------- 4. 五行标签（朱砂系 pill，克制） ----------
   const infoY = by + bh + 42;
@@ -109,6 +120,19 @@ export async function renderDaily(ctx, w, h, data) {
   // ---------- 5. 宜 / 忌 双栏（左右各半，hairline 分隔，横竖各一条） ----------
   const rowY = infoY + 58;
   hairline(ctx, M, rowY, W - M, rowY, t.line);
+
+  // 5.1 建除 · 冲煞（黄历两栏，中轴分隔，普通人不读术语：建日·宜建基 / 冲子·鼠）
+  if (jianchu && chong) {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = t.inkDim;
+    ctx.font = font(400, 20, SERIF);
+    ctx.fillText(`${jianchu.name} · ${jianchu.label}`, W / 4, 1012);
+    ctx.fillText(`冲${chong.name} · ${chong.animal}`, W * 3 / 4, 1012);
+    ctx.restore();
+  }
+
   const halfY = rowY + 84;
 
   ctx.save();
@@ -120,14 +144,14 @@ export async function renderDaily(ctx, w, h, data) {
   ctx.fillText('宜', M, halfY);
   ctx.fillStyle = t.ink;
   ctx.font = font(400, 26, SERIF);
-  ctx.fillText(yiji.yi, M + 62, halfY);
+  ctx.fillText(yi.join('、'), M + 62, halfY);
   // 忌（右半，从 W/2 起）
   ctx.fillStyle = t.red;
   ctx.font = font(600, 26, SERIF);
   ctx.fillText('忌', W / 2, halfY);
   ctx.fillStyle = t.ink;
   ctx.font = font(400, 26, SERIF);
-  ctx.fillText(yiji.ji, W / 2 + 62, halfY);
+  ctx.fillText(ji.join('、'), W / 2 + 62, halfY);
   ctx.restore();
 
   // 两栏之间极淡竖线（中轴）
@@ -148,4 +172,14 @@ export async function renderDaily(ctx, w, h, data) {
     note: '「牌是提示，不是命令。」',
     sub: `观牌知势 · ${mmdd(dateText) || ''}`,
   });
+}
+
+/** 日运宣纸海报（默认款） */
+export function renderDaily(ctx, w, h, data) {
+  return renderDailyCore(ctx, w, h, data, LIGHT);
+}
+
+/** 日运薄荷海报（清新款） */
+export function renderDailyMint(ctx, w, h, data) {
+  return renderDailyCore(ctx, w, h, data, MINT);
 }

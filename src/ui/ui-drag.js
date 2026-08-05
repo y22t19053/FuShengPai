@@ -47,10 +47,10 @@ export function findCardById(id) {
 
 // ---------- 放置到「你」（体） ----------
 export function placeCardOnTiYong(card, slot, silent = false) {
-  if (!card || !slot) { toast('未选中有效牌'); return; }
-  if (state.sealed) { toast('牌局已封印，不可改动'); return; }
+  if (!card || !slot) { toast('未选中有效牌', 2000, 'warning'); return; }
+  if (state.sealed) { toast('牌局已封印，不可改动', 2000, 'warning'); return; }
 
-  if (isCardPlaced(card)) { toast('这张牌已经下过，请选别的'); return; }
+  if (isCardPlaced(card)) { toast('这张牌已经下过，请选别的', 2000, 'warning'); return; }
 
   const existing = slot === 'ti' ? state.ti : state.yong;
   if (existing) {
@@ -71,14 +71,14 @@ export function placeCardOnTiYong(card, slot, silent = false) {
 
 // ---------- 放置到九宫格 ----------
 export function placeCardOnGong(card, gong, silent = false) {
-  if (!card || !gong) { toast('未选中有效牌'); return; }
-  if (state.sealed) { toast('牌局已封印，不可改动'); return; }
-  if (gong < 1 || gong > 9) { toast('无效宫位'); return; }
+  if (!card || !gong) { toast('未选中有效牌', 2000, 'warning'); return; }
+  if (state.sealed) { toast('牌局已封印，不可改动', 2000, 'warning'); return; }
+  if (gong < 1 || gong > 9) { toast('无效宫位', 2000, 'warning'); return; }
 
-  if (isCardPlaced(card)) { toast('这张牌已经下过，请选别的'); return; }
+  if (isCardPlaced(card)) { toast('这张牌已经下过，请选别的', 2000, 'warning'); return; }
 
   if (state.grid[gong] && state.grid[gong].length >= 3) {
-    toast('此宫已满（最多3张），请换一宫');
+    toast('此宫已满（最多3张），请换一宫', 2000, 'warning');
     return;
   }
 
@@ -96,7 +96,7 @@ export function placeCardOnGong(card, gong, silent = false) {
 // ---------- 手动设置天机线 ----------
 export function setLine(lineArray) {
   if (!lineArray || !Array.isArray(lineArray) || lineArray.length !== 3) return;
-  if (state.sealed) { toast('牌局已封印，不可改动'); return; }
+  if (state.sealed) { toast('牌局已封印，不可改动', 2000, 'warning'); return; }
 
   state.line = [...lineArray];
   state.lineOrder = {};
@@ -145,7 +145,7 @@ export function sealDeck() {
   state.sealed = true;
   state.sel = null;
   refreshAll();
-  toast('🔒 牌局已封印，不可再改动');
+  toast('🔒 牌局已封印，不可再改动', 2400, 'success');
 }
 
 // ---------- 移除线选择器（如果有） ----------
@@ -204,7 +204,7 @@ export function initDrag() {
 
     state.sel = cardId;
     refreshAll();
-    toast('再试一次：拖到「你」或九宫格上');
+    toast('再试一次：拖到「你」或九宫格上', 2200, 'warning');
   }
 
   document.addEventListener('touchstart', function(e) {
