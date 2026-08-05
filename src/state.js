@@ -40,6 +40,7 @@ export const state = {
   loading: false,
   pendingFullReport: '',
   pendingModules: null,
+  summary: null, // 三句摘要缓存（同局稳定）
   
   // --- 周期抽牌 ---
   periodType: null,

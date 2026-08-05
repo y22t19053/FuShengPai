@@ -75,14 +75,14 @@ export function checkDependency(history) {
   if (todayCount >= COVENANT.dailyLimit) {
     return {
       level: 'warning',
-      message: '今天已经观测很多次了。镜子也会起雾，不如先放下，过段时间再来。'
+      message: '今天已经抽了很多次了。镜子也会起雾，不如先放下，过段时间再来。'
     };
   }
 
   if (todayCount >= COVENANT.warnThreshold) {
     return {
       level: 'gentle',
-      message: `今天已观测 ${todayCount} 次。或许你需要的不是更多答案，只是先休息一下。`
+      message: `今天已抽牌 ${todayCount} 次。或许你需要的不是更多答案，只是先休息一下。`
     };
   }
 

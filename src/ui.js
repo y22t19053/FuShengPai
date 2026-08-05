@@ -46,8 +46,8 @@ import {
   getRecommendedGongForCategory, getGongEnvironment,
   DAILY_FORTUNE_TYPES, getDailyFortuneType
 } from './data.js';
-import { MAX_DAILY_OBSERVATIONS } from './constants.js';
-import { UI_TEXTS } from './texts/index.js';
+import { MAX_DAILY_OBSERVATIONS, pick } from './constants.js';
+import { UI_TEXTS, STATUS_POOL, REMINDER_POOL, ACTION_POOL } from './texts/index.js';
 import { getDailyMirrorLine, getSceneLines, getWakeUpLine } from './texts/mirror-pools.js';
 import { getPokerPersona } from './persona.js';
 import { calculateDurianIndex } from './durian.js';
@@ -129,6 +129,20 @@ export function detectIntent(question, category, subCategory) {
     if (keywords.some(k => q.includes(k))) return intent;
   }
   return null;
+}
+
+// ===== 三句摘要（此刻的状态 / 一个提醒 / 一句建议） =====
+// 同局稳定：同一副牌局反复查看，摘要保持一致
+function buildSummary() {
+  const fp = state.fingerprint || 'uid-' + state.uid;
+  if (state.summary && state.summary.fp === fp) return state.summary.data;
+  const data = {
+    status: pick(STATUS_POOL),
+    reminder: pick(REMINDER_POOL),
+    action: pick(ACTION_POOL),
+  };
+  state.summary = { fp, data };
+  return data;
 }
 
 // ===== 本地解读 =====
@@ -266,7 +280,8 @@ export async function localInterpretation() {
   }
 
   result = applyCovenant(result);
-  return { text: result.trim(), modules: [] };
+  const summary = buildSummary();
+  return { text: result.trim(), modules: [], summary };
 }
 
 // ===== 差值三种情况解析 =====
@@ -301,20 +316,19 @@ function extractKeywords(text) {
 export async function generateInterpretation() {
   try {
     const seal = getSealStatus();
-    if (seal && seal.sealed) { toast(`封卦中，剩余 ${seal.daysRemaining} 天`); return; }
+    if (seal && seal.sealed) { toast('牌面安静了一会儿，现在可以重新看了', 2500); }
     const timestamps = getDrawTimestamps();
     const depCheck = checkDependency(timestamps);
-    if (depCheck.level === 'blocked') { toast(depCheck.message, 4000); return; }
     if (depCheck.level === 'warning') { toast(depCheck.message, 4000); }
 
     const todayCount = timestamps.filter(ts => new Date(ts).toDateString() === new Date().toDateString()).length;
     if (!state.userCorpus.includes(state.question)) state.userCorpus.push(state.question);
 
-    const { text } = await localInterpretation();
+    const { text, summary } = await localInterpretation();
     state.pendingFullReport = text;
 
     updateStep(3);
-    renderFullReport(text, null);
+    renderFullReport(text, null, summary);
 
     try {
       const readingData = {
@@ -330,7 +344,7 @@ export async function generateInterpretation() {
     } catch (e) { toast('历史保存失败，但解读有效', 2000); }
     addDrawTimestamp(Date.now());
     if (!getTimeCapsule()) saveTimeCapsule({ question: state.question, text: text.slice(0, 500), timestamp: Date.now() });
-    if (todayCount >= MAX_DAILY_OBSERVATIONS) toast('今日已多次观测，注意休息。', 3000);
+    if (todayCount >= MAX_DAILY_OBSERVATIONS) toast('今日已抽牌多次，注意休息。', 3000);
   } catch (e) {
     console.error('[浮生牌] generateInterpretation 出错:', e);
     toast('生成解读失败: ' + (e.message || '未知错误'), 4000);
@@ -340,7 +354,7 @@ export async function generateInterpretation() {
 export function showFullReport() {
   const text = state.pendingFullReport || '';
   if (!text) { toast('没有可显示的解读', 2000, 'info'); return; }
-  renderFullReport(text, null);
+  renderFullReport(text, null, buildSummary());
   updateStep(3);
 }
 
@@ -406,7 +420,7 @@ ${metaphor || '（无预设意象，请基于牌面五行与符号与用户对�
 }
 
 export function resetAll() {
-  if (!confirm('此阵一散，当下映照便消逝，确要重来吗？')) return;
+  if (!confirm('要重新开始吗？当前牌局会清空。')) return;
   Object.assign(state, {
     question: '', category: '', subCategory: '', deck: [], ti: null, yong: null,
     grid: {}, line: null, lineOrder: {}, step: 1, sel: null, possible: [],
@@ -417,7 +431,8 @@ export function resetAll() {
     currentTimeArc: null, periodType: null, periodKey: null, periodCard: null,
     periodFortune: '', periodAiHistory: [], pendingPeriodDeck: null,
     fortuneType: 'overall',
-    spreadType: 'jiugong', threeCards: [], consultMode: false, consultName: ''
+    spreadType: 'jiugong', threeCards: [], consultMode: false, consultName: '',
+    summary: null
   });
   const resultArea = document.getElementById('resultArea');
   if (resultArea) setHTML(resultArea, '');
@@ -472,6 +487,7 @@ export function proceedStartQuestion() {
   state.manualMode = false;
   state.uid = Date.now() % 1000000;
   state.fingerprint = null;
+  state.summary = null;
   state.sealed = false;
 
   if (__PRE_DECK__ && __PRE_DECK__.length > 0) {
@@ -593,10 +609,10 @@ function buildThreeSpreadText() {
 export async function generateThree() {
   try {
     const seal = getSealStatus();
-    if (seal && seal.sealed) { toast(`封卦中，剩余 ${seal.daysRemaining} 天`); return; }
+    if (seal && seal.sealed) { toast('牌面安静了一会儿，现在可以重新看了', 2500); }
     const timestamps = getDrawTimestamps();
     const depCheck = checkDependency(timestamps);
-    if (depCheck.level === 'blocked') { toast(depCheck.message, 4000); return; }
+    if (depCheck.level === 'warning') { toast(depCheck.message, 4000); }
     const cards = state.threeCards || [];
     if (cards.length < 3) { toast('三张牌未抽齐'); return; }
     const text = buildThreeSpreadText();
@@ -604,7 +620,7 @@ export async function generateThree() {
     const durian = computeThreeDurian(cards);
     state.durianIndex = { score: durian.score, level: durian.level, components: durian.components };
     updateStep(3);
-    renderFullReport(text, null);
+    renderFullReport(text, null, buildSummary());
     try {
       const readingData = {
         time: Date.now(), question: state.question, category: state.category, subCategory: state.subCategory,
@@ -640,7 +656,7 @@ export function startManualEntry() {
   state.line = null; state.lineOrder = {}; state.sel = null;
   state.possible = []; state.chatHistory = []; state.gongOrder = [];
   state.editCount = 0; state.refinementTags = {}; state.intent = null;
-  state.fingerprint = null; state.sealed = false; state.currentTimeArc = null;
+  state.fingerprint = null; state.summary = null; state.sealed = false; state.currentTimeArc = null;
   updateStep(2);
   renderStep2();
 }
@@ -676,6 +692,7 @@ async function proceedLazyStart() {
   syncQuestionFromInput(input, state);
   state.manualMode = false;
   state.currentTimeArc = null;
+  state.summary = null; // 新局新摘要
 
   const shuffled = __PRE_DECK__ && __PRE_DECK__.length > 0 ? [...__PRE_DECK__] : shuffleTwice(createDeck(false)); // 洗两次
   state.fingerprint = generateFingerprint(shuffled);
@@ -693,9 +710,9 @@ async function proceedLazyStart() {
   for (const g of GONG_ORDER) if (!state.grid[g] && remainingDeck.length) state.grid[g] = [remainingDeck.pop()];
   state.deck = remainingDeck; state.gongOrder = line.slice(); state.sealed = true;
   updateStep(3);
-  const { text } = await localInterpretation();
-  renderFullReport(text, null);
-  toast('🔒 牌局已自动封印', 3000);
+  const { text, summary } = await localInterpretation();
+  renderFullReport(text, null, summary);
+  toast('🃏 牌已落定，看看它怎么说', 3000);
 }
 
 // ===== 时间弧 =====
@@ -1117,8 +1134,10 @@ export function showDurianReportAction() { showDurianReport(); }
 export async function copyLocalResult(e) {
   const el = document.getElementById('interpretText');
   if (!el) return;
+  // 完整解读折叠时 innerText 为空，回退到缓存的完整文本
+  const text = state.pendingFullReport || el.innerText;
   const btn = e && e.currentTarget ? e.currentTarget : null;
-  const ok = await copyTextWithFeedback(el.innerText, btn);
+  const ok = await copyTextWithFeedback(text, btn);
   toast(ok ? UI_TEXTS.toastCopied : UI_TEXTS.toastCopyFailed);
 }
 
@@ -1306,6 +1325,8 @@ export function handleAction(action, dataset, el = null) {
       toast(state.consultMode ? '🧑 已开启求测人模式：问题与解读都围绕求测人展开' : '已切回为自己占卜');
       break;
     case 'confirmQuestion': startQuestion(); break;
+    case 'quickDaily': openPeriodDeck('daily'); break;
+    case 'quickDraw': lazyStart(); break;
     case 'lazyStart': lazyStart(); break;
     case 'manualEntry': startManualEntry(); break;
     case 'toggleManualSeq':

@@ -398,7 +398,7 @@ function findHistoryIndexByTime(ts) {
 export function replayTimelineEntry(time) {
   const idx = findHistoryIndexByTime(Number(time));
   if (idx >= 0) { showHistoryDetail(idx); return; }
-  toast('这条观测没有对应的解读记录');
+  toast('这条记录没有对应的解读');
 }
 
 // 渲染周期报告到 modal 内的周期报告区
@@ -411,7 +411,7 @@ export function renderPeriodReportInto(periodType) {
   const label = PERIOD_LABELS[periodType] || periodType;
 
   if (!stats) {
-    setHTML(area, `<p style="font-size:0.8rem;color:var(--dim);text-align:center;padding:10px;">${label}还没有观测记录，先抽一局吧。</p>`);
+    setHTML(area, `<p style="font-size:0.8rem;color:var(--dim);text-align:center;padding:10px;">${label}还没有记录，先抽一局吧。</p>`);
     return;
   }
 
@@ -440,7 +440,7 @@ export function renderPeriodReportInto(periodType) {
     <div style="background:rgba(0,0,0,0.18);border-radius:8px;padding:10px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
         <strong style="font-size:0.9rem;">📅 ${label}报告</strong>
-        <span style="font-size:0.7rem;color:var(--dim);">${stats.count} 次观测</span>
+        <span style="font-size:0.7rem;color:var(--dim);">${stats.count} 次记录</span>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
         <div style="background:rgba(0,0,0,0.2);padding:6px;border-radius:6px;text-align:center;">
@@ -464,7 +464,7 @@ export function renderPeriodReportInto(periodType) {
         <div>差值 ${comps.diff}</div><div>相克 ${comps.ke}</div><div>趋势 ${comps.trend}</div><div>张力 ${comps.tension}</div>
       </div>` : ''}
       ${topQ ? `<div style="font-size:0.72rem;color:var(--dim);margin-top:4px;">常见问题：${topQ}</div>` : ''}
-      ${recentHtml ? `<div style="margin-top:8px;font-size:0.72rem;color:var(--dim);">最近观测（点“当时的我”回看完整解读）：</div>${recentHtml}` : ''}
+      ${recentHtml ? `<div style="margin-top:8px;font-size:0.72rem;color:var(--dim);">最近记录（点“当时的我”回看完整解读）：</div>${recentHtml}` : ''}
     </div>
   `);
 }
@@ -472,7 +472,7 @@ export function renderPeriodReportInto(periodType) {
 // 完整时间线列表（最新在前，最多 30 条，每条可回看）
 function renderTimelineList(timeline) {
   if (!timeline.length) {
-    return '<p style="font-size:0.8rem;color:var(--dim);text-align:center;padding:12px;">还没有观测记录，先去抽一局吧。</p>';
+    return '<p style="font-size:0.8rem;color:var(--dim);text-align:center;padding:12px;">还没有记录，先去抽一局吧。</p>';
   }
   return timeline.slice(0, 30).map(t => {
     const s = Math.max(0, Math.min(10, t.durianScore || 0));
@@ -503,8 +503,8 @@ export function showReportsModal() {
   const history = getHistory();
 
   const html = `
-    <h3 style="text-align:center;">📊 观测报告</h3>
-    <p style="font-size:0.7rem;color:var(--dim);text-align:center;margin-bottom:10px;">共 ${timeline.length} 次观测 · 历史 ${history.length} 条记录</p>
+    <h3 style="text-align:center;">📊 我的记录</h3>
+    <p style="font-size:0.7rem;color:var(--dim);text-align:center;margin-bottom:10px;">共 ${timeline.length} 次记录 · 历史 ${history.length} 条</p>
     <div class="btn-row" style="flex-wrap:wrap;justify-content:center;gap:6px;">
       <button data-action="periodReport" data-period="weekly" class="outline small">本周</button>
       <button data-action="periodReport" data-period="monthly" class="outline small">本月</button>
@@ -516,7 +516,7 @@ export function showReportsModal() {
     <h4 style="color:var(--accent);font-size:0.95rem;margin-bottom:8px;">🕐 完整时间线 <span style="font-size:0.65rem;color:var(--dim);font-weight:normal;">（点击“回看”可看当时的完整解读）</span></h4>
     ${renderTimelineList(timeline)}
     <div class="btn-row" style="margin-top:10px;">
-      <button data-action="durianReport" class="small outline">张力总报告</button>
+      <button data-action="durianReport" class="small outline">心情指数报告</button>
       <button data-action="closeModal" class="small">${escapeForHTML(UI_TEXTS.btnClose)}</button>
     </div>
   `;
@@ -531,7 +531,7 @@ export function showDurianReport() {
   const modal = document.getElementById('modal');
   const content = document.getElementById('modalContent');
   if (!modal || !content) return;
-  if (timeline.length < 3) { toast('需要至少3次观测才能生成报告'); return; }
+  if (timeline.length < 3) { toast('需要至少3次记录才能生成报告'); return; }
 
   const recent = timeline.slice(0, 30);
   const scores = recent.map(t => t.durianScore || 0);
@@ -563,7 +563,7 @@ export function showDurianReport() {
     : '➡️ 平稳';
 
   let advice = '';
-  if (avg > 7) advice = '⚠️ 你的观测整体张力偏高，建议暂停几天，让状态沉淀后再试。';
+  if (avg > 7) advice = '⚠️ 你的状态整体偏紧绷，建议暂停几天，让自己松一松。';
   else if (avg > 5) advice = '📌 当前处于中等张力区间，适合观察但不适合做重大决策。';
   else if (avg > 3) advice = '🌱 状态温和，适合推进日常事务和温和的自我观察。';
   else advice = '✨ 状态良好，如有重要决定，此时是较好的窗口期。';
@@ -597,7 +597,7 @@ export function showDurianReport() {
     <div style="padding:8px 12px;background:rgba(0,0,0,0.15);border-radius:6px;font-size:0.8rem;margin:6px 0;border-left:3px solid var(--accent);">
       ${escapeForHTML(advice)}
     </div>
-    <p style="font-size:0.65rem;color:var(--dim);">基于最近 ${recent.length} 次观测</p>
+    <p style="font-size:0.65rem;color:var(--dim);">基于最近 ${recent.length} 次记录</p>
     <div class="btn-row" style="margin-top:8px;">
       <button data-action="closeModal" class="small">关闭</button>
     </div>
@@ -710,9 +710,9 @@ export function showDataMigrationModal() {
   if (!modal || !content) return;
 
   const html = `
-    <h3 style="color:var(--accent);">📦 数据迁移</h3>
+    <h3 style="color:var(--accent);">📦 数据备份</h3>
     <p style="color:var(--dim);font-size:0.8rem;line-height:1.8;margin:12px 0;">
-      浮生牌是<strong>纯本地应用</strong>：你的牌史、日运、时间胶囊只存在这台设备的浏览器里，
+      浮生牌是<strong>纯本地应用</strong>：你的记录、日运、时间胶囊只存在这台设备的浏览器里，
       <strong>不上传任何服务器</strong>——这既是隐私承诺，也意味着：清缓存、换浏览器或换手机，
       数据都会消失。
     </p>
@@ -720,12 +720,12 @@ export function showDataMigrationModal() {
       💡 建议习惯：<strong>每月初导出一次</strong>存到网盘/相册；换设备时先导出，再导入。
     </p>
     <p style="color:var(--dim);font-size:0.75rem;line-height:1.7;margin:4px 0 12px;">
-      🔄 导入为<strong>合并模式</strong>：历史、时间线双向去重合并；本机已有的周期牌、牌灵、AI 设置不会被覆盖，
+      🔄 导入为<strong>合并模式</strong>：历史记录双向去重合并；本机已有的日运、牌灵、AI 设置不会被覆盖，
       导入的牌灵只在本机未抽时补入——手机与电脑双端互导即可同一位玩家。
     </p>
     <div style="display:flex;flex-direction:column;gap:8px;margin:16px 0;">
-      <button id="exportAllDataBtn" class="primary small">⬇️ 导出全部数据（存为备份文件）</button>
-      <button id="importAllDataBtn" class="outline small">⬆️ 导入备份（合并·不覆盖本机）</button>
+      <button id="exportAllDataBtn" class="primary small">⬇️ 导出数据（存成本地备份）</button>
+      <button id="importAllDataBtn" class="outline small">⬆️ 导入备份</button>
     </div>
     <input type="file" id="importDataFile" accept=".json" style="display:none;">
     <div class="btn-row"><button data-action="closeModal" class="small">关闭</button></div>

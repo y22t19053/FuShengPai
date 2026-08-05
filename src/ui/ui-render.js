@@ -10,7 +10,8 @@ import {
 } from '../data.js';
 import { createDeck, shuffle, calcFullBaZi, calcDiff, getDiffLevel, getDiffValue } from '../engine.js';
 import { getApiSettings, getProfile, getHistory, getStoredPeriodCards } from '../storage.js';
-import { UI_TEXTS, HISTORY_EMPTY, PHYSICAL_GUIDE } from '../texts/index.js';
+import { UI_TEXTS, HISTORY_EMPTY, PHYSICAL_GUIDE, STATUS_POOL, REMINDER_POOL, ACTION_POOL } from '../texts/index.js';
+import { pick } from '../constants.js';
 import { calculateDurianIndex, getDurianColor } from '../durian.js';
 import { getDailyFortune, getPokerPersona } from '../persona.js';
 import { getFriendCircleHook, getFortuneTags, getPaiGeQuestion } from '../texts/social.js';
@@ -18,7 +19,6 @@ import { toast } from './ui-modal.js';
 import { isCardPlaced } from './ui-drag.js';
 import { escapeForHTML, setHTML } from '../utils/safe.js';
 import { syncQuestionFromInput } from '../utils/flow-helpers.js';
-import { copyTextWithFeedback } from '../utils/clipboard.js';
 
 // ===== 新手教程 =====
 export function renderTeachingPanel() {
@@ -30,7 +30,7 @@ export function renderTeachingPanel() {
       
       <div style="background:rgba(201,160,96,0.06);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;">
         <strong style="color:var(--accent);">核心玩法一句话：</strong>
-        <span style="color:var(--text);">选两张牌代表「你」和「所问之事」，再往九宫格放牌，找一条直线（天机线），看牌与宫位的五行能量关系。</span>
+        <span style="color:var(--text);">选两张牌代表「你」和「所问之事」，再往九宫格放牌，找一条直线，看它提示的起因、经过与结果。</span>
       </div>
 
       <h4 style="color:var(--accent);">🎯 第一步：起念</h4>
@@ -38,21 +38,21 @@ export function renderTeachingPanel() {
       <p>2. 选一个领域：感情、事业、财运、健康……（不选也可以）。</p>
       <p>3. 点「抽牌」或「一键起局」开始。</p>
 
-      <h4 style="color:var(--accent);">🃏 第二步：立极</h4>
+      <h4 style="color:var(--accent);">🃏 第二步：选牌（你 + 所问之事）</h4>
       <p>1. <strong>点击</strong>牌堆中任意一张牌选中，再<strong>点击</strong>上方「你」或「所问之事」位置放置。</p>
       <p>2. 桌面端也可以直接<strong>拖拽</strong>牌到目标位置。</p>
       <p>3. 如果你不知道选哪张，凭直觉选就行。</p>
 
-      <h4 style="color:var(--accent);">🔮 第三步：观象</h4>
-      <p>1. 点「布阵」后，牌堆里会出现大小王。</p>
+      <h4 style="color:var(--accent);">🔮 第三步：查看结果</h4>
+      <p>1. 点「放牌」后，牌堆里会出现大小王。</p>
       <p>2. 点击或拖拽剩余牌到九宫格任意宫位（每格最多3张）。</p>
-      <p>3. 如果三个宫位形成直线，就自动连成「天机线」（起因→经过→结果）。</p>
+      <p>3. 如果三个宫位连成直线，就自动连出一条主线（起因→经过→结果）。</p>
       <p>4. 点「生成解读」查看结果。</p>
 
       <h4 style="color:var(--accent);">🃏 牌灵</h4>
       <p>· 牌灵，是你潜意识在扑克牌上的投影——这张牌揭晓的，是你尚未完成的灵魂课题。</p>
       <p>· 理论上，拿一副真实的扑克牌抽，同样成立：那一刻，你的无意识借 54 张牌，选出了它想让你看见的那一张。</p>
-      <p>· 重抽需先完成 3 次正式观象——那不是门槛，是提醒：课题是拿来完成的，不是拿来抽着玩的。</p>
+      <p>· 重抽没有次数门槛，随时可以再来。</p>
       <p>· 点首页「牌灵」即可。</p>
 
       <h4 style="color:var(--accent);">☯ 单牌日运</h4>
@@ -190,72 +190,87 @@ export function renderStep1() {
   const storedPeriods = getStoredPeriodCards();
 
   const html = `
-    <!-- 🎨 玄学封面区（深色·简洁） -->
+    <!-- � 主入口区（普通人打开即用：一个大牌背，点一下） -->
     <div id="heroSection" style="
       background: linear-gradient(135deg, #0d0b1c 0%, #191530 100%);
       border: 1px solid #c9a96e44;
-      border-radius: 10px;
-      padding: 10px 12px;
+      border-radius: 14px;
+      padding: 22px 16px;
       margin-bottom: 14px;
       text-align: center;
       box-shadow: 0 2px 12px rgba(0,0,0,0.35);
       color: #c8c8d8;
     ">
-      <div class="hero-eyebrow" style="font-size: 0.55rem; color: #8b6f47; letter-spacing: 2px; margin-bottom: 2px;">· 浮 生 若 梦 ·</div>
-      <div class="hero-gold-title" style="font-size: 1.1rem; font-weight: 600; letter-spacing: 0.06em; margin: 0;">抽 一 张 牌 · 见 一 个 课 题</div>
-      <div style="width: 28px; height: 1px; background: #8b6f47; margin: 6px auto;"></div>
-      <div class="hero-sub" style="font-size: 0.7rem; color: #77778a; margin-bottom: 8px;">牌灵与日运 · 各守一签，只存本机</div>
-      <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
-        <button id="paigeBtn" style="
-          background: rgba(201,169,110,0.10);
-          color: #c9a96e;
-          border: 1px solid #c9a96e88;
-          padding: 8px 24px;
-          border-radius: 24px;
-          font-size: 0.9rem;
+      <div class="hero-eyebrow" style="font-size: 0.6rem; color: #8b6f47; letter-spacing: 2px; margin-bottom: 4px;">· 浮 生 若 梦 ·</div>
+      <div class="hero-gold-title" style="font-size: 1.6rem; font-weight: 700; letter-spacing: 0.04em; margin: 0;">抽 一 张 牌</div>
+      <div class="hero-sub" style="font-size: 0.8rem; color: #8b8ba0; margin: 8px 0 14px;">不预测命运，只聊聊今天可以怎么过</div>
+      <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+        <button id="quickDrawBtn" style="
+          background: rgba(201,169,110,0.14);
+          color: #e8cf9a;
+          border: 1px solid #c9a96e99;
+          padding: 11px 34px;
+          border-radius: 26px;
+          font-size: 0.95rem;
           font-family: 'Noto Serif SC', 'Songti SC', serif;
           font-weight: 700;
           cursor: pointer;
-        ">牌灵</button>
+        ">🃏 抽一张</button>
         <button id="quickDailyBtn" style="
-          background: transparent;
+          background: rgba(176,58,46,0.16);
           color: #e07a66;
           border: 1px solid #b03a2eaa;
-          padding: 8px 24px;
-          border-radius: 24px;
-          font-size: 0.9rem;
+          padding: 11px 34px;
+          border-radius: 26px;
+          font-size: 0.95rem;
           font-family: 'Noto Serif SC', 'Songti SC', serif;
+          font-weight: 700;
           cursor: pointer;
-        ">☯ 日运</button>
+        ">☯ 今日运势</button>
       </div>
-      <div class="hero-note" style="margin-top: 6px; font-size: 0.5rem; color: #77778a; opacity: 0.7;">牌灵需 3 次观象方可重抽 · 日运细选各类别独立锁定</div>
+      <div style="margin-top: 12px;">
+        <button id="paigeBtn" style="
+          background: transparent;
+          color: #77778a;
+          border: 1px dashed #8b6f4766;
+          padding: 6px 18px;
+          border-radius: 20px;
+          font-size: 0.75rem;
+          cursor: pointer;
+        ">我的牌灵 · 长期课题</button>
+      </div>
+      <div class="hero-note" style="margin-top: 8px; font-size: 0.55rem; color: #77778a; opacity: 0.75;">默念一件事，点一下 · 30 秒读完 · 只存本机</div>
     </div>
 
     <!-- 🃏 牌灵 + 🌤 今日日运（已抽则直接可见，无需点击；未抽给轻引导） -->
     <div id="dualStrip" style="margin-bottom: 14px;"></div>
 
-    <!-- ⚙️ 深度工具区 -->
-    <div id="toolSection" style="border-top: 1px dashed #323242; padding-top: 20px;">
-      <div class="tool-title" style="font-size: 0.75rem; color: #8b6f47; text-align: center; margin-bottom: 12px;">🪷 深 度 占 卜 台</div>
-      <div style="display:flex;justify-content:center;gap:6px;margin-bottom:8px;">
-        <button data-action="toggleConsultMode" class="small ${state.consultMode ? 'primary' : 'outline'}" style="font-size:0.7rem;">${state.consultMode ? '🧑 帮别人问 · 已开启' : '🧑 帮别人问'}</button>
-      </div>
-      ${state.consultMode ? `<input type="text" id="consultNameInput" placeholder="求测人称呼（可选，如：朋友小王）" autocomplete="off" value="${escapeForHTML(state.consultName)}" style="position:relative;z-index:2;pointer-events:auto;margin-bottom:6px;border:1px solid #c9a96e55;">` : ''}
-      <input type="text" id="questionInput" placeholder="${escapeForHTML(state.consultMode ? '求测人想问什么？' : UI_TEXTS.placeholderQuestion)}" autocomplete="off" value="${escapeForHTML(state.question)}" style="position:relative;z-index:2;pointer-events:auto;">
-      ${renderCatBtns(state.category, state.subCategory)}
-      <div class="btn-row">
-        <button data-action="confirmQuestion" class="primary">${escapeForHTML(UI_TEXTS.btnStartDraw)}</button>
-        <button data-action="lazyStart" class="outline">${escapeForHTML(UI_TEXTS.btnLazy)}</button>
-        <button data-action="manualEntry" class="outline">${escapeForHTML(UI_TEXTS.btnManual)}</button>
-      </div>
+    <!-- 🃏 已抽的签（牌灵/日运等快捷入口，不打扰，放在眼前） -->
+    <div id="periodCardArea" style="margin: 0 0 14px; display: flex; justify-content: center;"></div>
 
-      <!-- 周期运入口 -->
-      <div style="display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
-        <button id="morePeriodBtn" class="small outline">更多周期运</button>
+    <!-- ⚙️ 进阶玩法（默认折叠：普通用户不打扰，行家自己进来） -->
+    <details id="toolSection" style="border-top: 1px dashed #323242; padding-top: 14px; margin-top: 4px;">
+      <summary style="cursor: pointer; font-size: 0.75rem; color: #8b6f47; text-align: center; padding: 4px 0 12px; user-select: none;">🪷 进阶玩法 · 九宫占卜台 <span style="opacity:0.6;">（想认真玩的朋友点这里）</span></summary>
+      <div style="padding: 0 2px;">
+        <div style="display:flex;justify-content:center;gap:6px;margin-bottom:8px;">
+          <button data-action="toggleConsultMode" class="small ${state.consultMode ? 'primary' : 'outline'}" style="font-size:0.7rem;">${state.consultMode ? '🧑 帮别人问 · 已开启' : '🧑 帮别人问'}</button>
+        </div>
+        ${state.consultMode ? `<input type="text" id="consultNameInput" placeholder="求测人称呼（可选，如：朋友小王）" autocomplete="off" value="${escapeForHTML(state.consultName)}" style="position:relative;z-index:2;pointer-events:auto;margin-bottom:6px;border:1px solid #c9a96e55;">` : ''}
+        <input type="text" id="questionInput" placeholder="${escapeForHTML(state.consultMode ? '求测人想问什么？' : UI_TEXTS.placeholderQuestion)}" autocomplete="off" value="${escapeForHTML(state.question)}" style="position:relative;z-index:2;pointer-events:auto;">
+        ${renderCatBtns(state.category, state.subCategory)}
+        <div class="btn-row">
+          <button data-action="confirmQuestion" class="primary">${escapeForHTML(UI_TEXTS.btnStartDraw)}</button>
+          <button data-action="lazyStart" class="outline">${escapeForHTML(UI_TEXTS.btnLazy)}</button>
+          <button data-action="manualEntry" class="outline">${escapeForHTML(UI_TEXTS.btnManual)}</button>
+        </div>
+
+        <!-- 周期运入口 -->
+        <div style="display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
+          <button id="morePeriodBtn" class="small outline">更多周期运</button>
+        </div>
+        <div class="tool-note" style="font-size:0.6rem;color:#77778a;text-align:center;margin-top:4px;">日运/周运/月运等抽一次即锁定，建议截图保存</div>
       </div>
-      <div class="tool-note" style="font-size:0.6rem;color:#77778a;text-align:center;margin-top:4px;">日运/周运/月运等抽一次即锁定，建议截图保存</div>
-      <div id="periodCardArea" style="margin-top:12px;display:flex;justify-content:center;"></div>
-    </div>
+    </details>
 
     <div style="text-align:center;font-size:0.7rem;color:#77778a;margin-top:6px;">
       <a href="#" id="helpClarifyBtn" style="color:#c9a96e;">🤔 感觉自己没问清楚？</a>
@@ -269,9 +284,14 @@ export function renderStep1() {
     import('./ui-paige.js').then(m => m.openPaiGe());
   });
 
-  // 日运入口：弹出日运细选
+  // 今日运势：一键直达综合日运（已抽过则查看，未抽过直接开抽）
   document.getElementById('quickDailyBtn')?.addEventListener('click', () => {
-    import('./ui-modal.js').then(m => m.showDailyFortunePicker());
+    import('../ui.js').then(m => m.openPeriodDeck('daily'));
+  });
+
+  // 抽一张：跳过起念，直接落牌出结果
+  document.getElementById('quickDrawBtn')?.addEventListener('click', () => {
+    import('../ui.js').then(m => m.lazyStart());
   });
 
   // 更多周期运：弹出弹窗
@@ -424,7 +444,7 @@ export function renderTodayFortuneStrip() {
       <div style="flex:1 1 300px;min-width:280px;background:linear-gradient(135deg,#0d0b1c,#191530);border:1px dashed #c9a96e66;border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
         <div style="font-size:0.78rem;color:#8b8ba0;">
           <span style="color:#c9a96e;font-weight:700;">🃏 我的牌灵</span>
-          <span style="opacity:0.85;"> · 一签即锁 · 只存本机</span>
+          <span style="opacity:0.85;"> · 一签守护 · 只存本机</span>
         </div>
         <button id="drawPaigeBannerBtn" style="background:rgba(201,169,110,0.12);color:#c9a96e;border:1px solid #c9a96e88;padding:7px 18px;border-radius:18px;font-size:0.8rem;font-weight:700;cursor:pointer;">抽一张</button>
       </div>
@@ -573,7 +593,7 @@ export function renderPeriodCards() {
 
   const html = paigeHTML + dailyCardsHTML + otherCardsHTML;
   if (!html) {
-    setHTML(area, `<div style="font-size:0.7rem;color:#77778a;text-align:center;padding:12px;">日运可细选：点上方「日运」开始</div>`);
+    setHTML(area, `<div style="font-size:0.7rem;color:#77778a;text-align:center;padding:12px;">还没有签：点上方「今日运势」或「抽一张」开始</div>`);
     return;
   }
   setHTML(area, `<div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;">${html}</div>`);
@@ -587,9 +607,9 @@ export function renderStep2() {
     ? (state.manualSeq
       ? '📋 顺序录入：依次点击牌堆——第 1 张＝「你」，第 2 张＝「所问之事」，第 3 张起自动按九宫顺序布入。'
       : '🎯 自由放置：先点一张牌选中，再点「你」「所问之事」或九宫宫位放置。')
-    : '点击牌堆中的牌选中，再点击「你」或「所问之事」放置；桌面端可直接拖拽。放完点「布阵」。';
+    : '点击牌堆中的牌选中，再点击「你」或「所问之事」放置；桌面端可直接拖拽。放完点「放牌」。';
   const html = `
-    <h3>${state.manualMode ? '手动录入 · 明牌模式' : '立极·布阵'}</h3>
+    <h3>${state.manualMode ? '手动录入 · 明牌模式' : '选牌 · 放牌'}</h3>
     <div style="font-size:0.8rem;color:var(--dim);margin-bottom:8px;">
       ${seqHint}
       ${state.manualMode ? `<button data-action="toggleManualSeq" class="outline small" style="margin-left:8px;font-size:0.7rem;">${state.manualSeq ? '切换为自由放置' : '切换为顺序录入'}</button>` : ''}
@@ -617,46 +637,50 @@ export function renderStep2() {
   refreshAll();
 }
 
-// ===== 完整解读结果 =====
-export function renderFullReport(text, modules = null) {
-  const aiSettings = getApiSettings();
-  const hasKey = aiSettings && aiSettings.apiKey;
+// 结果页兜底摘要（正常情况下由 ui.js 传入，这里防御双保险）
+function buildFallbackSummary() {
+  return {
+    status: pick(STATUS_POOL),
+    reminder: pick(REMINDER_POOL),
+    action: pick(ACTION_POOL),
+  };
+}
+
+// ===== 完整解读结果（30 秒可读完：三句摘要在前，完整解读折叠） =====
+export function renderFullReport(text, modules = null, summary = null) {
+  if (!summary) summary = buildFallbackSummary();
   const result = document.getElementById('resultArea');
   if (!result) return;
+
+  const summaryHTML = `
+    <div style="background:rgba(201,160,96,0.06);border-left:3px solid var(--accent);padding:12px 16px;border-radius:4px;margin-bottom:12px;">
+      <div style="font-size:0.7rem;color:var(--dim);">此刻的你</div>
+      <div style="font-size:1.05rem;font-weight:bold;margin:4px 0;line-height:1.6;">${escapeForHTML(summary.status)}</div>
+      <div style="font-size:0.7rem;color:var(--dim);margin-top:8px;">一个提醒</div>
+      <div style="font-size:0.9rem;line-height:1.6;">${escapeForHTML(summary.reminder)}</div>
+      <div style="font-size:0.7rem;color:var(--dim);margin-top:8px;">一句建议</div>
+      <div style="font-size:0.9rem;line-height:1.6;color:var(--accent);">${escapeForHTML(summary.action)}</div>
+    </div>
+  `;
 
   const html = `
     <h3>${escapeForHTML(UI_TEXTS.step3)}</h3>
     ${state.consultMode && state.consultName ? `<p style="font-size:0.8rem;color:var(--dim);text-align:center;margin-bottom:6px;">🧑 为「${escapeForHTML(state.consultName)}」所问</p>` : ''}
     <div id="durianDisplay" style="margin-bottom:8px;"></div>
-    <div class="result-block" id="interpretText" style="font-size:0.92rem;line-height:1.95;max-height:60vh;overflow-y:auto;padding:16px;white-space:pre-wrap;">${escapeForHTML(text)}</div>
+    ${summaryHTML}
+    <details style="margin-top:8px;font-size:0.8rem;color:var(--dim);">
+      <summary style="cursor:pointer;">查看完整解读</summary>
+      <div class="result-block" id="interpretText" style="font-size:0.88rem;line-height:1.9;max-height:55vh;overflow-y:auto;padding:14px;margin-top:8px;white-space:pre-wrap;">${escapeForHTML(text)}</div>
+    </details>
     <div class="btn-row actions-row">
       <button data-action="copyLocal" class="small">复制</button>
-      <button id="copyPromptBtn" class="small outline">📋 复制提示词</button>
-      <button data-action="shareImage" class="outline small">分享图</button>
+      <button data-action="shareImage" class="outline small">分享这一刻</button>
       <button data-action="shareCode" class="outline small">分享码</button>
-      <button data-action="exportData" class="outline small">完整数据</button>
-      <button id="aiReadBtn" data-action="triggerAI" class="primary small">${hasKey ? 'AI深度解读' : '✨ 接入AI深度解读'}</button>
-      <button data-action="resetAll" class="small">新问题</button>
-    </div>
-    <div id="aiResultContainer" style="display:none;margin-top:10px">
-      <div class="result-block" id="aiResultContent"></div>
-      <div id="followUpArea" style="display:none;margin-top:8px">
-        <div class="btn-row" style="gap:8px">
-          <input type="text" id="followUpInput" placeholder="${escapeForHTML(UI_TEXTS.placeholderFollowUp)}">
-          <button data-action="sendFollowUp" class="small">发送</button>
-        </div>
-        <div class="result-block" id="chatHistoryBlock" style="margin-top:6px;max-height:200px;font-size:0.85rem;"></div>
-      </div>
+      <button data-action="quickDraw" class="small">再抽一次</button>
     </div>
   `;
   setHTML(result, html);
   renderDurianDisplay();
-  document.getElementById('copyPromptBtn')?.addEventListener('click', async (e) => {
-    const btn = e.currentTarget;
-    const prompt = await import('../ui.js').then(m => m.buildAIPrompt());
-    const ok = await copyTextWithFeedback(prompt, btn);
-    toast(ok ? '✅ 提示词已复制（自动带上你的问题与领域）' : '复制失败，请长按手动复制');
-  });
 }
 
 // ===== 牌堆渲染（含 draggable 属性） =====
@@ -729,7 +753,7 @@ export function renderTiYong() {
     const rel = getShengKe(getWuxing(state.ti), getWuxing(state.yong));
     if (rel) badge = `<span class="relation-badge ${rel === '生我' ? 'good' : rel === '克我' ? 'bad' : ''}">${rel} ${getShengKeLabel(rel)}</span>`;
   }
-  setHTML(bar, `<div class="slot">你 ${tiHTML}</div><span class="separator">⚡</span><div class="slot">所问之事 ${yongHTML}</div>${badge}`);
+  setHTML(bar, `<div class="slot" id="tiSlot">你 ${tiHTML}</div><span class="separator">⚡</span><div class="slot" id="yongSlot">所问之事 ${yongHTML}</div>${badge}`);
   const btn = document.getElementById('btnConfirmTY');
   if (btn) btn.disabled = !(state.ti && state.yong);
 }

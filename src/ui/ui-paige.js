@@ -42,9 +42,9 @@ export function getPaiGeUnlockStatus() {
   const readings = getRealReadingCount();
   return {
     hasStored: !!stored,
-    unlocked: readings >= UNLOCK_THRESHOLD,
+    unlocked: true, // 已拆锁：随时可重新抽取，不再需要完成次数
     readings,
-    threshold: UNLOCK_THRESHOLD,
+    threshold: 1,
     stored,
   };
 }
@@ -76,7 +76,7 @@ function showPaiGeDraw(modal, content) {
         翻开的瞬间，你的无意识会借这张牌，
         说出它想让你看见的课题。
         <br>
-        <span style="color:#d45050;font-size:0.7rem;">⚜️ 本命守护：需完成 ${UNLOCK_THRESHOLD} 次正式观象，方可重唤新灵</span>
+        <span style="color:#d45050;font-size:0.7rem;">⚜️ 本命守护：可随时重新抽取</span>
       </p>
       <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-height:320px;overflow-y:auto;padding:12px;" id="paigeDeckGrid">
         ${deck.map((_, idx) => `
@@ -148,7 +148,7 @@ function showPaiGeDetail(modal, content, status) {
   if (status.unlocked) {
     actionHTML = `<button id="paigeRedrawBtn" class="outline small" style="color:#d45050;border-color:#d45050;">🔄 重新抽取（已解锁）</button>`;
   } else {
-    actionHTML = `<span style="font-size:0.7rem;color:var(--dim);">⚜️ 本命守护 · 完成 ${status.threshold} 次正式观象后可重抽<br>（当前 ${status.readings}/${status.threshold}）</span>`;
+    actionHTML = `<span style="font-size:0.7rem;color:var(--dim);">⚜️ 本命守护 · 可随时重新抽取</span>`;
   }
 
   const html = `

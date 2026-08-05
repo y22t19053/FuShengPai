@@ -708,6 +708,21 @@ select:focus-visible {
   text-shadow: 0 0 8px rgba(201, 169, 110, 0.4);
 }
 
+/* 牌落位翻牌：放入九宫时轻翻转，强化「玩」的反馈 */
+@keyframes flipIn {
+  0% {
+    transform: perspective(400px) rotateY(90deg);
+    opacity: 0;
+  }
+  100% {
+    transform: perspective(400px) rotateY(0deg);
+    opacity: 1;
+  }
+}
+.card-flipping {
+  animation: flipIn 0.35s ease-out forwards;
+}
+
 /* 翻牌动画：背面 → 正面（牌灵/日运抽牌通用） */
 @keyframes cardFlip {
   0% {

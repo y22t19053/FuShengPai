@@ -7,6 +7,16 @@ import { toast } from './ui-modal.js';
 import { refreshAll } from './ui-render.js';
 
 // ---------- 内部工具 ----------
+// 落牌翻转反馈：给目标区域最近放置的牌播放翻牌动画
+function flipFeedback(selector) {
+  const el = document.querySelector(selector);
+  if (el) {
+    el.classList.remove('card-flipping');
+    void el.offsetWidth; // 强制 reflow，重启动画
+    el.classList.add('card-flipping');
+  }
+}
+
 function removeFromDeck(card) {
   const id = getCardId(card);
   state.deck = state.deck.filter(c => getCardId(c) !== id);
@@ -55,7 +65,8 @@ export function placeCardOnTiYong(card, slot, silent = false) {
 
   state.sel = null;
   refreshAll();
-  if (!silent) toast(slot === 'ti' ? '🪷 你已落位 · 本我之象' : '🎯 所问之事已定 · 事之象');
+  flipFeedback(`#${slot === 'ti' ? 'tiSlot' : 'yongSlot'} .mini-card`);
+  if (!silent) toast(slot === 'ti' ? '🪷 你已落位' : '🎯 所问之事已定');
 }
 
 // ---------- 放置到九宫格 ----------
@@ -78,7 +89,8 @@ export function placeCardOnGong(card, gong, silent = false) {
   state.sel = null;
   updateLine();
   refreshAll();
-  if (!silent) toast(`✦ ${GONG_NAMES[gong]}宫 · 一子落定，万象生`);
+  flipFeedback(`.gong[data-gong="${gong}"] .card-stack`);
+  if (!silent) toast(`✦ ${GONG_NAMES[gong]}宫 · 一子落定`);
 }
 
 // ---------- 手动设置天机线 ----------
