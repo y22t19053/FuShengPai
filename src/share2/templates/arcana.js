@@ -4,7 +4,8 @@
 
 import {
   W, H, M, CW, DARK, SERIF, SANS, NUM, font,
-  roundRectPath, wrapText, hairline, paintBackground, drawBrandBar, drawFooter,
+  roundRectPath, wrapText, paintBackground, drawBrandBar, drawFooter,
+  roughBox, roughCircle,
 } from '../theme.js';
 import { drawPokerCard } from '../poker.js';
 
@@ -87,6 +88,15 @@ export async function renderArcana(ctx, w, h, data) {
     border: '#6b6352',
   });
 
+  // 3.3 手绘勾边（绘本质感，双线轻微抖动）
+  roughBox(ctx, bx - 16, by - 16, bw + 32, bh + 32, {
+    r: 12,
+    stroke: 'rgba(111,174,156,0.5)',
+    lineWidth: 1.5,
+    roughness: 1.15,
+    bowing: 1.3,
+  });
+
   // ---------- 4. 右侧档案区（严格对齐，x 由网格推导） ----------
   const dx = L + bw + 48;          // 档案左 x
   const dw = W - M - dx;           // 档案宽
@@ -118,9 +128,10 @@ export async function renderArcana(ctx, w, h, data) {
   ctx.font = font(400, 18, SANS);
   ctx.fillText('元素', dx, dy);
   ctx.fillStyle = wxColor;
-  ctx.beginPath();
-  ctx.arc(dx + 58, dy - 6, 6, 0, Math.PI * 2);
-  ctx.fill();
+  roughCircle(ctx, dx + 58, dy - 6, 6, {
+    stroke: wxColor, lineWidth: 1.6, roughness: 1.2,
+    fill: wxColor, fillStyle: 'solid',
+  });
   ctx.fillStyle = t.ink;
   ctx.font = font(600, 30);
   ctx.fillText(wx, dx + 76, dy + 2);
@@ -155,15 +166,13 @@ export async function renderArcana(ctx, w, h, data) {
   const dotR = 8, gap = 30;
   for (let i = 0; i < 5; i++) {
     const px = dx + 58 + i * gap;
-    ctx.beginPath();
-    ctx.arc(px, dy - 8, dotR, 0, Math.PI * 2);
     if (i < power) {
-      ctx.fillStyle = wxColor;
-      ctx.fill();
+      roughCircle(ctx, px, dy - 8, dotR, {
+        stroke: wxColor, lineWidth: 1.5, roughness: 1.1,
+        fill: wxColor, fillStyle: 'solid',
+      });
     } else {
-      ctx.strokeStyle = t.inkFaint;
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+      roughCircle(ctx, px, dy - 8, dotR, { stroke: t.inkFaint, lineWidth: 1.5, roughness: 1.1 });
     }
   }
   ctx.restore();
@@ -177,9 +186,14 @@ export async function renderArcana(ctx, w, h, data) {
     keywords.forEach((kw, i) => {
       const tw = Math.min(ctx.measureText(kw).width + 44, 136);
       const tx = dx + tw / 2;
-      ctx.fillStyle = t.goldFaint;
-      roundRectPath(ctx, tx - tw / 2, dy - 22, tw, 44, 22);
-      ctx.fill();
+      roughBox(ctx, tx - tw / 2, dy - 22, tw, 44, {
+        r: 22,
+        stroke: 'rgba(111,174,156,0.3)',
+        lineWidth: 1.3,
+        roughness: 1.0,
+        fill: 'rgba(111,174,156,0.16)',
+        fillStyle: 'solid',
+      });
       ctx.fillStyle = t.gold;
       ctx.font = font(400, 20);
       ctx.fillText(kw, tx, dy + 1);
@@ -193,9 +207,9 @@ export async function renderArcana(ctx, w, h, data) {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = t.goldDim;
-  ctx.font = font(400, 22);
+  ctx.font = font(500, 26);
   const qLines = wrapText(ctx, `「${quote}」`, CW, 2);
-  qLines.forEach((ln, i) => ctx.fillText(ln, L, h - 200 + i * 36));
+  qLines.forEach((ln, i) => ctx.fillText(ln, L, h - 214 + i * 42));
   ctx.restore();
 
   // ---------- 6. 落款 + 二维码 ----------

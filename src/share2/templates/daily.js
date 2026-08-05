@@ -6,6 +6,7 @@
 import {
   W, H, M, CW, LIGHT, SERIF, NUM, font,
   roundRectPath, wrapText, hairline, paintBackground, drawBrandBar, drawFooter,
+  roughBox, roughLine,
 } from '../theme.js';
 import { drawPokerCard } from '../poker.js';
 
@@ -102,6 +103,15 @@ async function renderDailyCore(ctx, w, h, data, t) {
   ctx.restore();
   drawPokerCard(ctx, card, bx, by, bw, bh, cardStyle);
 
+  // 3.1 手绘勾边（绘本质感，双线轻微抖动）
+  roughBox(ctx, bx - 12, by - 12, bw + 24, bh + 24, {
+    r: 10,
+    stroke: 'rgba(58,52,37,0.30)',
+    lineWidth: 1.6,
+    roughness: 1.2,
+    bowing: 1.3,
+  });
+
   // ---------- 4. 五行标签（朱砂系 pill，克制） ----------
   const infoY = by + bh + 42;
   ctx.save();
@@ -109,9 +119,14 @@ async function renderDailyCore(ctx, w, h, data, t) {
   ctx.textBaseline = 'middle';
   const tagText = `今日五行 · ${wx}`;
   const tagW = Math.min(ctx.measureText(tagText).width + 60, 280);
-  ctx.fillStyle = t.goldFaint;
-  roundRectPath(ctx, W / 2 - tagW / 2, infoY - 24, tagW, 48, 24);
-  ctx.fill();
+  roughBox(ctx, W / 2 - tagW / 2, infoY - 24, tagW, 48, {
+    r: 24,
+    stroke: 'rgba(77,143,126,0.35)',
+    lineWidth: 1.4,
+    roughness: 1.0,
+    fill: 'rgba(77,143,126,0.14)',
+    fillStyle: 'solid',
+  });
   ctx.fillStyle = t.gold;
   ctx.font = font(500, 22, SERIF);
   ctx.fillText(tagText, W / 2, infoY + 2);
@@ -154,17 +169,17 @@ async function renderDailyCore(ctx, w, h, data, t) {
   ctx.fillText(ji.join('、'), W / 2 + 62, halfY);
   ctx.restore();
 
-  // 两栏之间极淡竖线（中轴）
-  hairline(ctx, W / 2, rowY + 20, W / 2, rowY + 92, t.line);
+  // 两栏之间手绘竖线（中轴，轻微抖动）
+  roughLine(ctx, W / 2, rowY + 22, W / 2, rowY + 90, { stroke: t.line, lineWidth: 1.6, roughness: 1.2, bowing: 1.2 });
 
   // ---------- 6. 金句（居中，1-2 行，克制小字） ----------
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = t.goldDim;
-  ctx.font = font(400, 26, SERIF);
-  const qLines = wrapText(ctx, `「${line}」`, CW - 160, 2);
-  qLines.forEach((ln, i) => ctx.fillText(ln, W / 2, h - 250 + i * 40));
+  ctx.font = font(500, 30, SERIF);
+  const qLines = wrapText(ctx, `「${line}」`, CW - 140, 2);
+  qLines.forEach((ln, i) => ctx.fillText(ln, W / 2, h - 262 + i * 46));
   ctx.restore();
 
   // ---------- 7. 落款 + 二维码 ----------

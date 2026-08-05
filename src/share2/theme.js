@@ -9,6 +9,86 @@
 // 所有模板只 import 本文件，禁止各自为政。
 
 import { loadQRImage } from '../utils/qr.js';
+import rough from 'roughjs';
+
+const _g = rough.generator();
+
+// ---------- 手绘质感（rough.js 封装） ----------
+// 全部 helper 用固定 seed（由坐标推导）：同位置同抖动，多图统一精致。
+// sets 类型：'path'=描边轮廓、'fillPath'=实心多边形、'fillSketch'=纹理线（须逐线 stroke）
+
+function _seed(x, y) {
+  return Math.abs(Math.round(x * 13.7 + y * 7.3)) % 99991;
+}
+
+/** 逐 op 执行 rough 路径（ops 数据在 o.data 数组） */
+function applyOps(ctx, ops) {
+  ctx.beginPath();
+  for (const o of ops) {
+    const d = o.data || [];
+    switch (o.op) {
+      case 'move': ctx.moveTo(d[0], d[1]); break;
+      case 'lineTo': ctx.lineTo(d[0], d[1]); break;
+      case 'bcurveTo': ctx.bezierCurveTo(d[0], d[1], d[2], d[3], d[4], d[5]); break;
+      case 'qcurveTo': ctx.quadraticCurveTo(d[0], d[1], d[2], d[3]); break;
+      case 'arcTo': ctx.arcTo(d[0], d[1], d[2], d[3], d[4]); break;
+      case 'close': ctx.closePath(); break;
+    }
+  }
+}
+
+/** 渲染 rough drawable 到现有 ctx（fill/stroke 按 sets 类型分派） */
+function roughRender(ctx, drawable, { fill, stroke, lineWidth = 1.5, fillWidth = 1.2 } = {}) {
+  for (const set of drawable.sets) {
+    if (set.type === 'fillPath' && fill) {
+      ctx.save();
+      ctx.fillStyle = fill;
+      applyOps(ctx, set.ops);
+      ctx.fill();
+      ctx.restore();
+    } else if (set.type === 'fillSketch' && fill) {
+      ctx.save();
+      ctx.strokeStyle = fill;
+      ctx.lineWidth = fillWidth;
+      applyOps(ctx, set.ops);
+      ctx.stroke();
+      ctx.restore();
+    } else if (set.type === 'path' && stroke) {
+      ctx.save();
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = lineWidth;
+      applyOps(ctx, set.ops);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+
+/** 手绘矩形框（替代直角描边，r=0 直角 / r>0 圆角） */
+export function roughBox(ctx, x, y, w, h, { r = 0, stroke = 'rgba(58,52,37,0.4)', lineWidth = 1.5, roughness = 1.1, bowing = 1.2, fill = null, fillStyle = 'solid', fillWidth = 1.2 } = {}) {
+  const d = r > 0
+    ? _g.path(roundRectD(x, y, w, h, r), { roughness, bowing, stroke, strokeWidth: lineWidth, fill, fillStyle, seed: _seed(x, y) })
+    : _g.rectangle(x, y, w, h, { roughness, bowing, stroke, strokeWidth: lineWidth, fill, fillStyle, seed: _seed(x, y) });
+  roughRender(ctx, d, { fill, stroke, lineWidth, fillWidth });
+}
+
+/** 手绘圆形（cx,cy 圆心，r 半径） */
+export function roughCircle(ctx, cx, cy, r, { stroke = 'rgba(58,52,37,0.4)', lineWidth = 1.5, roughness = 1.1, bowing = 1.2, fill = null, fillStyle = 'solid', fillWidth = 1.2 } = {}) {
+  const d = _g.circle(cx, cy, r * 2, { roughness, bowing, stroke, strokeWidth: lineWidth, fill, fillStyle, seed: _seed(cx, cy) });
+  roughRender(ctx, d, { fill, stroke, lineWidth, fillWidth });
+}
+
+/** 手绘线段（轻微抖动，替代 hairline 的克制动感） */
+export function roughLine(ctx, x1, y1, x2, y2, { stroke = 'rgba(58,52,37,0.4)', lineWidth = 1.4, roughness = 1.4, bowing = 1.6 } = {}) {
+  const d = _g.line(x1, y1, x2, y2, { roughness, bowing, stroke, strokeWidth: lineWidth, seed: _seed(x1, y1) });
+  roughRender(ctx, d, { stroke, lineWidth });
+}
+
+/** 圆角矩形 SVG path（供 roughBox 的 r>0 使用） */
+function roundRectD(x, y, w, h, r) {
+  const rr = Math.min(r, w / 2, h / 2);
+  return `M${x + rr},${y} L${x + w - rr},${y} A${rr},${rr} 0 0 1 ${x + w},${y + rr} L${x + w},${y + h - rr} A${rr},${rr} 0 0 1 ${x + w - rr},${y + h} L${x + rr},${y + h} A${rr},${rr} 0 0 1 ${x},${y + h - rr} L${x},${y + rr} A${rr},${rr} 0 0 1 ${x + rr},${y} Z`;
+}
 
 export const W = 1080;
 export const H = 1440;
@@ -173,10 +253,10 @@ export async function drawFooter(ctx, t, { note = '牌是提示，不是命令�
   ctx.restore();
 
   // 朱砂落款印（二维码左侧，书画落款式克制装饰）
-  const qrSize = 88;
+  const qrSize = 80;
   const qrX = W - M - qrSize;
-  const sealSize = 52;
-  drawSeal(ctx, t, qrX - sealSize - 34, y - sealSize + 4, sealSize);
+  const sealSize = 48;
+  drawSeal(ctx, t, qrX - sealSize - 36, y - sealSize + 6, sealSize);
 
   // 二维码：白底墨点（深浅底色通用）
   const qrY = y - qrSize + 4;
@@ -195,21 +275,22 @@ export async function drawFooter(ctx, t, { note = '牌是提示，不是命令�
   ctx.restore();
 }
 
-/** 落款朱砂印章：细描边 + 竖排两字（克制高级感，不喧宾夺主） */
-export function drawSeal(ctx, t, x, y, size = 52) {
+/** 落款朱砂印章：手绘描边 + 竖排两字（克制高级感，不喧宾夺主） */
+export function drawSeal(ctx, t, x, y, size = 48) {
   const sealColor = '#a83b32'; // 朱砂
   ctx.save();
-  ctx.fillStyle = 'rgba(168,59,50,0.06)';
-  roundRectPath(ctx, x, y, size, size, 6);
-  ctx.fill();
-  ctx.strokeStyle = sealColor;
-  ctx.lineWidth = 1.6;
-  roundRectPath(ctx, x, y, size, size, 6);
-  ctx.stroke();
+  roughBox(ctx, x, y, size, size, {
+    r: 8,
+    stroke: sealColor,
+    lineWidth: 1.6,
+    roughness: 1.0,
+    fill: 'rgba(168,59,50,0.07)',
+    fillStyle: 'solid',
+  });
   ctx.fillStyle = sealColor;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = font(600, 19);
+  ctx.font = font(600, 18);
   ctx.fillText('浮', x + size / 2, y + size * 0.33);
   ctx.fillText('生', x + size / 2, y + size * 0.72);
   ctx.restore();

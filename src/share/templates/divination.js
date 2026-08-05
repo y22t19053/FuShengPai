@@ -5,7 +5,8 @@
 
 import {
   W, H, M, CW, DARK, SERIF, SANS, NUM, font,
-  roundRectPath, wrapText, hairline, paintBackground, drawBrandBar, drawFooter,
+  wrapText, paintBackground, drawBrandBar, drawFooter,
+  roughBox, roughCircle, roughLine,
 } from '../../share2/theme.js';
 import { drawPokerCard } from '../../share2/poker.js';
 
@@ -51,7 +52,7 @@ export async function drawDivinationShare(ctx, w, h, data) {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = t.ink;
-  ctx.font = font(700, 52);
+  ctx.font = font(700, 56);
   ctx.fillText(data.title || '观牌知势', L, 240);
   ctx.font = font(300, 24);
   ctx.fillStyle = t.inkDim;
@@ -71,22 +72,22 @@ export async function drawDivinationShare(ctx, w, h, data) {
   // 3.2 用卡（所问之事）
   drawTiyongCard(ctx, t, rightX, cardY, cardW, cardH, data.yongMain, '所问之事');
 
-  // 3.3 关系徽章（居中，圆形 + 细描边，克制微光）
+  // 3.3 关系徽章（居中，手绘圆形 + 细描边，克制微光）
   const badgeR = 40;
   ctx.save();
   ctx.shadowColor = 'rgba(111,174,156,0.18)';
   ctx.shadowBlur = 12;
-  ctx.fillStyle = 'rgba(111,174,156,0.12)';
-  ctx.beginPath();
-  ctx.arc(badgeCX, badgeCY, badgeR, 0, Math.PI * 2);
-  ctx.fill();
+  roughCircle(ctx, badgeCX, badgeCY, badgeR, {
+    stroke: 'rgba(111,174,156,0.45)',
+    lineWidth: 1.4,
+    roughness: 1.1,
+    fill: 'rgba(111,174,156,0.12)',
+    fillStyle: 'solid',
+  });
   ctx.shadowBlur = 0;
   const rel = data.relation || '未知';
   const relLabel = REL_LABEL[rel] || '平';
   const relColor = REL_COLOR[rel] || t.gold;
-  ctx.strokeStyle = 'rgba(111,174,156,0.4)';
-  ctx.lineWidth = 1.2;
-  ctx.stroke();
   ctx.fillStyle = relColor;
   ctx.font = font(600, 22);
   ctx.textAlign = 'center';
@@ -101,7 +102,7 @@ export async function drawDivinationShare(ctx, w, h, data) {
   const cellW = (CW - 40) / 3;
   const lineY = cardY + cardH + 52;
   const lineH = 108;
-  hairline(ctx, L, lineY - 12, R, lineY - 12, t.line);
+  roughLine(ctx, L, lineY - 12, R, lineY - 12, { stroke: t.line, lineWidth: 1.5, roughness: 1.3, bowing: 1.4 });
 
   (data.lineInfo || []).forEach((name, i) => {
     const x = L + i * (cellW + 20);
@@ -191,9 +192,14 @@ export async function drawDivinationShare(ctx, w, h, data) {
   const barColor = score >= 7 ? '#c96a5a' : score >= 4 ? t.gold : '#8a9a5a';
   for (let i = 0; i < n; i++) {
     const x = L + i * (segW + 4);
-    ctx.fillStyle = i < fillCount ? barColor : 'rgba(58,52,37,0.1)';
-    roundRectPath(ctx, x, barY, segW, barH, 2);
-    ctx.fill();
+    roughBox(ctx, x, barY, segW, barH, {
+      r: 2,
+      stroke: 'rgba(58,52,37,0.25)',
+      lineWidth: 1.0,
+      roughness: 1.2,
+      fill: i < fillCount ? barColor : 'rgba(58,52,37,0.1)',
+      fillStyle: 'solid',
+    });
   }
 
   // 档位文案
@@ -215,14 +221,16 @@ function drawTiyongCard(ctx, t, x, y, w, h, card, label) {
   const c = card || { rank: '?', suit: '', wx: '土', color: 'black' };
   const isRed = c.color === 'red' || c.suit === '♥' || c.suit === '♦';
 
-  // 卡底
+  // 卡底（手绘圆角，暖纸浅底）
   ctx.save();
-  ctx.fillStyle = 'rgba(252,248,239,0.85)';
-  roundRectPath(ctx, x, y, w, h, 8);
-  ctx.fill();
-  ctx.strokeStyle = t.line;
-  ctx.lineWidth = 1;
-  ctx.stroke();
+  roughBox(ctx, x, y, w, h, {
+    r: 8,
+    stroke: t.line,
+    lineWidth: 1.2,
+    roughness: 1.0,
+    fill: 'rgba(252,248,239,0.85)',
+    fillStyle: 'solid',
+  });
   ctx.restore();
 
   // 左上标签（你 / 所问之事）
