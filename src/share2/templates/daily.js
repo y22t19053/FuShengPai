@@ -1,31 +1,17 @@
-// ===== src/share2/templates/daily.js · 日运海报（宣纸 · 垂直中轴） =====
-// 布局：品牌栏 → 日期组（居中） → 中央牌 → 五行标签 → 宜/忌双栏 → 金句 → 落款。
-// 原则：全图以 W/2 为垂直中轴线对称；hairline 分段；无噪点无光晕；
-//       朱砂只用于牌面红字与「忌」，金色只用于「宜」与标签，克制不夺目。
+// ===== src/share2/templates/daily.js · 日运海报（DOM 版 · 浅纸宣纸） =====
+// HTML+CSS 排版：品牌栏 → 日期组 → 中央牌 → 五行标签 → 宜/忌双栏 → 金句意象 → 落款。
+// 以 1080×1440 固定画布绝对定位铺陈；rough SVG 手绘边框/分隔/印章/五行图标。
 
-import {
-  W, H, M, CW, LIGHT, SERIF, NUM, font,
-  roundRectPath, wrapText, hairline, paintBackground, drawBrandBar, drawFooter,
-  roughBox, roughLine, roughWxIcon, pickBySeed, FOOTER_NOTES,
-} from '../theme.js';
-import { drawPokerCard } from '../poker.js';
+import { PAPER, FONT_SANS, FOOTER_NOTES, pickBySeed, YI_JI, WEATHER, TAG_BY_WX, paperBackground } from '../style.js';
+import { roughBoxSVG, wxIconSVG, sealBoxSVG, dividerSVG } from '../rough-svg.js';
+import { pokerCardHTML } from './cards.js';
+import { escapeForHTML } from '../../utils/safe.js';
 
-/** 五行 → 宜 / 忌（传统取象，平实可读） */
-const YI_JI = {
-  '木': { yi: '生长', ji: '壅塞' },
-  '火': { yi: '明动', ji: '虚浮' },
-  '土': { yi: '承载', ji: '停滞' },
-  '金': { yi: '收敛', ji: '刚愎' },
-  '水': { yi: '流动', ji: '泛滥' },
-  '天': { yi: '定志', ji: '游移' },
-  '人': { yi: '和合', ji: '独断' },
-};
-const WEATHER = { '木': '风', '火': '暑', '土': '湿', '金': '燥', '水': '寒', '天': '清', '人': '和' };
+const W = 1080;
+const H = 1440;
+const M = 96;
 
-/** 金句标签：五行 → 地点意象（花样但贴题，替代干巴巴的引导语） */
-const TAG_BY_WX = { 木: '林间一句', 火: '炉边一句', 土: '檐下一句', 金: '枰上一句', 水: '渡口一句' };
-
-/** 日期 08.03（MM.DD） */
+/** 日期 08.06（MM.DD） */
 function mmdd(dateText) {
   if (!dateText) return '';
   const m = dateText.match(/(\d{2})[-/](\d{2})/);
@@ -41,167 +27,106 @@ function weekday(dateText) {
 }
 
 /**
- * 日运海报（1080×1440，垂直中轴）
- * data: { cardMain{rank,suit,wx,color}, title, line, quote, dateText, fortuneType, element }
- * t: 主题色板（LIGHT 宣纸）
+ * 日运海报（DOM 版）
+ * data: { cardMain/card, title, line, quote, dateText, fortuneType, element, oracle }
  */
-async function renderDailyCore(ctx, w, h, data, t) {
-  const card = data.cardMain || { rank: '?', suit: '', wx: '土', color: 'black' };
+export function renderDailyHTML(data, qr) {
+  const p = PAPER.light;
+  const card = data.cardMain || data.card || { rank: '?', suit: '', wx: '土', color: 'black' };
   const wx = card.wx || data.element || '土';
   const yiji = YI_JI[wx] || YI_JI['土'];
   const weather = WEATHER[wx] || '和';
   const dateText = data.dateText || '';
-  // 赛博黄历：宜/忌/建除/冲煞/气象/金句优先取 oracle（当日确定性），缺数据时回退静态池
   const oracle = data.oracle || null;
-  const yi = oracle?.yi?.length ? oracle.yi : [yiji.yi];
-  const ji = oracle?.ji?.length ? oracle.ji : [yiji.ji];
-  const jianchu = oracle?.jianchu || null;
-  const chong = oracle?.chong || null;
-  const moodTitle = oracle?.mood?.title || weather;
-  const line = (oracle?.combo?.text || data.line || data.quote || '观牌知势').replace(/^“|”$/g, '');
-  const wd = weekday(dateText);
-  const metaLine = wd ? `${wd} · ${weather}象` : `${weather}象`;
-
-  // 纸牌配色随主题走（暖纸=暖墨棕，鼠尾草=墨绿）
-  const cardStyle = {
-    red: t.cardRed || '#c96f52',
-    black: t.cardBlack || '#3a3425',
-    paper: t.cardPaper || '#f6f0e2',
-    border: t.cardBorder || 'rgba(58,52,37,0.55)',
-  };
-  const cardShadow = t.shadow || 'rgba(58,52,37,0.15)';
-
-  // ---------- 1. 背景 + 品牌栏 ----------
-  paintBackground(ctx, t, w, h);
-  drawBrandBar(ctx, t, {
-    dateText: `${mmdd(dateText)} · ${weekday(dateText)}`,
-    rightLabel: `今日气象 · ${moodTitle}`,
-  });
-
-  // ---------- 2. 日期组（居中收拢，成为第一视觉锚点） ----------
-  ctx.save();
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = t.goldDim;
-  ctx.font = font(400, 24, SERIF);
-  ctx.fillText('观 于 今 日', W / 2, 232);
-  ctx.fillStyle = t.ink;
-  ctx.font = font(700, 92, NUM);
-  ctx.fillText(mmdd(dateText) || '—', W / 2, 322);
-  ctx.fillStyle = t.inkDim;
-  ctx.font = font(400, 22, SERIF);
-  ctx.fillText(metaLine, W / 2, 360);
-  ctx.restore();
-
-  // ---------- 3. 中央扑克牌（白底 + 细线 + 角标/花色/宫廷，投影仅一层） ----------
-  const bw = 340, bh = 480;
-  const bx = W / 2 - bw / 2, by = 400;
-  ctx.save();
-  ctx.shadowColor = cardShadow;
-  ctx.shadowBlur = 12;
-  ctx.shadowOffsetY = 5;
-  roundRectPath(ctx, bx, by, bw, bh, 6);
-  ctx.fillStyle = cardStyle.paper;
-  ctx.fill();
-  ctx.restore();
-  drawPokerCard(ctx, card, bx, by, bw, bh, cardStyle);
-
-  // 3.1 手绘勾边（绘本质感，双线轻微抖动）
-  roughBox(ctx, bx - 12, by - 12, bw + 24, bh + 24, {
-    r: 10,
-    stroke: 'rgba(58,52,37,0.30)',
-    lineWidth: 1.6,
-    roughness: 1.2,
-    bowing: 1.3,
-  });
-
-  // ---------- 4. 五行标签（朱砂系 pill，克制） ----------
-  const infoY = by + bh + 42;
-  ctx.save();
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  const tagText = `今日五行 · ${wx}`;
-  const tagW = Math.min(ctx.measureText(tagText).width + 60, 280);
-  roughBox(ctx, W / 2 - tagW / 2, infoY - 24, tagW, 48, {
-    r: 24,
-    stroke: 'rgba(77,143,126,0.35)',
-    lineWidth: 1.4,
-    roughness: 1.0,
-    fill: 'rgba(77,143,126,0.14)',
-    fillStyle: 'solid',
-  });
-  ctx.fillStyle = t.gold;
-  ctx.font = font(500, 22, SERIF);
-  ctx.fillText(tagText, W / 2, infoY + 2);
-  ctx.restore();
-
-  // ---------- 5. 宜 / 忌 双栏（左右各半，hairline 分隔，横竖各一条） ----------
-  const rowY = infoY + 58;
-  hairline(ctx, M, rowY, W - M, rowY, t.line);
-
-  // 5.1 建除 · 冲煞（黄历两栏，中轴分隔，普通人不读术语：建日·宜建基 / 冲子·鼠）
-  if (jianchu && chong) {
-    ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = t.inkDim;
-    ctx.font = font(400, 20, SERIF);
-    ctx.fillText(`${jianchu.name} · ${jianchu.label}`, W / 4, 1012);
-    ctx.fillText(`冲${chong.name} · ${chong.animal}`, W * 3 / 4, 1012);
-    ctx.restore();
-  }
-
-  const halfY = rowY + 84;
-
-  ctx.save();
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  // 宜（左半，从 M 起）
-  ctx.fillStyle = t.gold;
-  ctx.font = font(600, 26, SERIF);
-  ctx.fillText('宜', M, halfY);
-  ctx.fillStyle = t.ink;
-  ctx.font = font(400, 26, SERIF);
-  ctx.fillText(yi.join('、'), M + 62, halfY);
-  // 忌（右半，从 W/2 起）
-  ctx.fillStyle = t.red;
-  ctx.font = font(600, 26, SERIF);
-  ctx.fillText('忌', W / 2, halfY);
-  ctx.fillStyle = t.ink;
-  ctx.font = font(400, 26, SERIF);
-  ctx.fillText(ji.join('、'), W / 2 + 62, halfY);
-  ctx.restore();
-
-  // 两栏之间手绘竖线（中轴，轻微抖动）
-  roughLine(ctx, W / 2, rowY + 22, W / 2, rowY + 90, { stroke: t.line, lineWidth: 1.6, roughness: 1.2, bowing: 1.2 });
-
-  // ---------- 6. 金句（居中：五行意象标签 + 签语，克制小字） ----------
-  ctx.save();
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-  // 6.1 意象标签：手绘五行小图标 + 「渡口一句 · 风」（按当日气象，贴题的花样）
+  const yi = (oracle && oracle.yi && oracle.yi.length) ? oracle.yi : [yiji.yi];
+  const ji = (oracle && oracle.ji && oracle.ji.length) ? oracle.ji : [yiji.ji];
+  const moodTitle = (oracle && oracle.mood && oracle.mood.title) || weather;
+  const line = ((oracle && oracle.combo && oracle.combo.text) || data.line || data.quote || '观牌知势').replace(/^“|”$/g, '');
   const signTag = TAG_BY_WX[wx] || '今日一句';
-  const signText = `${signTag} · ${weather}`;
-  ctx.font = font(400, 17, SERIF);
-  const signW = ctx.measureText(signText).width;
-  ctx.fillStyle = t.goldDim;
-  roughWxIcon(ctx, W / 2 - signW / 2 - 38, h - 320, wx, { size: 22, color: t.gold });
-  ctx.fillText(signText, W / 2, h - 302);
-  // 6.2 签语本体（1-2 行）
-  ctx.fillStyle = t.goldDim;
-  ctx.font = font(500, 30, SERIF);
-  const qLines = wrapText(ctx, `「${line}」`, CW - 140, 2);
-  qLines.forEach((ln, i) => ctx.fillText(ln, W / 2, h - 248 + i * 46));
-  ctx.restore();
+  const note = pickBySeed(dateText, FOOTER_NOTES);
 
-  // ---------- 7. 落款 + 二维码 ----------
-  await drawFooter(ctx, t, {
-    note: pickBySeed(dateText, FOOTER_NOTES),
-    sub: `观牌知势 · ${mmdd(dateText) || ''}`,
+  const brand = `${mmdd(dateText)} · ${weekday(dateText)}`;
+  const metaLine = weekday(dateText) ? `${weekday(dateText)} · ${weather}象` : `${weather}象`;
+
+  // 中央扑克牌（340×476）
+  const cardHTML = pokerCardHTML(card, {
+    size: 340,
+    paper: p.paper,
+    red: p.red,
+    ink: p.ink,
+    border: 'rgba(58,52,37,0.5)',
+    shadow: p.cardShadow,
+    font: FONT_SANS,
   });
-}
 
-/** 日运宣纸海报（默认款） */
-export function renderDaily(ctx, w, h, data) {
-  return renderDailyCore(ctx, w, h, data, LIGHT);
+  // 五行 pill（手绘圆角标签）
+  const pillW = 96;
+  const pillH = 52;
+  const pillHTML = `
+    <div style="position:absolute;left:50%;top:902px;transform:translateX(-50%);width:${pillW}px;height:${pillH}px;">
+      ${roughBoxSVG(0, 0, pillW, pillH, { r: 26, stroke: p.gold, strokeWidth: 2, roughness: 1.2, fill: p.pillBg })}
+      <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;color:${p.goldDeep};font-size:26px;font-weight:700;font-family:${FONT_SANS};">${escapeForHTML(wx)}</div>
+    </div>`;
+
+  // 宜/忌双栏
+  const yiText = escapeForHTML(yi.join('、'));
+  const jiText = escapeForHTML(ji.join('、'));
+  const column = (title, color, text, left) => `
+    <div style="position:absolute;${left ? 'left' : 'right'}:${M}px;top:984px;width:408px;height:152px;">
+      ${roughBoxSVG(0, 0, 408, 152, { r: 18, stroke: left ? p.gold : p.red, strokeWidth: 1.8, roughness: 1.2, fill: left ? p.pillBg : 'rgba(201,111,82,0.07)' })}
+      <div style="position:absolute;left:26px;top:20px;color:${color};font-size:30px;font-weight:800;font-family:${FONT_SANS};letter-spacing:6px;">${title}</div>
+      <div style="position:absolute;left:26px;top:76px;right:20px;color:${p.ink};font-size:26px;font-weight:600;font-family:${FONT_SANS};line-height:1.4;">${text}</div>
+    </div>`;
+  const yiJiHTML = column('宜', p.goldDeep, yiText, true) + column('忌', p.red, jiText, false);
+
+  // 金句意象标签 + 签语
+  const quoteHTML = `
+    <div style="position:absolute;left:0;right:0;top:1186px;text-align:center;">
+      <div style="display:inline-flex;align-items:center;gap:10px;color:${p.goldDeep};font-size:24px;font-weight:600;font-family:${FONT_SANS};letter-spacing:2px;">
+        ${wxIconSVG(wx, p.gold, 26)}
+        <span>${escapeForHTML(signTag)} · ${escapeForHTML(moodTitle)}</span>
+      </div>
+    </div>
+    <div style="position:absolute;left:150px;right:150px;top:1240px;text-align:center;color:${p.ink};font-size:30px;font-weight:500;font-family:${FONT_SANS};line-height:1.6;">「${escapeForHTML(line)}」</div>`;
+
+  // 底部：落款（左）+ 印章 + QR（右）
+  const footerHTML = `
+    <div style="position:absolute;left:${M}px;bottom:${M}px;">
+      ${dividerSVG(0, 480, 0, { stroke: p.line })}
+      <div style="margin-top:34px;color:${p.goldDeep};font-size:26px;font-weight:600;font-family:${FONT_SANS};">${escapeForHTML(note)}</div>
+      <div style="margin-top:10px;color:${p.inkFaint};font-size:16px;font-family:${FONT_SANS};">观牌知势 · 数据只存本机</div>
+    </div>
+    <div style="position:absolute;right:${M}px;bottom:${M - 8}px;width:96px;height:96px;background:${p.qrLight};border-radius:10px;border:1px solid rgba(58,50,38,0.25);padding:8px;box-sizing:border-box;">
+      ${qr ? `<img src="${qr}" alt="" style="display:block;width:100%;height:100%;">` : '<div style="width:100%;height:100%;background:repeating-linear-gradient(45deg,#efe9d8,#efe9d8 6px,#e2d9c2 6px,#e2d9c2 12px);"></div>'}
+    </div>
+    <div style="position:absolute;right:${M + 128}px;bottom:${M + 14}px;width:50px;height:50px;text-align:center;color:#a83b32;font-size:17px;font-weight:700;font-family:${FONT_SANS};line-height:1.28;">
+      ${sealBoxSVG(50)}
+      <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);">浮<br>生</div>
+    </div>`;
+
+  return `
+    <div style="width:${W}px;height:${H}px;position:relative;overflow:hidden;font-family:${FONT_SANS};${paperBackground(p)}">
+      ${roughBoxSVG(26, 26, W - 52, H - 52, { r: 30, stroke: p.border, strokeWidth: 2.4, roughness: 1.1 })}
+
+      <!-- 品牌栏 -->
+      <div style="position:absolute;left:${M}px;top:52px;color:${p.inkDim};font-size:22px;font-weight:600;font-family:${FONT_SANS};">浮生牌 · <span style="color:${p.goldDeep};">观牌知势</span></div>
+      <div style="position:absolute;right:${M}px;top:52px;color:${p.inkFaint};font-size:20px;font-family:${FONT_SANS};">${escapeForHTML(brand)}</div>
+
+      <!-- 日期组 -->
+      <div style="position:absolute;left:0;right:0;top:176px;text-align:center;">
+        <div style="color:${p.goldDeep};font-size:24px;font-weight:500;font-family:${FONT_SANS};letter-spacing:14px;">观 于 今 日</div>
+        <div style="margin-top:14px;color:${p.ink};font-size:96px;font-weight:800;font-family:${FONT_SANS};line-height:1;">${escapeForHTML(mmdd(dateText) || '—')}</div>
+        <div style="margin-top:16px;color:${p.inkDim};font-size:22px;font-family:${FONT_SANS};">${escapeForHTML(metaLine)}</div>
+      </div>
+
+      <!-- 中央牌 -->
+      <div style="position:absolute;left:50%;top:388px;transform:translateX(-50%);">
+        ${cardHTML}
+      </div>
+
+      ${pillHTML}
+      ${yiJiHTML}
+      ${quoteHTML}
+      ${footerHTML}
+    </div>`;
 }

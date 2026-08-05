@@ -1,13 +1,12 @@
 // ===== src/mahjong-ui.js · 麻将占卜（老牌馆：绿呢桌面 · 摸牌手势 · 说书人读牌） =====
-// 仪式流程：问事 → 砌牌（136 洗牌砌成牌墙，绿呢桌面，洗牌声）→ 摸牌（按住牌背——听牌时刻，
-// 400ms 停顿——松手开牌）→ 开牌（逐张翻，竹/骨/玉三种牌声各应一张）→ 读牌（五段判词，
-// 说书人语气）→ 收牌（「牌已定，事在人。明日再来摸一张。」——送客词）。
+// 仪式流程：问事 → 砌牌（136 洗牌砌成牌墙，绿呢桌面，洗牌声）→ 摸牌（点牌即开，逐张翻，
+// 竹/骨/玉三种牌声各应一张）→ 读牌（五段判词，说书人语气）→ 收牌（「牌已定，事在人。
+// 明日再来摸一张。」——送客词）。
 // 双体系：扑克/麻将并存，用户在首页自行切换（fsp_system），互不干扰、可交叉验证。
 
 import {
   buildWall, drawFromWall, composeReading, composeDailyReading, tileName,
 } from './mahjong.js';
-import { TING_DURATION } from './constants.js';
 import { escapeForHTML, setHTML } from './utils/safe.js';
 import {
   playWashSound, playMoPaiSound, playKaiPaiSound, playJokerSound, playClosingSound,
@@ -73,48 +72,26 @@ function tileBackHTML(idx, label) {
     </div>`;
 }
 
-// ---------- 摸牌手势：按住听牌 · 松手开牌 ----------
+// ---------- 摸牌手势：点牌即开 ----------
 
-function bindHoldToFlip(el, { locked, onFire, hint }) {
-  const originalHint = hint ? hint.textContent : '';
-  let held = false;
-  let timer = null;
-  const cleanup = () => {
-    window.clearTimeout(timer);
-    el.classList.remove('mj-holding', 'mj-ting');
-    el.removeEventListener('pointerup', onUp);
-    el.removeEventListener('pointercancel', onCancel);
-  };
-  const onUp = () => {
-    cleanup();
-    if (held) {
-      onFire();
-    } else if (hint) {
-      hint.textContent = originalHint;
-    }
-  };
-  const onCancel = () => {
-    cleanup();
-    if (hint) hint.textContent = originalHint;
-  };
+function bindTapToFlip(el, { locked, onFire, hint }) {
   const onDown = (e) => {
     if (locked()) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    el.setPointerCapture?.(e.pointerId);
     el.classList.add('mj-holding');
-    if (hint) hint.textContent = '按住牌背 · 听牌片刻…';
-    timer = window.setTimeout(() => {
-      held = true;
-      el.classList.remove('mj-holding');
-      el.classList.add('mj-ting');
-      if (hint) hint.textContent = '想好了，就翻。';
-      if (navigator.vibrate) navigator.vibrate(30);
-      playMoPaiSound(); // 摸牌一声轻竹
-    }, TING_DURATION);
+    if (hint) hint.textContent = '想好了，就翻。';
+    if (navigator.vibrate) navigator.vibrate(20);
+  };
+  const onUp = (e) => {
+    if (locked()) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    el.classList.remove('mj-holding');
+    playMoPaiSound(); // 摸牌一声轻竹
+    onFire();
   };
   el.addEventListener('pointerdown', onDown);
   el.addEventListener('pointerup', onUp);
-  el.addEventListener('pointercancel', onCancel);
+  el.addEventListener('pointercancel', () => el.classList.remove('mj-holding'));
 }
 
 // ---------- 读牌：五段判词（说书人） ----------
@@ -174,7 +151,7 @@ export function openMahjongDraw() {
     <div style="text-align:center;">
       <h3 style="color:var(--accent);">🀄 摸三张 · 天/地/人</h3>
       <p id="mjHint" style="font-size:0.8rem;color:var(--dim);margin:6px 0 12px;">
-        默念一件事。按住牌背，听牌片刻，松手即开。<br>
+        默念一件事。点牌即开，逐张翻。<br>
         左起第一张为天，二为地，三为人。
       </p>
       <div class="felt-table" style="padding:20px 14px 16px;">
@@ -201,7 +178,7 @@ export function openMahjongDraw() {
   const backs = content.querySelectorAll('.mj-tile-back');
 
   backs.forEach((el, i) => {
-    bindHoldToFlip(el, {
+    bindTapToFlip(el, {
       locked: () => lockedFlag.on,
       hint,
       onFire: () => {
@@ -210,7 +187,6 @@ export function openMahjongDraw() {
         playKaiPaiSound(POS_LABELS[i].material);
         const tile = tiles[i];
         el.outerHTML = `<div style="animation:dealIn 0.4s var(--ease);">${tileFaceHTML(tile, 64)}</div>`;
-        el.classList.remove('mj-holding', 'mj-ting');
         flippedCount += 1;
         if (flippedCount === 3) {
           lockedFlag.on = true;
@@ -261,7 +237,7 @@ export function openMahjongDaily() {
     <div style="text-align:center;">
       <h3 style="color:var(--accent);">🀄 今日手气</h3>
       <p id="mjDailyHint" style="font-size:0.8rem;color:var(--dim);margin:6px 0 12px;">
-        每日一张，摸完即定。按住牌背，听牌片刻，松手即开。
+        每日一张，摸完即定。点牌即开。
       </p>
       <div class="felt-table" style="padding:26px 14px;">
         <div style="display:flex;justify-content:center;" id="mjDailyBack">
@@ -282,7 +258,7 @@ export function openMahjongDaily() {
   const back = content.querySelector('.mj-tile-back');
   let done = false;
 
-  bindHoldToFlip(back, {
+  bindTapToFlip(back, {
     locked: () => done,
     hint,
     onFire: () => {

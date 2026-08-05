@@ -2,7 +2,6 @@
 
 export const MAX_DAILY_OBSERVATIONS = 8;
 export const LONG_PRESS_DURATION = 300;
-export const TING_DURATION = 400; // 听牌：按住牌背的悬念停顿（摸牌→开牌）
 export const SCROLL_MAX_SPEED = 150;
 export const SCROLL_STEP_INCREMENT = 25;
 

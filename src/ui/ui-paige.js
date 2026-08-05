@@ -1,4 +1,4 @@
-// ===== src/ui/ui-paige.js · 牌灵卡（盲抽版：背面朝上，按住听牌，松手开牌） =====
+// ===== src/ui/ui-paige.js · 牌灵卡（盲抽版：背面朝上，点牌即开） =====
 import { state } from '../state.js';
 import { createDeck, shuffle } from '../engine.js';
 import { getCardColor, getWuxing } from '../data.js';
@@ -6,7 +6,6 @@ import { getPaiGeQuestion, PAIGE_HASHTAGS } from '../texts/social.js';
 import { toast } from './ui-modal.js';
 import { escapeForHTML, setHTML } from '../utils/safe.js';
 import { playCardSound } from '../utils/sound.js';
-import { TING_DURATION } from '../constants.js';
 
 const STORAGE_KEY = 'fsp_paige';
 const HISTORY_KEY = 'fsp_history';
@@ -74,7 +73,7 @@ function showPaiGeDraw(modal, content) {
     <div style="text-align:center;"> 
       <h3 style="color:var(--accent);">🃏 盲抽你的牌灵</h3>
       <p id="paigeDeckHint" style="font-size:0.8rem;color:var(--dim);margin:8px 0 16px;">
-        凭直觉，按住一张牌背，听牌片刻，松手即开。<br>
+        凭直觉，点一张牌背即开。<br>
         翻开的瞬间，你的无意识会借这张牌，
         说出它想让你看见的课题。
         <br>
@@ -122,51 +121,28 @@ function showPaiGeDraw(modal, content) {
     setTimeout(() => confirmPaiGePick(card), 420 + 550);
   }
 
-  content.querySelectorAll('[data-paige-card-idx]').forEach(el => bindHoldToFlip(el));
+  content.querySelectorAll('[data-paige-card-idx]').forEach(el => bindTapToFlip(el));
 
-  // 摸牌手势：按住牌背 → 听牌（想好了，就翻。）→ 松手开牌；提前松手 = 没摸稳，作罢
-  function bindHoldToFlip(el) {
+  // 摸牌手势：点牌即开（无需长按，简单直接）
+  function bindTapToFlip(el) {
     const idx = parseInt(el.dataset.paigeCardIdx);
     const hint = content.querySelector('#paigeDeckHint');
-    const originalHint = hint ? hint.textContent : '';
-    let held = false;
-    let timer = null;
-    const cleanup = () => {
-      window.clearTimeout(timer);
-      el.classList.remove('card-holding', 'card-ting');
-      el.removeEventListener('pointerup', onUp);
-      el.removeEventListener('pointercancel', onCancel);
-    };
-    const onUp = () => {
-      cleanup();
-      if (held) {
-        flipPaiGeCard(idx, deck[idx]);
-      } else if (hint) {
-        hint.textContent = originalHint;
-      }
-    };
-    const onCancel = () => {
-      cleanup();
-      if (hint) hint.textContent = originalHint;
-    };
     const onDown = (e) => {
       if (paigeLocked) return;
       if (e.pointerType === 'mouse' && e.button !== 0) return;
-      el.setPointerCapture?.(e.pointerId);
       el.classList.add('card-holding');
-      if (hint) hint.textContent = '按住牌背 · 听牌片刻…';
-      timer = window.setTimeout(() => {
-        held = true;
-        el.classList.remove('card-holding');
-        el.classList.add('card-ting');
-        if (hint) hint.textContent = '想好了，就翻。';
-        if (navigator.vibrate) navigator.vibrate(30);
-        playCardSound('tap'); // 摸牌一声轻竹
-      }, TING_DURATION);
+      if (hint) hint.textContent = '想好了，就翻。';
+      if (navigator.vibrate) navigator.vibrate(20);
+    };
+    const onUp = (e) => {
+      if (paigeLocked) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      el.classList.remove('card-holding');
+      flipPaiGeCard(idx, deck[idx]);
     };
     el.addEventListener('pointerdown', onDown);
     el.addEventListener('pointerup', onUp);
-    el.addEventListener('pointercancel', onCancel);
+    el.addEventListener('pointercancel', () => el.classList.remove('card-holding'));
   }
 
   document.getElementById('paigeRandomBtn')?.addEventListener('click', () => {

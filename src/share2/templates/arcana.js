@@ -1,226 +1,105 @@
-// ===== src/share2/templates/arcana.js · 牌灵海报（统一设计系统 · 奶油薄荷蒂芙尼） =====
-// 基于 theme.js 骨架：品牌栏 → 大标题 → 左侧大牌面 + 右侧档案 → 底部金句 → 落款+二维码。
-// 原则：左对齐网格、1px 薄荷细线分隔、无噪点无光斑、光效只留薄荷细框微光（克制）。
+// ===== src/share2/templates/arcana.js · 牌灵档案（DOM 版 · 深纸） =====
+// 主题「它想对你说」：品牌栏 → 大字标题 → 中央牌 → 五行/关键词 → 签语 → 落款。
 
-import {
-  W, H, M, CW, DARK, SERIF, SANS, NUM, font,
-  roundRectPath, wrapText, paintBackground, drawBrandBar, drawFooter,
-  roughBox, roughCircle, roughWxIcon, pickBySeed, FOOTER_NOTES,
-} from '../theme.js';
-import { drawPokerCard } from '../poker.js';
+import { PAPER, FONT_SANS, FOOTER_NOTES, pickBySeed, TAG_BY_WX, paperBackground } from '../style.js';
+import { roughBoxSVG, wxIconSVG, sealBoxSVG, dividerSVG } from '../rough-svg.js';
+import { pokerCardHTML } from './cards.js';
+import { escapeForHTML } from '../../utils/safe.js';
 
-/** 五行力量点阵：满点数（木/金旺 4，火 3，土/水平 2） */
-const POWER = { 木: 4, 火: 3, 土: 2, 金: 4, 水: 2 };
-
-/** 五行属性文案（克制点缀） */
-const WX_LABEL = { 木: '生长', 火: '明动', 土: '承载', 金: '肃敛', 水: '润下' };
-const WX_COLOR = { 木: '#7ba88f', 火: '#c96f52', 土: '#c9b184', 金: '#a89f8f', 水: '#7a9cb0' };
-
-/** 日期 2026.08.03 */
-function dotDate(dateText) {
-  if (!dateText) return '';
-  const m = dateText.match(/(\d{4})[-/](\d{2})[-/](\d{2})/);
-  return m ? `${m[1]}.${m[2]}.${m[3]}` : dateText;
-}
+const W = 1080;
+const H = 1440;
+const M = 96;
 
 /**
- * 牌灵深空档案（1080×1440）
- * data: { cardMain{rank,suit,wx,color}, element, relation, keywords, quote, line, title, dateText }
+ * 牌灵档案（DOM 版）
+ * data: { cardMain/card, title, line, quote, element, keywords, dateText, paige }
  */
-export async function renderArcana(ctx, w, h, data) {
-  const t = DARK;
-  const card = data.cardMain || { rank: '?', suit: '', wx: '土', color: 'black' };
+export function renderArcanaHTML(data, qr) {
+  const p = PAPER.dark;
+  const card = data.cardMain || data.card || { rank: '?', suit: '', wx: '土', color: 'black' };
   const wx = card.wx || data.element || '土';
-  const relation = data.relation || '受克 · 宜守';
-  const power = POWER[wx] || 3;
-  // 底部金句：优先取牌灵课题原文（paige.question）——「牌是镜子」的定位下，
-  // 课题比名人名言更像这面镜子；无课题时才回退名人名言/兜底文案。
-  const quote = (data.paige?.question || data.quote || data.line || '观牌知势').replace(/^“|”$/g, '');
   const dateText = data.dateText || '';
-  const wxColor = WX_COLOR[wx] || '#6fae9c';
-  const wxLabel = WX_LABEL[wx] || '';
-  const keywords = (data.keywords || []).slice(0, 3);
-  const L = M;
+  const keywords = (data.keywords && data.keywords.length ? data.keywords : ['观牌', '知势']).slice(0, 4);
+  const line = (data.line || data.quote || '它想对你说').replace(/^“|”$/g, '');
+  const signTag = TAG_BY_WX[wx] || '今日一句';
+  const note = pickBySeed(dateText, FOOTER_NOTES);
 
-  // ---------- 1. 背景 + 品牌栏 ----------
-  paintBackground(ctx, t, w, h);
-  drawBrandBar(ctx, t, {
-    dateText: dotDate(dateText),
-    rightLabel: '这是你的牌灵 · 长期陪伴你的象征',
+  // 中央牌（300×420）
+  const cardHTML = pokerCardHTML(card, {
+    size: 300,
+    paper: p.paper,
+    red: p.red,
+    ink: p.ink,
+    border: 'rgba(243,235,220,0.42)',
+    shadow: p.cardShadow,
+    font: FONT_SANS,
   });
 
-  // ---------- 2. 大标题（左对齐，留白充足） ----------
-  ctx.save();
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = t.ink;
-  ctx.font = font(700, 104);
-  ctx.fillText('牌灵', L, 262);
-  ctx.font = font(300, 26);
-  ctx.fillStyle = t.inkDim;
-  ctx.fillText('一张长期陪伴你的牌', L, 316);
-  ctx.restore();
+  // 五行 pill
+  const pillHTML = `
+    <div style="position:absolute;left:50%;top:872px;transform:translateX(-50%);width:96px;height:52px;">
+      ${roughBoxSVG(0, 0, 96, 52, { r: 26, stroke: p.gold, strokeWidth: 2, roughness: 1.2, fill: p.pillBg })}
+      <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;color:${p.goldDeep};font-size:26px;font-weight:700;font-family:${FONT_SANS};">${escapeForHTML(wx)}</div>
+    </div>`;
 
-  // ---------- 3. 左侧大牌面（真实扑克牌）+ 暗金极细轮廓框（微光克制） ----------
-  const bx = L, by = 430, bw = 420, bh = 588;
-  const cx = bx + bw / 2, cy = by + bh / 2;
+  // 关键词 chips（手绘圆角）
+  const chipW = 132;
+  const chipGap = 20;
+  const chipsTotal = keywords.length * chipW + (keywords.length - 1) * chipGap;
+  const chipsStart = (W - chipsTotal) / 2;
+  const chipsHTML = keywords.map((k, i) => `
+    <div style="position:absolute;left:${chipsStart + i * (chipW + chipGap)}px;top:952px;width:${chipW}px;height:46px;">
+      ${roughBoxSVG(0, 0, chipW, 46, { r: 14, stroke: p.line, strokeWidth: 1.4, roughness: 1.3, fill: 'transparent' })}
+      <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;color:${p.inkDim};font-size:21px;font-weight:600;font-family:${FONT_SANS};">${escapeForHTML(k)}</div>
+    </div>`).join('');
 
-  // 3.1 蒂芙尼极细外框（只留一层细框 + 极淡微光，无第二层噪线）
-  ctx.save();
-  const gold = ctx.createLinearGradient(bx - 8, by - 8, bx + bw + 8, by + bh + 8);
-  gold.addColorStop(0, '#4d8f7e');
-  gold.addColorStop(0.5, '#6fae9c');
-  gold.addColorStop(1, '#4d8f7e');
-  ctx.strokeStyle = gold;
-  ctx.lineWidth = 1.5;
-  ctx.shadowColor = 'rgba(111,174,156,0.28)';
-  ctx.shadowBlur = 18;
-  roundRectPath(ctx, bx - 8, by - 8, bw + 16, bh + 16, 6);
-  ctx.stroke();
-  ctx.shadowBlur = 0;
-  ctx.restore();
+  // 签语区
+  const quoteHTML = `
+    <div style="position:absolute;left:0;right:0;top:1046px;text-align:center;">
+      <div style="display:inline-flex;align-items:center;gap:10px;color:${p.gold};font-size:23px;font-weight:600;font-family:${FONT_SANS};letter-spacing:2px;">
+        ${wxIconSVG(wx, p.gold, 24)}
+        <span>${escapeForHTML(signTag)}</span>
+      </div>
+    </div>
+    <div style="position:absolute;left:140px;right:140px;top:1096px;text-align:center;color:${p.ink};font-size:31px;font-weight:500;font-family:${FONT_SANS};line-height:1.62;">「${escapeForHTML(line)}」</div>`;
 
-  // 3.2 真实扑克牌主体
-  drawPokerCard(ctx, card, bx, by, bw, bh, {
-    red: '#c96f52',
-    black: '#3a3425',
-    paper: '#f6f0e2',
-    border: '#6b6352',
-  });
+  // 底部：落款 + 印章 + QR
+  const footerHTML = `
+    <div style="position:absolute;left:${M}px;bottom:${M}px;">
+      ${dividerSVG(0, 480, 0, { stroke: p.line })}
+      <div style="margin-top:34px;color:${p.goldDeep};font-size:26px;font-weight:600;font-family:${FONT_SANS};">${escapeForHTML(note)}</div>
+      <div style="margin-top:10px;color:${p.inkFaint};font-size:16px;font-family:${FONT_SANS};">它想对你说 · 数据只存本机</div>
+    </div>
+    <div style="position:absolute;right:${M}px;bottom:${M - 8}px;width:96px;height:96px;background:${p.qrLight};border-radius:10px;border:1px solid rgba(243,235,220,0.2);padding:8px;box-sizing:border-box;">
+      ${qr ? `<img src="${qr}" alt="" style="display:block;width:100%;height:100%;">` : '<div style="width:100%;height:100%;background:repeating-linear-gradient(45deg,#3f3a2c,#3f3a2c 6px,#58513e 6px,#58513e 12px);"></div>'}
+    </div>
+    <div style="position:absolute;right:${M + 128}px;bottom:${M + 14}px;width:50px;height:50px;text-align:center;color:#c05648;font-size:17px;font-weight:700;font-family:${FONT_SANS};line-height:1.28;">
+      ${sealBoxSVG(50, '#c05648')}
+      <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);">浮<br>生</div>
+    </div>`;
 
-  // 3.3 手绘勾边（绘本质感，双线轻微抖动）
-  roughBox(ctx, bx - 16, by - 16, bw + 32, bh + 32, {
-    r: 12,
-    stroke: 'rgba(111,174,156,0.5)',
-    lineWidth: 1.5,
-    roughness: 1.15,
-    bowing: 1.3,
-  });
+  return `
+    <div style="width:${W}px;height:${H}px;position:relative;overflow:hidden;font-family:${FONT_SANS};${paperBackground(p)}">
+      ${roughBoxSVG(26, 26, W - 52, H - 52, { r: 30, stroke: p.border, strokeWidth: 2.4, roughness: 1.1 })}
 
-  // ---------- 4. 右侧档案区（严格对齐，x 由网格推导） ----------
-  const dx = L + bw + 48;          // 档案左 x
-  const dw = W - M - dx;           // 档案宽
-  let dy = by;                     // 档案顶与牌顶对齐
+      <!-- 品牌栏 -->
+      <div style="position:absolute;left:${M}px;top:52px;color:${p.inkDim};font-size:22px;font-weight:600;font-family:${FONT_SANS};">浮生牌 · <span style="color:${p.gold};">牌灵档案</span></div>
+      <div style="position:absolute;right:${M}px;top:52px;color:${p.inkFaint};font-size:20px;font-family:${FONT_SANS};">ARCANA</div>
 
-  // 4.1 牌名（大号 rank + 花色）
-  const rankStr = card.rank == null ? '?' : String(card.rank);
-  const suitStr = card.suit || '';
-  const isRed = card.color === 'red' || suitStr === '♥' || suitStr === '♦';
-  ctx.save();
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = isRed ? t.red : t.ink;
-  ctx.font = font(700, 84, NUM);
-  ctx.fillText(rankStr, dx, dy + 72);
-  if (suitStr) {
-    const rw = ctx.measureText(rankStr).width;
-    ctx.font = font(400, 64, NUM);
-    ctx.fillText(suitStr, dx + rw + 26, dy + 68);
-  }
-  ctx.restore();
-  dy += 112;
+      <!-- 标题 -->
+      <div style="position:absolute;left:0;right:0;top:196px;text-align:center;">
+        <div style="color:${p.gold};font-size:24px;font-weight:500;font-family:${FONT_SANS};letter-spacing:12px;">它 想 对 你 说</div>
+        <div style="margin-top:18px;color:${p.ink};font-size:52px;font-weight:800;font-family:${FONT_SANS};line-height:1;">${escapeForHTML((data.title || '牌灵').replace(/^“|”$/g, ''))}</div>
+      </div>
 
-  // 4.2 元素（五行）
-  ctx.save();
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = t.inkFaint;
-  ctx.font = font(400, 18, SANS);
-  ctx.fillText('元素', dx, dy);
-  ctx.fillStyle = wxColor;
-  roughCircle(ctx, dx + 58, dy - 6, 6, {
-    stroke: wxColor, lineWidth: 1.6, roughness: 1.2,
-    fill: wxColor, fillStyle: 'solid',
-  });
-  ctx.fillStyle = t.ink;
-  ctx.font = font(600, 30);
-  ctx.fillText(wx, dx + 76, dy + 2);
-  if (wxLabel) {
-    ctx.fillStyle = t.inkDim;
-    ctx.font = font(300, 19);
-    ctx.fillText(wxLabel, dx + 76 + ctx.measureText(wx).width + 16, dy + 2);
-  }
-  ctx.restore();
-  dy += 64;
+      <!-- 中央牌 -->
+      <div style="position:absolute;left:50%;top:390px;transform:translateX(-50%);">
+        ${cardHTML}
+      </div>
 
-  // 4.3 体用关系
-  ctx.save();
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = t.inkFaint;
-  ctx.font = font(400, 18, SANS);
-  ctx.fillText('体用', dx, dy);
-  ctx.fillStyle = t.gold;
-  ctx.font = font(600, 26);
-  ctx.fillText(relation, dx + 58, dy);
-  ctx.restore();
-  dy += 60;
-
-  // 4.4 五行力量点阵（5 点，前空后实，右对齐网格）
-  ctx.save();
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = t.inkFaint;
-  ctx.font = font(400, 18, SANS);
-  ctx.fillText('力量', dx, dy);
-  const dotR = 8, gap = 30;
-  for (let i = 0; i < 5; i++) {
-    const px = dx + 58 + i * gap;
-    if (i < power) {
-      roughCircle(ctx, px, dy - 8, dotR, {
-        stroke: wxColor, lineWidth: 1.5, roughness: 1.1,
-        fill: wxColor, fillStyle: 'solid',
-      });
-    } else {
-      roughCircle(ctx, px, dy - 8, dotR, { stroke: t.inkFaint, lineWidth: 1.5, roughness: 1.1 });
-    }
-  }
-  ctx.restore();
-  dy += 56;
-
-  // 4.5 关键词（圆角标签，克制排布）
-  if (keywords.length) {
-    ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    keywords.forEach((kw, i) => {
-      const tw = Math.min(ctx.measureText(kw).width + 44, 136);
-      const tx = dx + tw / 2;
-      roughBox(ctx, tx - tw / 2, dy - 22, tw, 44, {
-        r: 22,
-        stroke: 'rgba(111,174,156,0.3)',
-        lineWidth: 1.3,
-        roughness: 1.0,
-        fill: 'rgba(111,174,156,0.16)',
-        fillStyle: 'solid',
-      });
-      ctx.fillStyle = t.gold;
-      ctx.font = font(400, 20);
-      ctx.fillText(kw, tx, dy + 1);
-      dy += 54;
-    });
-    ctx.restore();
-  }
-
-  // ---------- 5. 底部金句（左对齐跨整行：手绘图标 + 引语 + 课题签语） ----------
-  ctx.save();
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  // 5.1 引语标签：五行小图标 + 「它想对你说」
-  ctx.fillStyle = t.inkFaint;
-  ctx.font = font(400, 15, SANS);
-  ctx.fillText('它想对你说', L + 42, h - 248);
-  roughWxIcon(ctx, L, h - 260, wx, { size: 20, color: t.gold });
-  // 5.2 课题签语（1-2 行）
-  ctx.fillStyle = t.goldDim;
-  ctx.font = font(500, 26);
-  const qLines = wrapText(ctx, `「${quote}」`, CW, 2);
-  qLines.forEach((ln, i) => ctx.fillText(ln, L, h - 206 + i * 42));
-  ctx.restore();
-
-  // ---------- 6. 落款 + 二维码 ----------
-  await drawFooter(ctx, t, {
-    note: `「${pickBySeed(dateText, FOOTER_NOTES)}」`,
-    sub: `观牌知势 · ${dotDate(dateText) || ''}`,
-  });
+      ${pillHTML}
+      ${chipsHTML}
+      ${quoteHTML}
+      ${footerHTML}
+    </div>`;
 }
