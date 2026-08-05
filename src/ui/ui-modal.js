@@ -139,8 +139,8 @@ export function showAIGuideModal() {
   });
   document.getElementById('copyPromptBtn2')?.addEventListener('click', async (e) => {
     const btn = e.currentTarget;
-    const { buildAIPrompt } = await import('../ui.js');
-    const prompt = await buildAIPrompt();
+    const { buildAIPrompt } = await import('../services/prompts.js');
+    const prompt = await buildAIPrompt(state);
     const ok = await copyTextWithFeedback(prompt, btn);
     toast(ok ? '✅ 提示词已复制（含问题与领域），可粘贴到任何 AI 工具' : '复制失败，请长按手动复制');
   });
