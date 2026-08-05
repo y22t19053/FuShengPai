@@ -3,6 +3,9 @@ import { getWuxing, getDailyFortuneType } from '../data.js';
 import { getAlmanac } from '../calendar.js';
 import { getProfile } from '../storage.js';
 import { buildLocalReading } from './readings.js';
+import { getPokerPersona } from '../persona.js';
+import { getPaiGeQuestion, getFriendCircleHook } from '../texts/social.js';
+import { buildDailyOracle } from '../texts/daily-oracle.js';
 
 // ===== AI Prompt =====
 export async function buildAIPrompt(state) {
@@ -51,12 +54,40 @@ export function buildSingleCardPrompt(card, opts = {}) {
     almanacLine = `农历${a.lunarDate} · ${a.ganZhiDay}日 · ${a.jianchu}${a.term ? ' · 今日' + a.term : ''} · 财神在${a.shenSha.cai}`;
   } catch (e) { almanacLine = ''; }
 
+  // 牌灵上下文（确定性取句：同一天同牌面 → 同一组文案，与页面/分享图一致）
+  const persona = getPokerPersona(card);
+  const paige = getPaiGeQuestion(card);
+  const dateStr = opts.dateStr || '';
+  const hook = getFriendCircleHook(card, dateStr);
+  let oracleLine = '';
+  try {
+    const o = buildDailyOracle({ wx, dateStr });
+    if (o && o.mood) {
+      oracleLine = `今日能量基调：${o.mood.title}（${o.mood.text.slice(0, 60)}${o.mood.text.length > 60 ? '…' : ''}）`;
+    }
+  } catch (e) { oracleLine = ''; }
+
+  const personaLine = persona
+    ? `牌灵人格：${persona.title}\n${persona.core}`
+    : '';
+  const paigeLine = paige
+    ? `牌灵课题：${paige.title}\n课题思考：${paige.question}`
+    : '';
+  const hookLine = hook
+    ? `今日主题：${hook.title}\n今日一句：${hook.line}`
+    : '';
+
   return `${periodLabel}当前时间：${now}
 
 【牌面】
 ${rank}${suit}
 五行：${wx}
 阴阳：${yinyang}
+
+${personaLine ? `【牌灵人格】\n${personaLine}\n` : ''}
+${paigeLine ? `【牌灵课题】\n${paigeLine}\n` : ''}
+${hookLine ? `【今日观牌】\n${hookLine}\n` : ''}
+${oracleLine ? `【今日气场】\n${oracleLine}\n` : ''}
 
 【今日历法（真实黄历，供参考气场）】
 ${almanacLine || '（今日历法不可用）'}
@@ -65,7 +96,7 @@ ${almanacLine || '（今日历法不可用）'}
 ${metaphor || '（无预设意象，请基于牌面五行与符号与用户对话）'}
 
 【解读要求】
-请基于这张牌的五行能量、阴阳属性，结合今日历法气场，围绕「${fortuneTypeLabel}」这个主题，给出深度解读：
+请基于这张牌的五行能量、阴阳属性、牌灵人格与课题，结合今日历法气场，围绕「${fortuneTypeLabel}」这个主题，给出深度解读：
 1. 这张牌对当前「${fortuneTypeLabel}」状态的影响；
 2. 这张牌在“自身/人际/事业/健康”四个维度上的启示；
 3. 一条具体可执行的建议。

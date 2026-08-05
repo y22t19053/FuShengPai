@@ -35,7 +35,8 @@ export function buildShareData(resultText = '') {
   const tiWx = getWuxing(tiCard);
   const yongCard = state.yong || null;
   const yongWx = yongCard ? getWuxing(yongCard) : null;
-  const hook = getFriendCircleHook(tiCard);
+  const dateStr = localDateStr();
+  const hook = getFriendCircleHook(tiCard, dateStr);
 
   // 天机线（三宫直线，转为宫名以匹配 gridSummary）
   const lineInfo = (state.line && state.line.length === 3)
@@ -66,7 +67,7 @@ export function buildShareData(resultText = '') {
     keywords: [],
     quote: '',
     tags: hook.tags || [],
-    topic: getSocialTopic(tiCard),
+    topic: getSocialTopic(tiCard, 'overall', dateStr),
     fingerprint: buildShareFingerprint(state.deck || [], state.uid ? String(state.uid) : ''),
     timestamp: Date.now(),
     dateText: new Date().toISOString().slice(0, 10),
@@ -89,9 +90,9 @@ export function buildShareData(resultText = '') {
 export function buildSingleCardShareData(card, fortuneType = 'overall') {
   const cardMain = buildCardMain(card);
   const wx = cardMain ? cardMain.wx : '土';
-  const hook = getFriendCircleHook(card);
-  const paige = card ? getPaiGeQuestion(card) : null;
   const dateStr = localDateStr();
+  const hook = getFriendCircleHook(card, dateStr);
+  const paige = card ? getPaiGeQuestion(card) : null;
 
   return {
     type: 'single',
@@ -102,7 +103,7 @@ export function buildSingleCardShareData(card, fortuneType = 'overall') {
     durian: 0,
     keywords: (paige?.keywords?.length ? paige.keywords : hook.tags || []).slice(0, 3),
     // getPaiGeQuote 返回 {text, author}，这里只取文字部分，保证模板拿到字符串
-    quote: card ? (getPaiGeQuote(card)?.text || '') : hook.line,
+    quote: card ? (getPaiGeQuote(card, dateStr)?.text || '') : hook.line,
     title: hook.title,
     line: hook.line,
     // 牌灵课题原文（arcana 模板优先使用：课题标题 + 课题正文）
@@ -110,8 +111,8 @@ export function buildSingleCardShareData(card, fortuneType = 'overall') {
       title: paige.title || hook.title,
       question: paige.question || hook.line,
     } : null,
-    tags: getFortuneTags(card, fortuneType),
-    topic: getSocialTopic(card, fortuneType),
+    tags: getFortuneTags(card, fortuneType, dateStr),
+    topic: getSocialTopic(card, fortuneType, dateStr),
     fortuneType,
     // 赛博黄历：宜/忌/建除/冲煞/五行基调，按当日确定性取（日运分享图模板消费）
     oracle: buildDailyOracle({ wx, dateStr }),

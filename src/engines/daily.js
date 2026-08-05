@@ -21,9 +21,10 @@ export const dailyEngine = {
     const { wx, dateStr, card, fortuneType = 'overall' } = input || {};
     const cardWx = card ? getWuxing(card) : null;
     const oracle = buildDailyOracle({ wx: cardWx || wx || '土', dateStr });
-    const fortune = card ? getDailyFortune(card, fortuneType) : null;
-    const hook = card ? getFriendCircleHook(card) : null;
-    const tags = card ? getFortuneTags(card, fortuneType).slice(0, 3) : [];
+    const fortune = card ? getDailyFortune(card, fortuneType, dateStr) : null;
+    // 传入 dateStr 作种子：页内横幅与分享图同一天同牌面 → 同一句文案
+    const hook = card ? getFriendCircleHook(card, dateStr) : null;
+    const tags = card ? getFortuneTags(card, fortuneType, dateStr).slice(0, 3) : [];
     return { oracle, fortune, hook, tags, card, wx: cardWx || wx || '土' };
   },
 };

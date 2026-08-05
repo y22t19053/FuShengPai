@@ -14,13 +14,14 @@ export const paigeEngine = {
     card: { type: 'object', required: true, label: '牌面对象', desc: '{ suit, rank, isJoker, type }' },
   },
   calc(input) {
-    const { card } = input || {};
+    const { card, dateStr } = input || {};
     if (!card) return null;
     const wx = getWuxing(card);
     const persona = getPokerPersona(card);
     const question = getPaiGeQuestion(card);
-    const hook = getFriendCircleHook(card);
-    const quote = getPaiGeQuote(card);
+    // 确定性种子：同牌面同一天 → 同一句（与分享图一致）
+    const hook = getFriendCircleHook(card, dateStr);
+    const quote = getPaiGeQuote(card, dateStr);
     return {
       card,
       wx,

@@ -452,7 +452,7 @@ export function renderTodayFortuneStrip() {
     const paigeData = raw ? JSON.parse(raw) : null;
     if (paigeData && paigeData.card) {
       paigeCard = paigeData.card;
-      const paige = runEngine('paige', { card: paigeCard });
+      const paige = runEngine('paige', { card: paigeCard, dateStr: getCurrentPeriodKey('daily') });
       const q = paige?.question || null;
       const hook = paige?.hook || { title: '', line: '', tags: [] };
       const tags = (q?.keywords?.length ? q.keywords : hook.tags || []).slice(0, 3);

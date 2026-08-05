@@ -77,17 +77,23 @@ export function generateMetaphor(context) {
   return parts.slice(0, 2).join(' ');
 }
 
+/** 随机取一条（九宫体用局比喻保留随机，单牌判词走确定性） */
+function pick(arr) {
+  if (!arr || arr.length === 0) return '';
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
 // ===== 单张周期牌的比喻（轻量版·支持日运细选类别） =====
-// ===== 单张周期牌的比喻（轻量版·支持日运细选类别） =====
-// 判词从五行×类别池随机取，每日不重样；不再写死单句。
-export function generateSingleCardMetaphor(card, wx, periodLabel, fortuneType = 'overall') {
+// 判词按「牌面 × 周期标签 × 日期」确定性取（同一天同牌面 → 同一句），不再随机；
+// 与页内横幅/分享图/AI 提示词共用同一套种子体系，保证同一天观感统一。
+export function generateSingleCardMetaphor(card, wx, periodLabel, fortuneType = 'overall', dateStr = '') {
   const rank = card.isJoker ? card.type : card.rank;
   const suit = card.isJoker ? '' : card.suit;
   const label = `${rank}${suit}`;
 
   const pool = (WUXING_FORTUNE_POOLS[wx] && (WUXING_FORTUNE_POOLS[wx][fortuneType] || WUXING_FORTUNE_POOLS[wx].overall))
     || WUXING_FORTUNE_POOLS['土'].overall;
-  const base = pick(pool);
+  const base = pickStable(`${label}|${wx}|${fortuneType}|${periodLabel || ''}|${dateStr || todayDate()}`, pool);
 
   const typeLabelMap = {
     overall: '综合', wealth: '财运', love: '桃花', noble: '贵人', career: '事业', health: '健康', study: '学业'
@@ -96,6 +102,28 @@ export function generateSingleCardMetaphor(card, wx, periodLabel, fortuneType = 
   return `【${periodLabel} · ${typeLabelMap[fortuneType] || '综合'} · ${label} · ${wx}】\n${base}`;
 }
 
-function pick(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
+/** 今天日期（YYYY-MM-DD，与 social.js todaySeed 同源语义） */
+function todayDate() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** 种子归一化：'2026-8-6' / '2026-8-6|xxx' → 补零（与 social.js / persona.js 同口径） */
+function normalizeSeed(s) {
+  const str = String(s ?? '');
+  const m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(.*)$/);
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}${m[4] || ''}`;
+  return str;
+}
+
+/** 确定性取句：同一种子永远同一句（FNV-1a，与 social.js pickStable 同算法） */
+function pickStable(seedText, arr) {
+  if (!arr || !arr.length) return '';
+  const seed = normalizeSeed(String(seedText || ''));
+  let h = 0x811c9dc5;
+  for (const ch of seed) {
+    h ^= ch.charCodeAt(0);
+    h = (h * 0x01000193) >>> 0;
+  }
+  return arr[h % arr.length];
 }

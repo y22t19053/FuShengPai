@@ -1,7 +1,35 @@
 // ===== src/persona.js · 扑克牌人格 + 单牌运势体系 =====
 import { getWuxing, DAILY_FORTUNE_TYPES } from './data.js';
-import { pick } from './constants.js';
 import { WUXING_FORTUNE_POOLS, WUXING_MOOD_SHORTS } from './texts/fortune-pools.js';
+
+// 确定性取句：同一张牌同一天 → 同一判词（与页内横幅/分享图/AI 提示词同种子体系）
+function hashText(s) {
+  let h = 0x811c9dc5;
+  for (const ch of String(s || '')) {
+    h ^= ch.charCodeAt(0);
+    h = (h * 0x01000193) >>> 0;
+  }
+  return h;
+}
+function todaySeed() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function normalizeSeed(s) {
+  const str = String(s ?? '');
+  const m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(.*)$/);
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}${m[4] || ''}`;
+  return str;
+}
+function pickStable(seedText, arr) {
+  if (!arr || !arr.length) return '';
+  return arr[hashText(normalizeSeed(String(seedText ?? todaySeed()))) % arr.length];
+}
+function cardSeed(card, extra = '') {
+  if (!card) return `cardless|${extra}`;
+  const base = card.isJoker ? `joker-${card.type || '小'}` : `${card.rank || ''}${card.suit || ''}`;
+  return `${base}|${normalizeSeed(extra || todaySeed())}`;
+}
 
 // ---- 花色气质 ----
 const SUIT_PERSONA = {
@@ -67,14 +95,15 @@ function fortuneGrade(wx) {
   return grades[wx] || '中平';
 }
 
-// ---- 单牌运势生成（支持细选类别，判词从五行×类别池随机取，每日不重样） ----
-export function getDailyFortune(card, typeKey = 'overall') {
+// ---- 单牌运势生成（支持细选类别，判词按「牌面 × 类别 × 日期」确定性取，每日固定不重样） ----
+export function getDailyFortune(card, typeKey = 'overall', seedText = '') {
   if (!card) return null;
   const wx = getWuxing(card);
   const pool = (WUXING_FORTUNE_POOLS[wx] && (WUXING_FORTUNE_POOLS[wx][typeKey] || WUXING_FORTUNE_POOLS[wx].overall))
     || WUXING_FORTUNE_POOLS['土'].overall;
-  const text = pick(pool);
-  const mood = pick(WUXING_MOOD_SHORTS[wx] || WUXING_MOOD_SHORTS['土']);
+  const seed = seedText || cardSeed(card, typeKey);
+  const text = pickStable(seed, pool);
+  const mood = pickStable(`${seed}|mood`, WUXING_MOOD_SHORTS[wx] || WUXING_MOOD_SHORTS['土']);
   const type = FORTUNE_TYPES.find(t => t.key === typeKey) || FORTUNE_TYPES[0];
   return {
     wx,

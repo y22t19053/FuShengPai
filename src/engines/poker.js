@@ -16,12 +16,12 @@ export const pokerEngine = {
     periodLabel: { type: 'string', default: '日运', label: '周期标签', desc: '如 日运/周运/月运' },
   },
   calc(input) {
-    const { card, fortuneType = 'overall', periodLabel = '日运' } = input || {};
+    const { card, fortuneType = 'overall', periodLabel = '日运', dateStr = '' } = input || {};
     if (!card) return null;
     const wx = getWuxing(card);
     const persona = getPokerPersona(card);
-    const fortune = getDailyFortune(card, fortuneType);
-    const metaphor = generateSingleCardMetaphor(card, wx, periodLabel, fortuneType);
+    const fortune = getDailyFortune(card, fortuneType, dateStr);
+    const metaphor = generateSingleCardMetaphor(card, wx, periodLabel, fortuneType, dateStr);
     return { card, wx, persona, fortune, metaphor };
   },
 };

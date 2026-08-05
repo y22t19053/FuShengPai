@@ -1,5 +1,49 @@
 // ===== src/texts/social.js · 牌灵课题库（玄学留白感 + 真实名人名言库） =====
 
+// ---- 确定性取句工具 ----
+// 目的：同一张牌同一天永远取同一句 → 页内横幅与分享图文案一致、同一天稳定、
+//       次日自动换新（天意感而非随机感）。替代 Math.random 的"每次都不一样"。
+
+/** 简易字符串哈希（FNV-1a 变体） */
+export function hashText(s) {
+  let h = 0x811c9dc5;
+  for (const ch of String(s || '')) {
+    h ^= ch.charCodeAt(0);
+    h = (h * 0x01000193) >>> 0;
+  }
+  return h;
+}
+
+/** 种子归一化：'2026-8-6' / '2026-8-6|t' → '2026-08-06' / '2026-08-06|t'（统一为同一种子） */
+function normalizeSeed(s) {
+  const str = String(s ?? '');
+  const m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(.*)$/);
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}${m[4] || ''}`;
+  return str;
+}
+
+/** 按种子确定性挑一条（同种子永远同一条）；seedText 缺失时用"今天"兜底 */
+export function pickStable(seedText, arr) {
+  if (!arr || !arr.length) return '';
+  const seed = normalizeSeed(String(seedText ?? todaySeed()));
+  return arr[hashText(seed) % arr.length];
+}
+
+/** 今天日期（本地时区 YYYY-MM-DD）作默认种子 */
+export function todaySeed() {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+/** 由牌面生成确定性种子：rank+suit（Joker 用 type），可再接 dateStr */
+export function cardSeed(card, extra = '') {
+  if (!card) return `cardless|${extra}`;
+  const base = card.isJoker ? `joker-${card.type || '小'}` : `${card.rank || ''}${card.suit || ''}`;
+  return `${base}|${normalizeSeed(extra || todaySeed())}`;
+}
+
 // ======================
 // 一、牌灵解读（不直白·留白·玄学感）
 // ======================
@@ -204,9 +248,12 @@ export const SOCIAL_QUOTES = {
 };
 
 // 根据牌面取一条合适的名言（分享图顶部使用）
-export function getPaiGeQuote(card) {
+// 确定性：同一天同牌面 → 同一句（seed 可传 dateStr，缺省用今天）
+export function getPaiGeQuote(card, seedText = '') {
+  const seed = seedText || cardSeed(card, '');
+
   if (!card) {
-    return SOCIAL_QUOTES.universal[Math.floor(Math.random() * SOCIAL_QUOTES.universal.length)];
+    return pickStable(seed, SOCIAL_QUOTES.universal);
   }
 
   let key = 'universal';
@@ -224,7 +271,7 @@ export function getPaiGeQuote(card) {
   }
 
   const pool = SOCIAL_QUOTES[key] || SOCIAL_QUOTES.universal;
-  return pool[Math.floor(Math.random() * pool.length)];
+  return pickStable(seed, pool);
 }
 
 // ======================
@@ -341,19 +388,18 @@ export const PAIGE_HASHTAGS = '#浮生牌 #一张牌说破我自己 #你的课�
 // 五、朋友圈社交钩子（大字报分享图专用）
 // ======================
 
-// 根据牌面返回五行（供社交钩子使用，不依赖外部模块）
+// 根据牌面返回五行（供社交钩子使用，与 data.js getWuxing 同口径：宫廷牌 J/Q/K 属土，A-10 按花色）
 export function getCardWuxing(card) {
   if (!card) return '土';
   if (card.isJoker) return card.type === '大王' ? '天' : '人';
+  if (card.rank === 'J' || card.rank === 'Q' || card.rank === 'K') return '土';
   const suitMap = {
     '♥': '火',
     '♦': '金',
     '♣': '木',
     '♠': '水',
   };
-  const suitWx = suitMap[card.suit];
-  if (suitWx) return suitWx;
-  return '土'; // J/Q/K
+  return suitMap[card.suit] || '土';
 }
 
 // 朋友圈大字号文案钩子（标题 + 情绪金句 + 标签胶囊）
@@ -414,17 +460,21 @@ export const FRIEND_CIRCLE_HOOKS = {
 };
 
 // 根据牌面返回朋友圈社交钩子（分享图大字报用）
-// 从多版本池随机取标题与金句，保证每次分享不重样
-export function getFriendCircleHook(card) {
+// 确定性：同一张牌同一天 → 同一组标题/金句（seed 可传 dateStr，缺省用今天）
+export function getFriendCircleHook(card, seedText = '') {
   const wx = getCardWuxing(card);
   const h = FRIEND_CIRCLE_HOOKS[wx] || FRIEND_CIRCLE_HOOKS['土'];
+  const seed = seedText || cardSeed(card, '');
   const title = (h.titles && h.titles.length)
-    ? h.titles[Math.floor(Math.random() * h.titles.length)]
+    ? pickStable(`${seed}|t`, h.titles)
     : h.title;
   const line = (h.lines && h.lines.length)
-    ? h.lines[Math.floor(Math.random() * h.lines.length)]
+    ? pickStable(`${seed}|l`, h.lines)
     : h.line;
-  return { title, line, tags: h.tags || [] };
+  const tag = (h.tags && h.tags.length)
+    ? pickStable(`${seed}|g`, h.tags)
+    : (h.tags || [])[0] || '';
+  return { title, line, tags: h.tags || [], tag };
 }
 
 // ======================
@@ -445,17 +495,18 @@ export const FORTUNE_TAG_POOLS = {
 };
 
 // 根据牌面 + 领域返回标签胶囊（用于日运/牌灵大字报底部）
-export function getFortuneTags(card, fortuneType = 'overall') {
-  const hook = getFriendCircleHook(card);
+// 确定性：同一天同牌面 → 同一组胶囊（seed 可传 dateStr，缺省用今天）
+export function getFortuneTags(card, fortuneType = 'overall', seedText = '') {
+  const hook = getFriendCircleHook(card, seedText);
   const pool = FORTUNE_TAG_POOLS[fortuneType] || FORTUNE_TAG_POOLS.overall;
-  const pickOne = (arr) => arr[Math.floor(Math.random() * arr.length)];
-  const wxTag = pickOne(hook.tags);
-  const domainTag = pickOne(pool);
+  const seed = seedText || cardSeed(card, fortuneType);
+  const wxTag = pickStable(`${seed}|w`, hook.tags || []);
+  const domainTag = pickStable(`${seed}|d`, pool);
   // 去重后拼 3 枚：领域标签 ×1 + 五行标签 ×2
   const seen = new Set([domainTag]);
-  const others = hook.tags.filter(t => !seen.has(t)).slice(0, 2);
+  const others = (hook.tags || []).filter(t => !seen.has(t)).slice(0, 2);
   others.forEach(t => seen.add(t));
-  return [domainTag, ...others].slice(0, 3);
+  return [domainTag, wxTag, ...others.filter(t => t !== wxTag)].slice(0, 3);
 }
 
 // ======================
@@ -473,13 +524,14 @@ export const SOCIAL_TOPIC_POOLS = {
   paige: ['「这一课，只有你自己能解。」', '「牌灵不说话，答案在你。」', '「今天的你，比昨天多明白了一点什么。」'],
 };
 
-// 根据牌面 + 领域返回社交话题（每类多版本随机取）
-export function getSocialTopic(card, fortuneType = 'overall') {
+// 根据牌面 + 领域返回社交话题（每类多版本，确定性取一条）
+export function getSocialTopic(card, fortuneType = 'overall', seedText = '') {
   const poolKey = !card ? 'overall'
     : (card.isJoker || (card.suit === '♣' && (card.rank === 'J' || card.rank === 'Q' || card.rank === 'K'))) ? 'paige'
     : (fortuneType || 'overall');
   const pool = SOCIAL_TOPIC_POOLS[poolKey] || SOCIAL_TOPIC_POOLS.overall;
-  return pool[Math.floor(Math.random() * pool.length)];
+  const seed = seedText || cardSeed(card, poolKey);
+  return pickStable(seed, pool);
 }
 
 // 通用社交分享文案（用于分享图下方的行动号召）

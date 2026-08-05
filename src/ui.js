@@ -50,7 +50,7 @@ import { interceptQuestion, checkDependency, getSealStatus } from './philosophy/
 import { applyCovenant } from './philosophy/covenant.js';
 import { escapeForHTML, setHTML } from './utils/safe.js';
 import { playCardSound, playJokerSound, playPlaceSound } from './utils/sound.js';
-import { initPWA } from './pwa.js';
+import { initPWA, isPWAInstalled, requestPWAInstall } from './pwa.js';
 import { resolveApiModel } from './utils/api-config.js';
 import { syncQuestionFromInput, createPeriodShareAction } from './utils/flow-helpers.js';
 import { copyTextWithFeedback } from './utils/clipboard.js';
@@ -681,7 +681,8 @@ export function openPeriodDetail(periodType, fortuneType = 'overall') {
     const prompt = buildSingleCardPrompt(card, {
       metaphor,
       periodLabel: typeLabel,
-      fortuneType
+      fortuneType,
+      dateStr: periodKey,
     });
     try {
       const result = await requestReading({
@@ -717,7 +718,8 @@ export function openPeriodDetail(periodType, fortuneType = 'overall') {
     const prompt = buildSingleCardPrompt(card, {
       metaphor,
       periodLabel: typeLabel,
-      fortuneType
+      fortuneType,
+      dateStr: periodKey,
     });
     const ok = await copyTextWithFeedback(prompt, btn);
     toast(ok ? '✅ 单牌 AI 提示词已复制（含领域与时间）' : '复制失败，请长按手动复制');
@@ -738,7 +740,7 @@ export function confirmPeriodPick(periodType, card, fortuneType = 'overall') {
   const suit = card.isJoker ? '' : card.suit;
   const periodKey = getCurrentPeriodKey(periodType);
   const typeLabel = periodType === 'daily' ? getDailyFortuneType(fortuneType).label : cfg.label;
-  const metaphor = runEngine('poker', { card, fortuneType, periodLabel: typeLabel })?.metaphor || '';
+  const metaphor = runEngine('poker', { card, fortuneType, periodLabel: typeLabel, dateStr: periodKey })?.metaphor || '';
 
   // 情绪镜像（结果页顶部）+ 场景短句（日运专属）
   const mirrorLine = getDailyMirrorLine();
@@ -1033,7 +1035,23 @@ export function handleAction(action, dataset, el = null) {
     case 'togglePanel': togglePanel(dataset.panel); break;
     case 'toggleMoreMenu': {
       const menu = document.getElementById('moreMenu');
-      if (menu) menu.hidden = !menu.hidden;
+      if (menu) {
+        menu.hidden = !menu.hidden;
+        // 打开菜单时刷新「安装到桌面」按钮状态
+        const btn = menu.querySelector('[data-action="installPWA"]');
+        if (btn) {
+          btn.textContent = isPWAInstalled() ? '✅ 已安装到桌面' : '📲 安装到桌面';
+          btn.title = isPWAInstalled() ? '浮生牌已安装，点开桌面图标即像 App 一样使用' : '把浮生牌添加到主屏幕，像 App 一样全屏使用';
+        }
+      }
+      break;
+    }
+    case 'installPWA': {
+      const r = requestPWAInstall();
+      if (r === 'installed') toast('✅ 浮生牌已安装到桌面，点开即像 App 一样使用', 3000, 'success');
+      else if (r === 'guide') { /* iOS 引导弹层已显示 */ }
+      else if (r === 'prompt') { /* 系统安装弹窗已显示 */ }
+      else if (r === 'banner') { /* 横幅已显示 */ }
       break;
     }
     case 'resetAll': resetAll(); break;
@@ -1363,6 +1381,9 @@ function init() {
     injectAnimations();
     bindAllEvents();
     initPWA();
+    document.addEventListener('fsp-pwa-installed', () => {
+      toast('🎉 已安装成功！回到桌面点开浮生牌，像 App 一样使用', 4000, 'success');
+    });
     initDrag();
     bindScrollButtons();
     renderPeriodCards();

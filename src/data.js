@@ -97,7 +97,8 @@ export const POPULAR_MODELS = [
 export const PERIODS = {
   daily: {
     label: '日运', key: 'daily', title: '今日状态', desc: '当日能量聚焦，给一个提醒。', drawCount: 1,
-    periodKeyFn: (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`,
+    // 补零 YYYY-MM-DD：与分享图 localDateStr()/todaySeed() 同口径，保证页内横幅与分享图取同一句文案
+    periodKeyFn: (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
   },
   weekly: {
     label: '周运', key: 'weekly', title: '本周状态', desc: '本周趋势展望，给一个关键关注点。', drawCount: 1,

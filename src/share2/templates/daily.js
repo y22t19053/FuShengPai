@@ -4,18 +4,19 @@
 
 import { PAPER, FONT_SANS, FOOTER_NOTES, pickBySeed, YI_JI, WEATHER, TAG_BY_WX, paperBackground } from '../style.js';
 import { roughBoxSVG, wxIconSVG, sealBoxSVG, dividerSVG } from '../rough-svg.js';
-import { pokerCardHTML } from './cards.js';
+import { pokerCardHTML, qrBoxHTML } from './cards.js';
 import { escapeForHTML } from '../../utils/safe.js';
 
 const W = 1080;
 const H = 1440;
 const M = 96;
 
-/** 日期 08.06（MM.DD） */
+/** 日期 MM.DD（严格匹配 YYYY-MM-DD 取月.日；旧正则会把年份前两位当月，如 2026-08-06 → 26.08 的错误） */
 function mmdd(dateText) {
   if (!dateText) return '';
-  const m = dateText.match(/(\d{2})[-/](\d{2})/);
-  return m ? `${m[1]}.${m[2]}` : dateText;
+  const m = dateText.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (m) return `${String(m[2]).padStart(2, '0')}.${String(m[3]).padStart(2, '0')}`;
+  return dateText;
 }
 
 /** 星期（简体中文） */
@@ -41,8 +42,9 @@ export function renderDailyHTML(data, qr) {
   const yi = (oracle && oracle.yi && oracle.yi.length) ? oracle.yi : [yiji.yi];
   const ji = (oracle && oracle.ji && oracle.ji.length) ? oracle.ji : [yiji.ji];
   const moodTitle = (oracle && oracle.mood && oracle.mood.title) || weather;
-  const line = ((oracle && oracle.combo && oracle.combo.text) || data.line || data.quote || '观牌知势').replace(/^“|”$/g, '');
-  const signTag = TAG_BY_WX[wx] || '今日一句';
+  // 与页内横幅完全一致：title=hook.title（今日课题），line=hook.line（情绪金句）
+  const topicTitle = data.title || moodTitle;
+  const signLine = (data.line || data.quote || '').replace(/^“|”$/g, '');
   const note = pickBySeed(dateText, FOOTER_NOTES);
 
   const brand = `${mmdd(dateText)} · ${weekday(dateText)}`;
@@ -79,29 +81,33 @@ export function renderDailyHTML(data, qr) {
     </div>`;
   const yiJiHTML = column('宜', p.goldDeep, yiText, true) + column('忌', p.red, jiText, false);
 
-  // 金句意象标签 + 签语
+  // 今日课题（hook.title）+ 情绪金句（hook.line）：与页内横幅同一来源，观感统一
   const quoteHTML = `
     <div style="position:absolute;left:0;right:0;top:1186px;text-align:center;">
       <div style="display:inline-flex;align-items:center;gap:10px;color:${p.goldDeep};font-size:24px;font-weight:600;font-family:${FONT_SANS};letter-spacing:2px;">
         ${wxIconSVG(wx, p.gold, 26)}
-        <span>${escapeForHTML(signTag)} · ${escapeForHTML(moodTitle)}</span>
+        <span>${escapeForHTML(topicTitle)}</span>
       </div>
     </div>
-    <div style="position:absolute;left:150px;right:150px;top:1240px;text-align:center;color:${p.ink};font-size:30px;font-weight:500;font-family:${FONT_SANS};line-height:1.6;">「${escapeForHTML(line)}」</div>`;
+    <div style="position:absolute;left:150px;right:150px;top:1240px;text-align:center;color:${p.ink};font-size:30px;font-weight:500;font-family:${FONT_SANS};line-height:1.6;">「${escapeForHTML(signLine || '观牌知势，不语已明。')}」</div>`;
 
-  // 底部：落款（左）+ 印章 + QR（右）
+  // 底部：落款（左）+ 印章 + 二维码引导（右）
   const footerHTML = `
     <div style="position:absolute;left:${M}px;bottom:${M}px;">
       ${dividerSVG(0, 480, 0, { stroke: p.line })}
-      <div style="margin-top:34px;color:${p.goldDeep};font-size:26px;font-weight:600;font-family:${FONT_SANS};">${escapeForHTML(note)}</div>
-      <div style="margin-top:10px;color:${p.inkFaint};font-size:16px;font-family:${FONT_SANS};">观牌知势 · 数据只存本机</div>
+      <div style="display:flex;align-items:center;gap:16px;margin-top:28px;">
+        <div style="width:46px;height:46px;position:relative;text-align:center;color:#a83b32;font-size:16px;font-weight:700;font-family:${FONT_SANS};line-height:1.24;flex-shrink:0;">
+          ${sealBoxSVG(46)}
+          <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);">浮<br>生</div>
+        </div>
+        <div>
+          <div style="color:${p.goldDeep};font-size:26px;font-weight:600;font-family:${FONT_SANS};">${escapeForHTML(note)}</div>
+          <div style="margin-top:6px;color:${p.inkFaint};font-size:16px;font-family:${FONT_SANS};">浮生牌 · 观牌知势 · 数据只存本机</div>
+        </div>
+      </div>
     </div>
-    <div style="position:absolute;right:${M}px;bottom:${M - 8}px;width:96px;height:96px;background:${p.qrLight};border-radius:10px;border:1px solid rgba(58,50,38,0.25);padding:8px;box-sizing:border-box;">
-      ${qr ? `<img src="${qr}" alt="" style="display:block;width:100%;height:100%;">` : '<div style="width:100%;height:100%;background:repeating-linear-gradient(45deg,#efe9d8,#efe9d8 6px,#e2d9c2 6px,#e2d9c2 12px);"></div>'}
-    </div>
-    <div style="position:absolute;right:${M + 128}px;bottom:${M + 14}px;width:50px;height:50px;text-align:center;color:#a83b32;font-size:17px;font-weight:700;font-family:${FONT_SANS};line-height:1.28;">
-      ${sealBoxSVG(50)}
-      <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);">浮<br>生</div>
+    <div style="position:absolute;right:${M}px;bottom:${M - 14}px;">
+      ${qrBoxHTML(qr, { size: 128, bg: p.qrLight, border: 'rgba(58,50,38,0.22)', ink: p.goldDeep, inkFaint: p.inkFaint, font: FONT_SANS })}
     </div>`;
 
   return `

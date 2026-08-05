@@ -9,6 +9,31 @@
 
 import { pick } from '../constants.js';
 
+// ===== 确定性取句（FNV-1a，与 social.js / metaphor.js / persona.js 同算法） =====
+// 情绪镜像与场景短句按「当天日期」取句：同一天内多次查看结果页保持同一句，不漂移。
+function todaySeed() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function normalizeSeed(s) {
+  const str = String(s ?? '');
+  const m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(.*)$/);
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}${m[4] || ''}`;
+  return str;
+}
+
+function pickStable(seedText, arr) {
+  if (!arr || !arr.length) return '';
+  const seed = normalizeSeed(String(seedText || ''));
+  let h = 0x811c9dc5;
+  for (const ch of seed) {
+    h ^= ch.charCodeAt(0);
+    h = (h * 0x01000193) >>> 0;
+  }
+  return arr[h % arr.length];
+}
+
 // ===== 一、象义观察（日运结果页顶部，每日随机一句） =====
 // 全部为「条件式/象义」写法：无论落在哪一天都成立，且与知识库的五行、六冲、九宫取象一致。
 // 注意：建除之象已被 daily-oracle.js JIANGCHU 权威覆盖，此处不再重复；深水静流/嫩芽不怕慢/收刀入鞘
@@ -51,7 +76,7 @@ export const DAILY_MIRROR_LINES = [
 ];
 
 export function getDailyMirrorLine() {
-  return pick(DAILY_MIRROR_LINES);
+  return pickStable(todaySeed(), DAILY_MIRROR_LINES);
 }
 
 // ===== 二、生活场景短句（十二宫现代转译 × 每主题 5 句） =====
@@ -159,12 +184,13 @@ const FORTUNE_TO_SCENE = {
 // 随机"通用"场景（非本类别，用作第二句）
 const EXTRA_SCENES = ['self', 'relation', 'express', 'travel', 'home'];
 
-// 返回 [主题句, 补充句]
+// 返回 [主题句, 补充句]（按当天日期确定性取句，同一天多次查看不变）
 export function getSceneLines(fortuneType = 'overall') {
   const theme = FORTUNE_TO_SCENE[fortuneType] || 'mind';
-  const themeLine = pick(SCENE_SHORTS[theme] || SCENE_SHORTS.mind);
-  const extraKey = EXTRA_SCENES[Math.floor(Math.random() * EXTRA_SCENES.length)];
-  const extraLine = pick(SCENE_SHORTS[extraKey]);
+  const day = todaySeed();
+  const themeLine = pickStable(`${day}|${theme}`, SCENE_SHORTS[theme] || SCENE_SHORTS.mind);
+  const extraKey = pickStable(`${day}|extra`, EXTRA_SCENES);
+  const extraLine = pickStable(`${day}|${extraKey}`, SCENE_SHORTS[extraKey]);
   return [themeLine, extraLine];
 }
 

@@ -65,8 +65,26 @@ function safeRemove(key) {
 }
 
 // ---------- 历史记录 ----------
+/** periodKey 归一化：旧格式 '2026-8-6' → '2026-08-06'（与新 periodKeyFn 补零口径一致，兼容旧数据） */
+function normalizePeriodKey(key) {
+  const str = String(key ?? '');
+  const m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(.*)$/);
+  return m ? `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}${m[4] || ''}` : str;
+}
+
 export function getHistory() {
-  return safeGet(HISTORY_KEY) || [];
+  const list = safeGet(HISTORY_KEY) || [];
+  // 兼容迁移：period 项的旧 periodKey（不补零）统一为补零格式
+  let changed = false;
+  const out = list.map(h => {
+    if (h && h.type === 'period' && h.periodKey) {
+      const k = normalizePeriodKey(h.periodKey);
+      if (k !== h.periodKey) { changed = true; return { ...h, periodKey: k }; }
+    }
+    return h;
+  });
+  if (changed) safeSet(HISTORY_KEY, out);
+  return out;
 }
 
 export function saveReading(data) {
@@ -86,11 +104,12 @@ export function deleteHistoryItem(index) {
 
 export function addPeriodHistoryEntry(entry) {
   const history = getHistory();
-  const existingIndex = history.findIndex(h => h.type === 'period' && h.periodType === entry.periodType && h.periodKey === entry.periodKey && (h.fortuneType || 'overall') === (entry.fortuneType || 'overall'));
+  const entryKey = normalizePeriodKey(entry.periodKey);
+  const existingIndex = history.findIndex(h => h.type === 'period' && h.periodType === entry.periodType && h.periodKey === entryKey && (h.fortuneType || 'overall') === (entry.fortuneType || 'overall'));
   const fullEntry = {
     type: 'period',
     periodType: entry.periodType,
-    periodKey: entry.periodKey,
+    periodKey: entryKey,
     fortuneType: entry.fortuneType || 'overall',
     card: entry.card,
     fortune: entry.fortune || '',
@@ -203,6 +222,13 @@ function migratePeriodCards(cards) {
   if (migrated.daily && !migrated.daily_overall) {
     migrated.daily_overall = migrated.daily;
     delete migrated.daily;
+  }
+  // periodKey 归一化迁移：旧格式 '2026-8-6' → '2026-08-06'（不补零数据自动升级，避免跨版本丢失当日签）
+  for (const [k, v] of Object.entries(migrated)) {
+    if (v && typeof v === 'object' && v.periodKey) {
+      const nk = normalizePeriodKey(v.periodKey);
+      if (nk !== v.periodKey) migrated[k] = { ...v, periodKey: nk };
+    }
   }
   return migrated;
 }

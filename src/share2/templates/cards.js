@@ -7,6 +7,27 @@ import { roughBoxSVG } from '../rough-svg.js';
 const SUIT_GLYPH = { '♠': '♠', '♥': '♥', '♦': '♦', '♣': '♣' };
 const COURT_GLYPH = { 'J': '⚔', 'Q': '♛', 'K': '♚' };
 
+/** 统一二维码组件：白底圆角框 + 二维码 + 「扫码 · 抽你的牌灵」引导文字 */
+export function qrBoxHTML(qr, o = {}) {
+  const size = o.size || 132;
+  const label = o.label || '扫码 · 抽你的牌灵';
+  const sub = o.sub || '长按识别 或 扫码';
+  const bg = o.bg || '#fdfaf1';
+  const border = o.border || 'rgba(58,52,37,0.22)';
+  const ink = o.ink || '#6b6352';
+  const inkFaint = o.inkFaint || '#887d65';
+  const font = o.font || `'PingFang SC','HarmonyOS Sans SC','MiSans','Noto Sans SC','Microsoft YaHei','Segoe UI',sans-serif`;
+  const fallback = `<div style="width:100%;height:100%;background:repeating-linear-gradient(45deg,#3f3a2c,#3f3a2c 6px,#58513e 6px,#58513e 12px);"></div>`;
+  return `
+    <div style="text-align:center;">
+      <div style="width:${size}px;height:${size}px;background:${bg};border-radius:14px;border:1px solid ${border};padding:10px;box-sizing:border-box;">
+        ${qr ? `<img src="${qr}" alt="" style="display:block;width:100%;height:100%;border-radius:6px;">` : fallback}
+      </div>
+      <div style="margin-top:10px;color:${ink};font-size:20px;font-weight:700;font-family:${font};letter-spacing:2px;">${label}</div>
+      <div style="margin-top:4px;color:${inkFaint};font-size:15px;font-family:${font};">${sub}</div>
+    </div>`;
+}
+
 function isJoker(card) {
   return !!(card && (card.isJoker || card.rank === '大王' || card.rank === '小王'));
 }

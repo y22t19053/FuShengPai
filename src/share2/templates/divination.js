@@ -3,7 +3,7 @@
 
 import { PAPER, FONT_SANS, FOOTER_NOTES, pickBySeed, TAG_BY_WX, paperBackground } from '../style.js';
 import { roughBoxSVG, wxIconSVG, sealBoxSVG, dividerSVG } from '../rough-svg.js';
-import { pokerCardHTML } from './cards.js';
+import { pokerCardHTML, qrBoxHTML } from './cards.js';
 import { escapeForHTML } from '../../utils/safe.js';
 
 const W = 1080;
@@ -97,19 +97,23 @@ export function renderDivinationHTML(data, qr) {
       </div>
     </div>`;
 
-  // 底部：落款 + 印章 + QR
+  // 底部：落款 + 印章 + 二维码引导
   const footerHTML = `
     <div style="position:absolute;left:${M}px;bottom:${M}px;">
       ${dividerSVG(0, 480, 0, { stroke: p.line })}
-      <div style="margin-top:34px;color:${p.goldDeep};font-size:26px;font-weight:600;font-family:${FONT_SANS};">${escapeForHTML(note)}</div>
-      <div style="margin-top:10px;color:${p.inkFaint};font-size:16px;font-family:${FONT_SANS};">观牌知势 · 数据只存本机</div>
+      <div style="display:flex;align-items:center;gap:16px;margin-top:28px;">
+        <div style="width:46px;height:46px;position:relative;text-align:center;color:#c05648;font-size:16px;font-weight:700;font-family:${FONT_SANS};line-height:1.24;flex-shrink:0;">
+          ${sealBoxSVG(46, '#c05648')}
+          <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);">浮<br>生</div>
+        </div>
+        <div>
+          <div style="color:${p.goldDeep};font-size:26px;font-weight:600;font-family:${FONT_SANS};">${escapeForHTML(note)}</div>
+          <div style="margin-top:6px;color:${p.inkFaint};font-size:16px;font-family:${FONT_SANS};">观牌知势 · 数据只存本机</div>
+        </div>
+      </div>
     </div>
-    <div style="position:absolute;right:${M}px;bottom:${M - 8}px;width:96px;height:96px;background:${p.qrLight};border-radius:10px;border:1px solid rgba(243,235,220,0.2);padding:8px;box-sizing:border-box;">
-      ${qr ? `<img src="${qr}" alt="" style="display:block;width:100%;height:100%;">` : '<div style="width:100%;height:100%;background:repeating-linear-gradient(45deg,#3f3a2c,#3f3a2c 6px,#58513e 6px,#58513e 12px);"></div>'}
-    </div>
-    <div style="position:absolute;right:${M + 128}px;bottom:${M + 14}px;width:50px;height:50px;text-align:center;color:#c05648;font-size:17px;font-weight:700;font-family:${FONT_SANS};line-height:1.28;">
-      ${sealBoxSVG(50, '#c05648')}
-      <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);">浮<br>生</div>
+    <div style="position:absolute;right:${M}px;bottom:${M - 14}px;">
+      ${qrBoxHTML(qr, { size: 128, bg: p.qrLight, border: 'rgba(243,235,220,0.2)', ink: p.goldDeep, inkFaint: p.inkFaint, font: FONT_SANS })}
     </div>`;
 
   return `
