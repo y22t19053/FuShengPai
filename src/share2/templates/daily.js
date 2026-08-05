@@ -6,7 +6,7 @@
 import {
   W, H, M, CW, LIGHT, SERIF, NUM, font,
   roundRectPath, wrapText, hairline, paintBackground, drawBrandBar, drawFooter,
-  roughBox, roughLine,
+  roughBox, roughLine, roughWxIcon, pickBySeed, FOOTER_NOTES,
 } from '../theme.js';
 import { drawPokerCard } from '../poker.js';
 
@@ -21,6 +21,9 @@ const YI_JI = {
   '人': { yi: '和合', ji: '独断' },
 };
 const WEATHER = { '木': '风', '火': '暑', '土': '湿', '金': '燥', '水': '寒', '天': '清', '人': '和' };
+
+/** 金句标签：五行 → 地点意象（花样但贴题，替代干巴巴的引导语） */
+const TAG_BY_WX = { 木: '林间一句', 火: '炉边一句', 土: '檐下一句', 金: '枰上一句', 水: '渡口一句' };
 
 /** 日期 08.03（MM.DD） */
 function mmdd(dateText) {
@@ -172,19 +175,28 @@ async function renderDailyCore(ctx, w, h, data, t) {
   // 两栏之间手绘竖线（中轴，轻微抖动）
   roughLine(ctx, W / 2, rowY + 22, W / 2, rowY + 90, { stroke: t.line, lineWidth: 1.6, roughness: 1.2, bowing: 1.2 });
 
-  // ---------- 6. 金句（居中，1-2 行，克制小字） ----------
+  // ---------- 6. 金句（居中：五行意象标签 + 签语，克制小字） ----------
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
+  // 6.1 意象标签：手绘五行小图标 + 「渡口一句 · 风」（按当日气象，贴题的花样）
+  const signTag = TAG_BY_WX[wx] || '今日一句';
+  const signText = `${signTag} · ${weather}`;
+  ctx.font = font(400, 17, SERIF);
+  const signW = ctx.measureText(signText).width;
+  ctx.fillStyle = t.goldDim;
+  roughWxIcon(ctx, W / 2 - signW / 2 - 38, h - 320, wx, { size: 22, color: t.gold });
+  ctx.fillText(signText, W / 2, h - 302);
+  // 6.2 签语本体（1-2 行）
   ctx.fillStyle = t.goldDim;
   ctx.font = font(500, 30, SERIF);
   const qLines = wrapText(ctx, `「${line}」`, CW - 140, 2);
-  qLines.forEach((ln, i) => ctx.fillText(ln, W / 2, h - 262 + i * 46));
+  qLines.forEach((ln, i) => ctx.fillText(ln, W / 2, h - 248 + i * 46));
   ctx.restore();
 
   // ---------- 7. 落款 + 二维码 ----------
   await drawFooter(ctx, t, {
-    note: '「牌是提示，不是命令。」',
+    note: pickBySeed(dateText, FOOTER_NOTES),
     sub: `观牌知势 · ${mmdd(dateText) || ''}`,
   });
 }

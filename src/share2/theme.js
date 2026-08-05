@@ -84,6 +84,66 @@ export function roughLine(ctx, x1, y1, x2, y2, { stroke = 'rgba(58,52,37,0.4)', 
   roughRender(ctx, d, { stroke, lineWidth });
 }
 
+// ---------- 落款池 + 确定性挑选（分享图文案花样，同一天稳定不变） ----------
+
+/** 落款金句池：疏离哲学人设——牌是镜子不是灯 */
+export const FOOTER_NOTES = [
+  '牌是提示，不是命令。',
+  '牌不替你活，路是你走的。',
+  '观牌知势，不语已明。',
+  '你抽到的，只是你已知道的。',
+  '牌是镜子，照见的是你自己。',
+  '问牌不如问心，牌只是引子。',
+  '这一签，与今天的你有约。',
+  '命如纸，笔在你手。',
+  '牌落无声，心照不宣。',
+  '浮生若梦，牌是醒着做的梦。',
+];
+
+/** 简易字符串哈希（FNV-1a 变体，够用即可） */
+function hashStr(s) {
+  let h = 0x811c9dc5;
+  for (const ch of String(s || '')) {
+    h ^= ch.charCodeAt(0);
+    h = (h * 0x01000193) >>> 0;
+  }
+  return h;
+}
+
+/** 按种子确定性挑选（同一种子永远同一条，分享图/解读同一天稳定） */
+export function pickBySeed(seedText, arr) {
+  if (!arr || !arr.length) return '';
+  return arr[hashStr(String(seedText || '')) % arr.length];
+}
+
+/** 五行手绘小图标（24×24 视口，rough 线条绘本感——小元素也用手绘） */
+export function roughWxIcon(ctx, x, y, wx, { size = 24, color = '#6fae9c' } = {}) {
+  ctx.save();
+  const s = size / 24;
+  const L = (x1, y1, x2, y2) => roughLine(ctx, x + x1 * s, y + y1 * s, x + x2 * s, y + y2 * s, {
+    stroke: color, lineWidth: 1.6, roughness: 1.3, bowing: 1.5,
+  });
+  if (wx === '水') {
+    // 波纹三道
+    L(2, 16, 9, 10); L(7, 19, 14, 13); L(12, 18, 22, 8);
+  } else if (wx === '木') {
+    // 主干 + 两枝
+    L(12, 21, 12, 7); L(12, 15, 7, 10); L(12, 12, 17, 7);
+  } else if (wx === '火') {
+    // 火苗外廓 + 内焰
+    L(12, 3, 6, 14); L(6, 14, 12, 21); L(12, 21, 18, 14); L(18, 14, 12, 3);
+    L(12, 10, 9, 15); L(9, 15, 12, 17); L(12, 17, 15, 15); L(15, 15, 12, 10);
+  } else if (wx === '土') {
+    // 山丘 + 地平线
+    L(2, 18, 12, 8); L(12, 8, 22, 18); L(5, 18, 19, 18); L(9, 14, 12, 11); L(12, 11, 15, 14);
+  } else {
+    // 金：菱中菱
+    L(12, 2, 18, 12); L(18, 12, 12, 22); L(12, 22, 6, 12); L(6, 12, 12, 2);
+    L(12, 6, 15, 12); L(15, 12, 12, 18); L(12, 18, 9, 12); L(9, 12, 12, 6);
+  }
+  ctx.restore();
+}
+
 /** 圆角矩形 SVG path（供 roughBox 的 r>0 使用） */
 function roundRectD(x, y, w, h, r) {
   const rr = Math.min(r, w / 2, h / 2);

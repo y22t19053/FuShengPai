@@ -6,7 +6,7 @@
 import {
   W, H, M, CW, DARK, SERIF, SANS, NUM, font,
   wrapText, paintBackground, drawBrandBar, drawFooter,
-  roughBox, roughCircle, roughLine,
+  roughBox, roughCircle, roughLine, pickBySeed, FOOTER_NOTES,
 } from '../../share2/theme.js';
 import { drawPokerCard } from '../../share2/poker.js';
 
@@ -211,7 +211,7 @@ export async function drawDivinationShare(ctx, w, h, data) {
 
   // ---------- 7. 落款 + 二维码 ----------
   await drawFooter(ctx, t, {
-    note: '「牌是提示，不是命令。」',
+    note: `「${pickBySeed(data.dateText, FOOTER_NOTES)}」`,
     sub: `观牌知势 · ${dotDate(data.dateText || '')}`,
   });
 }

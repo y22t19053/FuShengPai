@@ -5,7 +5,7 @@
 import {
   W, H, M, CW, DARK, SERIF, SANS, NUM, font,
   roundRectPath, wrapText, paintBackground, drawBrandBar, drawFooter,
-  roughBox, roughCircle,
+  roughBox, roughCircle, roughWxIcon, pickBySeed, FOOTER_NOTES,
 } from '../theme.js';
 import { drawPokerCard } from '../poker.js';
 
@@ -202,19 +202,25 @@ export async function renderArcana(ctx, w, h, data) {
     ctx.restore();
   }
 
-  // ---------- 5. 底部金句（左对齐跨整行） ----------
+  // ---------- 5. 底部金句（左对齐跨整行：手绘图标 + 引语 + 课题签语） ----------
   ctx.save();
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
+  // 5.1 引语标签：五行小图标 + 「它想对你说」
+  ctx.fillStyle = t.inkFaint;
+  ctx.font = font(400, 15, SANS);
+  ctx.fillText('它想对你说', L + 42, h - 248);
+  roughWxIcon(ctx, L, h - 260, wx, { size: 20, color: t.gold });
+  // 5.2 课题签语（1-2 行）
   ctx.fillStyle = t.goldDim;
   ctx.font = font(500, 26);
   const qLines = wrapText(ctx, `「${quote}」`, CW, 2);
-  qLines.forEach((ln, i) => ctx.fillText(ln, L, h - 214 + i * 42));
+  qLines.forEach((ln, i) => ctx.fillText(ln, L, h - 206 + i * 42));
   ctx.restore();
 
   // ---------- 6. 落款 + 二维码 ----------
   await drawFooter(ctx, t, {
-    note: '「牌是提示，不是命令。」',
+    note: `「${pickBySeed(dateText, FOOTER_NOTES)}」`,
     sub: `观牌知势 · ${dotDate(dateText) || ''}`,
   });
 }
