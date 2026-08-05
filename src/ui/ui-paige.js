@@ -72,7 +72,7 @@ function showPaiGeDraw(modal, content) {
   const html = `
     <div style="text-align:center;"> 
       <h3 style="color:var(--accent);">🃏 盲抽你的牌灵</h3>
-      <p style="font-size:0.8rem;color:var(--dim);margin:8px 0 16px;">
+      <p id="paigeDeckHint" style="font-size:0.8rem;color:var(--dim);margin:8px 0 16px;">
         凭直觉，点一张牌。<br>
         翻开的瞬间，你的无意识会借这张牌，
         说出它想让你看见的课题。
@@ -109,6 +109,9 @@ function showPaiGeDraw(modal, content) {
       el.style.opacity = '1';
       // 张力窗口：抖动 + 震感 30ms → 停顿 400ms → 翻牌
       el.classList.add('card-tension');
+      // 服务：想好了，就翻。
+      const hint = content.querySelector('#paigeDeckHint');
+      if (hint) hint.textContent = '想好了，就翻。';
       if (navigator.vibrate) navigator.vibrate(30);
       playCardSound('tap');
       setTimeout(() => {

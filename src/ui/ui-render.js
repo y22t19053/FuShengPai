@@ -9,7 +9,10 @@ import {
   DAILY_FORTUNE_TYPES, getDailyFortuneType
 } from '../data.js';
 import { createDeck, shuffle, calcFullBaZi, calcDiff, getDiffLevel, getDiffValue } from '../engine.js';
-import { getApiSettings, getProfile, getHistory, getStoredPeriodCards } from '../storage.js';
+import { getApiSettings, getProfile, getHistory, getStoredPeriodCards, getDrawTimestamps } from '../storage.js';
+import { getSeasonInfo, getHourGreeting, getVisitStreak, getYesterdayCard, cardLabel, applySeasonAccent } from '../season.js';
+import { getClosingLine } from '../philosophy/covenant.js';
+import { playClosingSound } from '../utils/sound.js';
 import { UI_TEXTS, HISTORY_EMPTY, PHYSICAL_GUIDE, STATUS_POOL, REMINDER_POOL, ACTION_POOL } from '../texts/index.js';
 import { pick } from '../constants.js';
 import { calculateDurianIndex, getDurianColor } from '../durian.js';
@@ -19,6 +22,9 @@ import { toast } from './ui-modal.js';
 import { isCardPlaced } from './ui-drag.js';
 import { escapeForHTML, setHTML } from '../utils/safe.js';
 import { syncQuestionFromInput } from '../utils/flow-helpers.js';
+
+// 旬：进店即换菜单——把季节 accent 应用到 :root（全站 --accent 跟随）
+applySeasonAccent();
 
 // ===== 新手教程 =====
 export function renderTeachingPanel() {
@@ -160,6 +166,23 @@ function showMorePeriodsModal() {
   modal.removeAttribute('hidden');
 }
 
+// 进门迎客：节气副题 / 时段一句 + 昨日之牌回访 + 常客连续天数（安静的承认，不炫耀）
+function buildHeroGreeting() {
+  const info = getSeasonInfo();
+  const main = info.jieqi ? `今日${info.jieqi.name}，${info.jieqi.ask}。` : getHourGreeting();
+  const subs = [];
+  const yesterdayCard = getYesterdayCard(getHistory());
+  if (yesterdayCard) subs.push(`昨天那张${cardLabel(yesterdayCard)}，今天还在你心里吗。`);
+  const stamps = [
+    ...getDrawTimestamps(),
+    ...getHistory().map(h => h && h.time).filter(Boolean),
+    ...Object.values(getStoredPeriodCards()).map(p => p && p.drawnAt).filter(Boolean)
+  ];
+  const streak = getVisitStreak(stamps);
+  if (streak >= 2) subs.push(`你已连续来 ${streak} 天。`);
+  return { main, sub: subs.join(' ') };
+}
+
 // ===== 首页：窄Hero + 深度占卜台 =====
 export function renderStep1() {
   const core = document.getElementById('coreArea');
@@ -188,6 +211,7 @@ export function renderStep1() {
   };
 
   const storedPeriods = getStoredPeriodCards();
+  const greeting = buildHeroGreeting();
 
   const html = `
     <!-- 🃏 主入口区（普通人打开即用：一个大牌背，点一下） -->
@@ -195,6 +219,8 @@ export function renderStep1() {
       <div class="hero-eyebrow">· 浮 生 若 梦 ·</div>
       <div class="hero-gold-title">抽 一 张 牌</div>
       <div class="hero-sub">不预测命运，只聊聊今天可以怎么过</div>
+      <div class="hero-greeting">${escapeForHTML(greeting.main)}</div>
+      ${greeting.sub ? `<div class="hero-greeting-sub">${escapeForHTML(greeting.sub)}</div>` : ''}
       <div class="hero-actions">
         <button id="quickDrawBtn" class="btn-hero btn-hero-gold">🃏 抽一张</button>
         <button id="quickDailyBtn" class="btn-hero btn-hero-cinnabar">☯ 今日运势</button>
@@ -346,7 +372,7 @@ function bannerShell({ theme = 'tarot', label, sub, cardCls, cardText, goldBorde
     : 'border:1px solid #c9a96e55;color:#c9a96e;font-size:0.6rem;padding:2px 8px;border-radius:10px;';
   const shareBtnHTML = isEast
     ? `background:rgba(176,58,46,0.15);color:#e07a66;border:1px solid #b03a2e88;font-weight:700;min-width:72px;`
-    : `background:rgba(201,169,110,0.12);color:#c9a96e;border:1px solid #c9a96e88;font-weight:700;min-width:72px;`;
+    : `background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);font-weight:700;min-width:72px;`;
   return `
     <div style="${boxStyle}">
       <div class="mini-card ${cardCls}" style="${cardStyle}flex-shrink:0;">${escapeForHTML(cardText)}</div>
@@ -409,7 +435,7 @@ export function renderTodayFortuneStrip() {
           <span style="color:#c9a96e;font-weight:700;">🃏 我的牌灵</span>
           <span style="opacity:0.85;"> · 一签守护 · 只存本机</span>
         </div>
-        <button id="drawPaigeBannerBtn" style="background:rgba(201,169,110,0.12);color:#c9a96e;border:1px solid #c9a96e88;padding:7px 18px;border-radius:18px;font-size:0.8rem;font-weight:700;cursor:pointer;">抽一张</button>
+        <button id="drawPaigeBannerBtn" style="background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);padding:7px 18px;border-radius:18px;font-size:0.8rem;font-weight:700;cursor:pointer;">抽一张</button>
       </div>
     `;
   }
@@ -663,6 +689,10 @@ export function renderFullReport(text, modules = null, summary = null) {
       <summary style="cursor:pointer;">查看完整解读</summary>
       <div class="result-block" id="interpretText" style="font-size:0.88rem;line-height:1.9;max-height:55vh;overflow-y:auto;padding:14px;margin-top:8px;white-space:pre-wrap;">${escapeForHTML(text)}</div>
     </details>
+    <div class="closing-line">
+      <div class="closing-mark">· — ·</div>
+      <div class="closing-text">「${escapeForHTML(getClosingLine())}」</div>
+    </div>
     <div class="btn-row actions-row">
       <button data-action="copyLocal" class="small">复制</button>
       <button data-action="shareImage" class="outline small">分享这一刻</button>
@@ -672,6 +702,8 @@ export function renderFullReport(text, modules = null, summary = null) {
   `;
   setHTML(result, html);
   renderDurianDisplay();
+  // 送客一声（尺八，收尾鞠躬）
+  try { playClosingSound(); } catch (e) { /* 静默 */ }
 }
 
 // ===== 牌堆渲染（含 draggable 属性） =====

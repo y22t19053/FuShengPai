@@ -32,9 +32,22 @@ export const COVENANT = {
     '牌只是镜子，你才是光的来源。',
     '你已经看到了，接下来怎么做，是你自己的事。',
     '一次占卜只管一个问题，当下的结果只对应你刚才问的事。',
-    '牌走完了，路还在你脚下。'
+    '牌走完了，路还在你脚下。',
+    '今日一签，只此一签。明日来，是另一签。',
+    '昨日之签已翻篇，今日另有今日的牌。'
   ]
 };
+
+// 送客句的变化池：同一句不说三遍（上次用过的下次避开）
+let lastClosingIndex = -1;
+export function getClosingLine() {
+  const pool = COVENANT.closingPool || [];
+  if (!pool.length) return '';
+  let idx = Math.floor(Math.random() * pool.length);
+  if (pool.length > 1 && idx === lastClosingIndex) idx = (idx + 1) % pool.length;
+  lastClosingIndex = idx;
+  return pool[idx];
+}
 
 export function applyCovenant(text) {
   let result = text;
@@ -49,10 +62,8 @@ export function applyCovenant(text) {
     result += '\n\n---\n' + COVENANT.disclaimerText;
   }
   
-  if (COVENANT.closingLines) {
-    const closing = COVENANT.closingPool[Math.floor(Math.random() * COVENANT.closingPool.length)];
-    result += '\n\n' + closing;
-  }
+  // 送客句不再拼进正文：由 getClosingLine() 单独取用，
+  // 在解读结束的位置单独展示（第三幕 · 送客）。
   
   return result;
 }
