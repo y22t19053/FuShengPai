@@ -9,13 +9,13 @@
 //   土星 → 镇星（土，黄）
 // 紫是借来的，青是自家的。
 
-/** 五星本名档案：element 五行 / color 五行本命色 / hex 暗底可读色 */
+/** 五星本名档案：element 五行 / color 五行本命色 / hex 浅底可读色 */
 export const FIVE_STARS = {
-  辰星: { element: '水', color: '黑', hex: '#7d97ad', desc: '水之正，主智谋、潜藏、流动' },
-  太白: { element: '金', color: '白', hex: '#c9cdbf', desc: '金之正，主肃敛、决断、变革' },
-  荧惑: { element: '火', color: '赤', hex: '#c96a5a', desc: '火之正，主明动、热情、光明' },
-  岁星: { element: '木', color: '青', hex: '#9aab7f', desc: '木之正，主生发、条达、生长' },
-  镇星: { element: '土', color: '黄', hex: '#b0a05a', desc: '土之正，主承载、生化、安定' },
+  辰星: { element: '水', color: '黑', hex: '#7a9cb0', desc: '水的本相：智谋、潜藏、流动' },
+  太白: { element: '金', color: '白', hex: '#a89f8f', desc: '金的本相：收敛、决断、变革' },
+  荧惑: { element: '火', color: '赤', hex: '#c96f52', desc: '火的本相：热烈、行动、光明' },
+  岁星: { element: '木', color: '青', hex: '#7ba88f', desc: '木的本相：生长、舒展、勃发' },
+  镇星: { element: '土', color: '黄', hex: '#c9b184', desc: '土的本相：承载、滋养、安定' },
 };
 
 /** 五行 → 五星本名 */
@@ -27,7 +27,7 @@ export const COLOR_OF_WX = { 木: '青', 火: '赤', 土: '黄', 金: '白', 水
 /**
  * 取五行对应的星官句（判词点缀用）
  * @param {string} wx 木火土金水
- * @returns {string} 如「岁星之青，东方生发之气」
+ * @returns {string} 如「岁星之青，东方生长之气」
  */
 export function getStarLine(wx) {
   const star = STAR_OF_WX[wx];
@@ -35,17 +35,17 @@ export function getStarLine(wx) {
   const info = FIVE_STARS[star];
   if (!info) return '';
   const dir = { 木: '东方', 火: '南方', 土: '中央', 金: '西方', 水: '北方' }[wx] || '';
-  return `${star}之${info.color}，${dir}生发之气`;
+  return `${star}之${info.color}，属${dir}生长之气`;
 }
 
 /**
- * 五行色（暗底可读档，Web 端统一走这一份；与 constants.WX_COLORS 同源）
+ * 五行色（浅底可读档，Web 端统一走这一份；与 constants.WX_COLORS 同源）
  * 青（木）/ 赤（火）/ 黄（土）/ 白（金）/ 黑（水）
  */
 export const WX_STAR_COLORS = {
-  木: '#9aab7f', // 青 · 岁星
-  火: '#c96a5a', // 赤 · 荧惑
-  土: '#b0a05a', // 黄 · 镇星
-  金: '#c9cdbf', // 白 · 太白
-  水: '#7d97ad', // 黑 · 辰星（暗底用青蓝代，避免纯黑隐形）
+  木: '#7ba88f', // 青 · 岁星
+  火: '#c96f52', // 赤 · 荧惑
+  土: '#c9b184', // 黄 · 镇星
+  金: '#a89f8f', // 白 · 太白
+  水: '#7a9cb0', // 黑 · 辰星（浅底用雾蓝代，避免纯黑隐形）
 };

@@ -1,18 +1,11 @@
 // ===== src/ui.js · 业务主控（日运细选+模型选择+AI高级参数+盲抽牌灵+from=share） =====
-// 中文字体：仅桌面端异步加载（Noto Serif SC 全字集较大，移动端用系统无衬线栈更快，
-// 不阻塞首屏，font-display:swap 生效后按需下载所需字集）
-if (!window.matchMedia('(pointer: coarse)').matches) {
-  Promise.all([
-    import('@fontsource/noto-serif-sc/400.css'),
-    import('@fontsource/noto-serif-sc/600.css'),
-    import('@fontsource/noto-serif-sc/700.css'),
-  ]).catch(() => {});
-}
+// 中文字体：奶油冰淇淋主题统一使用系统圆润无衬线栈（PingFang / 微软雅黑等），
+// 不再加载宋体网络字体——避免衬线尖角，且首屏更快、PWA 离线零字体依赖。
 
 import { state } from './state.js';
 import { injectAnimations } from './ui/ui-anim.js';
 import {
-  renderStep1, renderStep2, renderFullReport, renderHistoryPanel,
+  renderStep1, renderStep2, renderFullReport, renderResultPreview, renderHistoryPanel,
   initSettingsPanel, initProfilePanel, updateApiStatus, refreshAll,
   bindScrollButtons, renderPeriodCards
 } from './ui/ui-render.js';
@@ -20,7 +13,7 @@ import {
   toast, showOnboarding, showDurianReport, showReportsModal,
   renderPeriodReportInto, replayTimelineEntry,
   togglePanel, showHistoryDetail, generateShareCode,
-  importShareCode, generateShareImage, saveShareImage, showAIGuideModal,
+  importShareCode, generateShareImage, saveShareImage, copyShareImage, showAIGuideModal,
   showDataMigrationModal, showDailyFortunePicker
 } from './ui/ui-modal.js';
 import {
@@ -40,7 +33,7 @@ import {
   createDeck, shuffle, drawTiYong, calcFullBaZi, calcDiff
 } from './engine.js';
 import {
-  API_PROVIDERS, POPULAR_MODELS, getShengKe, getShengKeLabel, getWangState, getWuxing,
+  API_PROVIDERS, POPULAR_MODELS, getShengKe, getShengKeLabel, getRelationPlain, getWangState, getWangStatePlain, getWuxing,
   getCardValue, getCardColor, GONG_NAMES, GONG_WUXING, ALL_LINES, TIME_LABELS, GONG_ORDER,
   CATEGORIES, PERIODS, getCurrentPeriodKey, getPeriodTitle, getPeriodDesc,
   getRecommendedGongForCategory, getGongEnvironment,
@@ -50,6 +43,7 @@ import { MAX_DAILY_OBSERVATIONS, pick, TING_DURATION } from './constants.js';
 import { UI_TEXTS, STATUS_POOL, REMINDER_POOL, ACTION_POOL } from './texts/index.js';
 import { getDailyMirrorLine, getSceneLines, getWakeUpLine } from './texts/mirror-pools.js';
 import { buildDailyOracle } from './texts/daily-oracle.js';
+import { getAlmanac } from './calendar.js';
 import { getPokerPersona } from './persona.js';
 import { calculateDurianIndex } from './durian.js';
 import { generateFingerprint, seedToX0, chaoticGenerator, chaoticShuffle } from './chaos.js';
@@ -165,9 +159,9 @@ export async function localInterpretation() {
   }
   if (state.category) result += `【领域：${state.category}${state.subCategory ? '/' + state.subCategory : ''}】\n\n`;
   const bazi = getBaziFromProfile();
-  if (bazi) result += `【四柱】${bazi.fullText}\n\n`;
+  if (bazi) result += `【生辰】${bazi.fullText}\n\n`;
   result += `你为${tiWx}，所问之事为${yongWx}。\n`;
-  if (relation) result += `（${relation} ${getShengKeLabel(relation)}）\n\n`;
+  if (relation) result += `（${getRelationPlain(relation)} · ${getShengKeLabel(relation)}）\n\n`;
   if (state.line) result += `天机线：${state.line.map(g => GONG_NAMES[g] + '宫').join(' → ')}\n\n`;
 
   const allGongs = state.gongOrder.length ? state.gongOrder : Object.keys(state.grid).map(Number);
@@ -200,10 +194,10 @@ export async function localInterpretation() {
       coreText += `【${label}】差值 ${absDiff}（${diffType}）\n${diffAnalysis}\n${readingResult.light}\n\n---\n${readingResult.shadow}\n\n`;
     });
   }
-  if (coreText) result += `【牌面核心判定】\n${coreText}\n\n`;
+  if (coreText) result += `【牌面解读】\n${coreText}\n\n`;
 
   if (tiWx && yongWx) {
-    result += `【五行生克】\n你为${tiWx}，所问之事为${yongWx}。关系：${relation || '无直接生克'}。\n\n`;
+    result += `【你与所问之事】\n你为${tiWx}，所问之事为${yongWx}。关系：${getRelationPlain(relation || '同我')}（${relation || '同我'}）。\n\n`;
   }
   let diffText = '';
   for (const g of allGongs) {
@@ -217,7 +211,7 @@ export async function localInterpretation() {
       diffText += `${GONG_NAMES[g]}宫差值${absDiff}（${diffType}）\n${diffAnalysis}\n`;
     });
   }
-  if (diffText) result += `【差值分析】\n${diffText}\n\n`;
+  if (diffText) result += `【宫位细看】\n${diffText}\n\n`;
 
   let wangText = '';
   for (const g of allGongs) {
@@ -225,10 +219,10 @@ export async function localInterpretation() {
     if (!cards.length) continue;
     cards.forEach(card => {
       const wang = getWangState(getWuxing(card), GONG_WUXING[g]);
-      wangText += `${GONG_NAMES[g]}宫：${wang}\n`;
+      wangText += `${GONG_NAMES[g]}宫：${getWangStatePlain(wang)}\n`;
     });
   }
-  if (wangText) result += `【旺衰状态】\n${wangText}\n\n`;
+  if (wangText) result += `【宫位能量】\n${wangText}\n\n`;
 
   // ===== 宫位大环境分析 =====
   let envText = '';
@@ -242,7 +236,7 @@ export async function localInterpretation() {
       const env = getGongEnvironment(gongWx, cardWx);
       if (!env) return;
       const rank = card.isJoker ? card.type : card.rank + (card.suit || '');
-      envText += `· ${GONG_NAMES[g]}宫（${gongWx}）落 ${rank}（${cardWx}）：${env.label} —— ${env.desc}\n`;
+      envText += `· ${GONG_NAMES[g]}宫（${gongWx}）落 ${rank}（${cardWx}）：${env.plain || env.label} —— ${env.desc}\n`;
       envTotal += env.score;
       envCount++;
     });
@@ -398,6 +392,11 @@ export function buildSingleCardPrompt(card, opts = {}) {
   const fortuneType = opts.fortuneType || 'overall';
   const fortuneTypeLabel = getDailyFortuneType(fortuneType)?.label || '综合';
   const now = new Date().toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  let almanacLine = '';
+  try {
+    const a = getAlmanac();
+    almanacLine = `农历${a.lunarDate} · ${a.ganZhiDay}日 · ${a.jianchu}${a.term ? ' · 今日' + a.term : ''} · 财神在${a.shenSha.cai}`;
+  } catch (e) { almanacLine = ''; }
 
   return `${periodLabel}当前时间：${now}
 
@@ -406,16 +405,23 @@ ${rank}${suit}
 五行：${wx}
 阴阳：${yinyang}
 
+【今日历法（真实黄历，供参考气场）】
+${almanacLine || '（今日历法不可用）'}
+
 【单牌意象】
 ${metaphor || '（无预设意象，请基于牌面五行与符号与用户对话）'}
 
 【解读要求】
-请基于这张牌的五行能量、阴阳属性，结合当前时间（${now}），围绕「${fortuneTypeLabel}」这个主题，给出深度解读：
+请基于这张牌的五行能量、阴阳属性，结合今日历法气场，围绕「${fortuneTypeLabel}」这个主题，给出深度解读：
 1. 这张牌对当前「${fortuneTypeLabel}」状态的影响；
 2. 这张牌在“自身/人际/事业/健康”四个维度上的启示；
 3. 一条具体可执行的建议。
 
-注意：用自然语言分段，不要使用任何 Markdown 符号（#、*、列表等）。话不说死，保留开放性和对用户自主权的尊重。`;
+【表达铁律】
+- 全程白话，禁止出现任何命理术语（五行生克、旺衰、宫位、大凶大吉等），一律翻成人话。
+- 不预测必然的未来，不给出确定性断言；只描述当下倾向与可能走向，把选择权留给用户。
+- 用自然语言分段，不使用任何 Markdown 符号（#、*、列表等）。
+- 话不说死，保留开放性和对用户自主权的尊重。`;
 }
 
 export function resetAll() {
@@ -556,10 +562,10 @@ function computeThreeDurian(cards) {
   const score = Math.round(Math.min(10, Math.max(0, raw * 10)) * 10) / 10;
   const level = score < 3 ? '低' : score < 5 ? '中低' : score < 7 ? '中' : score < 9 ? '高' : '极高';
   let desc;
-  if (score >= 8) desc = '三张牌气连成一线，五行顺逆皆有呼应，此事气数正旺，顺势可为。';
+  if (score >= 8) desc = '三张牌气连成一线，整体顺畅，此事势头正旺，顺势可为。';
   else if (score >= 6) desc = '能量整体顺畅，虽有起伏但可控，按牌面提示慢慢走即可。';
   else if (score >= 4) desc = '气场偏于拉扯，牌与牌之间互相制约，宜缓不宜急，先看清再动。';
-  else desc = '五行相克较多，此事阻力不小，三思而后行，必要时换个角度再问。';
+  else desc = '牌与牌之间互相压制的地方多，此事阻力不小，三思而后行，必要时换个角度再问。';
   return { score, level, description: desc, components: { rels } };
 }
 
@@ -614,7 +620,13 @@ export async function generateThree() {
     const durian = computeThreeDurian(cards);
     state.durianIndex = { score: durian.score, level: durian.level, components: durian.components };
     updateStep(3);
-    renderFullReport(text, null, buildSummary());
+    // 两步式：先看三张牌，点按钮再出直断
+    renderResultPreview(cards.map(t => t.card), {
+      title: '三牌已定',
+      subtitle: '过去 · 现在 · 未来，三张牌已落定。想听直断，就点一下下面的按钮。',
+      readLabel: '看直断',
+      onRead: () => renderFullReport(text, null, buildSummary()),
+    });
     try {
       const readingData = {
         time: Date.now(), question: state.question, category: state.category, subCategory: state.subCategory,
@@ -705,8 +717,14 @@ async function proceedLazyStart() {
   state.deck = remainingDeck; state.gongOrder = line.slice(); state.sealed = true;
   updateStep(3);
   const { text, summary } = await localInterpretation();
-  renderFullReport(text, null, summary);
-  toast('🃏 牌已落定，看看它怎么说', 3000, 'success');
+  // 两步式：先见牌，再读牌——新手不会一上来就被一整页解读砸脸
+  renderResultPreview([state.ti, state.yong], {
+    title: '你抽到了',
+    subtitle: '牌已落定。想听它怎么说，就点一下下面的按钮；不想听，这一张牌也已经够了。',
+    readLabel: '听它怎么说',
+    onRead: () => renderFullReport(text, null, summary),
+  });
+  toast('🃏 牌已落定', 2400, 'success');
 }
 
 // ===== 时间弧 =====
@@ -904,13 +922,17 @@ function buildManualCardButtons() {
   return html;
 }
 
-// ===== 赛博黄历（仅日运展示）：宜/忌/建除/冲煞，按当日确定性取，不娱乐化 =====
+// ===== 赛博黄历（仅日运展示）：真实建除/冲煞/农历/神煞方位 + 白话宜忌 =====
 function buildDailyOracleBlock(wx, dateStr) {
   const oracle = buildDailyOracle({ wx, dateStr });
+  const a = oracle.almanac || {};
+  const shenSha = a.shenSha || {};
+  const termText = a.term ? `今日${a.term} · ` : '';
+  const lunarText = a.lunarDate ? `${a.lunarDate} · ${a.ganZhiDay}日 · ` : '';
   return `
-    <div style="font-size:0.82rem;color:var(--text);line-height:1.9;margin:6px 0 10px;padding:10px 14px;background:rgba(0,0,0,0.12);border-radius:8px;text-align:left;">
-      <div style="color:var(--accent);font-size:0.75rem;margin-bottom:2px;">📅 今日黄历 · ${escapeForHTML(oracle.jianchu.name)}　<span style="opacity:0.7;">冲${escapeForHTML(oracle.chong.name)}·${escapeForHTML(oracle.chong.animal)}</span></div>
-      <div>宜 · ${oracle.yi.map(escapeForHTML).join('、')}</div>
+    <div style="font-size:0.82rem;color:var(--text);line-height:1.9;margin:6px 0 10px;padding:10px 14px;background:rgba(111,174,156,0.05);border-radius:var(--r-hand-in);text-align:left;">
+      <div style="color:var(--accent);font-size:0.75rem;margin-bottom:2px;">📅 今日黄历 · ${escapeForHTML(oracle.jianchu.name)}　<span style="opacity:0.7;">${escapeForHTML(termText)}${escapeForHTML(lunarText)}冲${escapeForHTML(oracle.chong.name)}·${escapeForHTML(oracle.chong.animal)}</span></div>
+      <div>宜 · ${oracle.yi.map(escapeForHTML).join('、')}${shenSha.cai ? `　<span style="opacity:0.7;">财神在${escapeForHTML(shenSha.cai)}</span>` : ''}</div>
       <div style="color:#d45050;">忌 · ${oracle.ji.map(escapeForHTML).join('、')}</div>
     </div>`;
 }
@@ -956,31 +978,38 @@ export function openPeriodDetail(periodType, fortuneType = 'overall') {
   const periodHistory = history.find(h => h.type === 'period' && h.periodType === periodType && h.periodKey === periodKey && (h.fortuneType || 'overall') === fortuneType);
   const hasAi = periodHistory && periodHistory.chatHistory && periodHistory.chatHistory.length > 0;
 
+  // 降噪：镜像/黄历/场景/清醒话/上次 AI 解读收进折叠，默认只留牌 + 判词 + 动作
+  const extraBlock = `
+    <div style="font-size:0.78rem;color:var(--dim);line-height:1.8;margin:6px 0;">
+      <div style="color:var(--accent);font-size:0.78rem;margin-bottom:2px;">☯ 情绪镜像</div>${escapeForHTML(mirrorLine)}
+    </div>
+    ${oracleBlock}
+    ${sceneLines.length ? `<div style="font-size:0.78rem;color:var(--dim);line-height:1.8;margin:6px 0 10px;padding:10px 14px;background:rgba(111,174,156,0.05);border-radius:var(--r-hand-in);">${sceneLines.map(l => `<div>· ${escapeForHTML(l)}</div>`).join('')}</div>` : ''}
+    ${wakeUpLine ? `<div style="font-size:0.78rem;color:#d4a05a;line-height:1.7;margin:4px 0 10px;">⚡ ${escapeForHTML(wakeUpLine)}</div>` : ''}
+    ${hasAi ? `
+      <div style="text-align:left;font-size:0.85rem;margin:12px 0;padding:12px;background:rgba(111,174,156,0.06);border-radius:var(--r-hand-in);max-height:200px;overflow-y:auto;">
+        <div style="color:var(--accent);font-size:0.8rem;margin-bottom:8px;">✨ 上次 AI 解读</div>
+        ${periodHistory.chatHistory.filter(m => m.role === 'assistant').map(m => `<div style="margin-bottom:8px;">${escapeForHTML(m.content).replace(/\n/g, '<br>')}</div>`).join('')}
+      </div>
+    ` : ''}
+  `;
+
   const html = `
     <div style="text-align:center;">
       <div style="font-size:0.8rem;color:var(--dim);margin-bottom:8px;">${typeIcon} ${escapeForHTML(typeLabel)} · 你的牌</div>
-      <div style="font-size:0.8rem;color:var(--accent);line-height:1.7;margin:0 0 10px;padding:10px 14px;background:rgba(0,0,0,0.18);border-radius:8px;">
-        <span style="opacity:0.75;margin-right:6px;">☯ 情绪镜像</span>${escapeForHTML(mirrorLine)}
-      </div>
-      <div class="card-face-small ${colorCls}" style="margin:10px auto;width:80px;height:112px;display:flex;align-items:center;justify-content:center;flex-direction:column;border-radius:6px;border:2px solid var(--border);background:rgba(0,0,0,0.3);">
+      <div class="card-face-small ${colorCls}" style="margin:10px auto;width:80px;height:112px;display:flex;align-items:center;justify-content:center;flex-direction:column;border-radius:10px;border:3px solid var(--border);background:#fcf8ef;animation:revealPop .5s ease both;">
         <span style="font-size:2rem;font-weight:bold;">${escapeForHTML(rank)}</span>
         <span style="font-size:1.4rem;">${escapeForHTML(suit)}</span>
         <span style="font-size:0.7rem;color:var(--dim);margin-top:2px;">${escapeForHTML(wx)}</span>
       </div>
-      ${metaphor ? `<div style="font-size:0.9rem;color:var(--text);line-height:1.8;margin:12px 0;padding:12px;background:rgba(0,0,0,0.15);border-radius:8px;white-space:pre-wrap;">${escapeForHTML(metaphor)}</div>` : ''}
-      ${oracleBlock}
-      ${sceneLines.length ? `<div style="font-size:0.78rem;color:var(--dim);line-height:1.8;margin:6px 0 10px;padding:10px 14px;background:rgba(0,0,0,0.12);border-radius:8px;">${sceneLines.map(l => `<div>· ${escapeForHTML(l)}</div>`).join('')}</div>` : ''}
-      ${wakeUpLine ? `<div style="font-size:0.78rem;color:#d4a05a;line-height:1.7;margin:4px 0 10px;">⚡ ${escapeForHTML(wakeUpLine)}</div>` : ''}
-      
+      ${metaphor ? `<div style="font-size:0.9rem;color:var(--text);line-height:1.8;margin:12px 0;padding:12px;background:rgba(111,174,156,0.06);border-radius:var(--r-hand-in);white-space:pre-wrap;">${escapeForHTML(metaphor)}</div>` : ''}
+      <details style="font-size:0.8rem;color:var(--dim);margin:4px 0 10px;text-align:left;">
+        <summary style="cursor:pointer;">☯ 想多看一眼</summary>
+        ${extraBlock}
+      </details>
+
       <p class="num" style="font-size:0.7rem;color:var(--dim);">抽于 ${new Date(data.drawnAt).toLocaleString()}</p>
       <p style="font-size:0.7rem;color:#d45050;">⚠️ 此牌已锁定，本周期不可重抽。建议截图保存。</p>
-
-      ${hasAi ? `
-        <div style="text-align:left;font-size:0.85rem;margin:12px 0;padding:12px;background:rgba(0,0,0,0.2);border-radius:8px;max-height:200px;overflow-y:auto;">
-          <div style="color:var(--accent);font-size:0.8rem;margin-bottom:8px;">✨ 上次 AI 解读</div>
-          ${periodHistory.chatHistory.filter(m => m.role === 'assistant').map(m => `<div style="margin-bottom:8px;">${escapeForHTML(m.content).replace(/\n/g, '<br>')}</div>`).join('')}
-        </div>
-      ` : ''}
 
       <div class="btn-row">
         <button id="periodAiBtn2" class="outline small">${hasAi ? '🔄 重新 AI 深度解读' : '✨ AI 深度解读'}</button>
@@ -1093,20 +1122,28 @@ export function confirmPeriodPick(periodType, card, fortuneType = 'overall') {
 
   const oracleBlock = periodType === 'daily' ? buildDailyOracleBlock(wx, periodKey) : '';
 
+  // 降噪：默认只给「牌 + 一句话判词」，情绪镜像/黄历/场景短句收进折叠，新人一眼能看懂
+  const extraBlock = `
+    <div style="font-size:0.78rem;color:var(--dim);line-height:1.8;margin:8px 0 6px;">
+      <div style="color:var(--accent);font-size:0.78rem;margin-bottom:2px;">☯ 情绪镜像</div>${escapeForHTML(mirrorLine)}
+    </div>
+    ${oracleBlock}
+    ${sceneLines.length ? `<div style="font-size:0.78rem;color:var(--dim);line-height:1.8;margin:6px 0 10px;padding:10px 14px;background:rgba(111,174,156,0.05);border-radius:var(--r-hand-in);">${sceneLines.map(l => `<div>· ${escapeForHTML(l)}</div>`).join('')}</div>` : ''}
+  `;
+
   const html = `
     <div style="text-align:center;">
       <div style="font-size:0.8rem;color:var(--dim);margin-bottom:8px;">${escapeForHTML(typeLabel)} · 你抽到了</div>
-      <div style="font-size:0.8rem;color:var(--accent);line-height:1.7;margin:0 0 10px;padding:10px 14px;background:rgba(0,0,0,0.18);border-radius:8px;">
-        <span style="opacity:0.75;margin-right:6px;">☯ 情绪镜像</span>${escapeForHTML(mirrorLine)}
-      </div>
-      <div class="card-face-small ${colorCls}" style="margin:10px auto;width:80px;height:112px;display:flex;align-items:center;justify-content:center;flex-direction:column;border-radius:6px;border:2px solid var(--border);background:rgba(0,0,0,0.3);">
+      <div class="card-face-small ${colorCls}" style="margin:10px auto;width:80px;height:112px;display:flex;align-items:center;justify-content:center;flex-direction:column;border-radius:10px;border:3px solid var(--border);background:#fcf8ef;animation:revealPop .5s ease both;">
         <span style="font-size:2rem;font-weight:bold;">${escapeForHTML(rank)}</span>
         <span style="font-size:1.4rem;">${escapeForHTML(suit)}</span>
         <span style="font-size:0.7rem;color:var(--dim);margin-top:2px;">${escapeForHTML(wx)}</span>
       </div>
-      <div style="font-size:0.9rem;color:var(--text);line-height:1.8;margin:12px 0;padding:12px;background:rgba(0,0,0,0.15);border-radius:8px;white-space:pre-wrap;">${escapeForHTML(metaphor)}</div>
-      ${oracleBlock}
-      ${sceneLines.length ? `<div style="font-size:0.78rem;color:var(--dim);line-height:1.8;margin:6px 0 10px;padding:10px 14px;background:rgba(0,0,0,0.12);border-radius:8px;">${sceneLines.map(l => `<div>· ${escapeForHTML(l)}</div>`).join('')}</div>` : ''}
+      <div style="font-size:0.9rem;color:var(--text);line-height:1.8;margin:12px 0;padding:12px;background:rgba(111,174,156,0.06);border-radius:8px;white-space:pre-wrap;">${escapeForHTML(metaphor)}</div>
+      <details style="font-size:0.8rem;color:var(--dim);margin:4px 0 10px;text-align:left;">
+        <summary style="cursor:pointer;">☯ 想多看一眼</summary>
+        ${extraBlock}
+      </details>
       <p style="font-size:0.7rem;color:#d45050;">⚠️ 此牌已锁定，本周期不可重抽。建议截图保存。</p>
       <div class="btn-row">
         <button data-action="closeModal" class="primary small">确认</button>
@@ -1306,7 +1343,7 @@ export async function triggerAI() {
     const container = document.getElementById('aiResultContainer');
     if (container) container.style.display = 'block';
     const content = document.getElementById('aiResultContent');
-    setHTML(content, `<div style="color:#d45050;border:1px solid #d45050;padding:8px;border-radius:6px;margin-bottom:8px;font-size:0.85rem;">⚠️ AI 服务不可用：${escapeForHTML(e.message || '未知错误')}</div>`);
+    setHTML(content, `<div style="color:#d45050;border:1px solid #d45050;padding:8px;border-radius:var(--r-hand-in);margin-bottom:8px;font-size:0.85rem;">⚠️ AI 服务不可用：${escapeForHTML(e.message || '未知错误')}</div>`);
     toast('AI 解析失败，请尝试复制提示词或检查 API Key', 3000, 'warning');
   } finally {
     btn.disabled = false;
@@ -1496,6 +1533,7 @@ export function handleAction(action, dataset, el = null) {
     }
     case 'closeShare': document.getElementById('sharePreview')?.setAttribute('hidden', ''); break;
     case 'saveShareImage': saveShareImage(); break;
+    case 'copyShareImage': copyShareImage(); break;
     case 'sealDeck': sealDeckAction(); break;
     case 'durianReport': showDurianReportAction(); break;
     case 'reports': showReportsModal(); break;
@@ -1555,7 +1593,7 @@ export function handleAction(action, dataset, el = null) {
       }
       document.getElementById('fortuneTypeModal')?.setAttribute('hidden', '');
       // 走东方国风日运模板（宣纸 + 朱砂印章），不再落到旧版日运报告卡
-      import('./ui/ui-modal.js').then(m => m.generateShareImage({ type: 'daily', card, typeKey, fortuneType, template: 'mint' }));
+      import('./ui/ui-modal.js').then(m => m.generateShareImage({ type: 'daily', card, typeKey, fortuneType, template: 'daily' }));
       break;
     }
     case 'closeClarify': { const guide = document.getElementById('clarifyGuide'); if (guide) guide.style.display = 'none'; break; }
@@ -1689,6 +1727,13 @@ function bindAllEvents() {
 
 // ===== 初始化 =====
 function init() {
+  // 桌面壳（Electron）检测：仅控制台确认原生壳，不打扰界面
+  if (window.fspDesktop?.isDesktop) {
+    window.fspDesktop.getVersion().then(v => {
+      console.info(`[浮生牌] 桌面版 v${v} · ${window.fspDesktop.platform}`);
+    }).catch(() => {});
+  }
+
   // 在线/离线提示（PWA 离线可用性引导）
   setupNetworkHints();
 

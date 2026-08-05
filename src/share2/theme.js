@@ -1,10 +1,10 @@
-// ===== src/share2/theme.js · 分享图统一设计系统（玄金档案） =====
+// ===== src/share2/theme.js · 分享图统一设计系统（手绘绘本档案） =====
 // 三张分享图（牌灵 / 日运 / 解读）共用同一套版式骨架：
 //   品牌栏 → 标题区 → 内容区 → 落款行 + 二维码
 // 设计原则：
 //   1. 精确网格：四边距 96、内容宽 888，一切坐标由常量推导，杜绝随手摆放
-//   2. 克制光效：无噪点、无随机光斑、无夸张 shadowBlur，仅 1px 半透明金线分隔
-//   3. 双色板：DARK 玄金（牌灵/解读）+ LIGHT 宣纸（日运），骨架与字体完全一致
+//   2. 克制光效：无噪点、无随机光斑、无夸张 shadowBlur，仅 1px 半透明鼠尾草线分隔
+//   3. 双色板：DARK 暖纸（牌灵/解读）+ LIGHT 浅纸（日运），骨架与字体完全一致
 //   4. 二维码统一右下角白底墨点 88px，深/浅色底上都是唯一亮块，扫描友好
 // 所有模板只 import 本文件，禁止各自为政。
 
@@ -17,62 +17,44 @@ export const CW = W - M * 2; // 内容宽 = 888
 
 // ---------- 色板 ----------
 
-/** 深色墨绿竹青（牌灵 / 解读）——老牌馆：墨绿呢面、竹青点缀、骨白字 */
+/** 暖纸底（牌灵 / 解读）——手绘绘本：暖纸米白、鼠尾草点缀、暖墨字 */
 export const DARK = {
-  bg0: '#0c120f',
-  bg1: '#111a15',
-  bg2: '#16221b',
-  ink: '#e7ece4',                 // 主文字（骨白）
-  inkDim: 'rgba(231,236,228,0.58)',
-  inkFaint: 'rgba(231,236,228,0.32)',
-  gold: '#9aab7f',
-  goldDim: 'rgba(154,171,127,0.45)',
-  goldFaint: 'rgba(154,171,127,0.16)',
-  red: '#c25b4a',                 // 朱砂（红牌 / 警示）
-  line: 'rgba(154,171,127,0.24)',
+  bg0: '#f6f1e6',
+  bg1: '#ede5d5',
+  bg2: '#e2d9c4',
+  ink: '#3a3425',                 // 主文字（暖墨）
+  inkDim: 'rgba(58,52,37,0.58)',
+  inkFaint: 'rgba(58,52,37,0.32)',
+  gold: '#6fae9c',
+  goldDim: 'rgba(111,174,156,0.45)',
+  goldFaint: 'rgba(111,174,156,0.16)',
+  red: '#c96f52',                 // 陶土红（红牌 / 警示）
+  line: 'rgba(58,52,37,0.14)',
 };
 
-/** 浅色宣纸（日运） */
+/** 浅纸底（日运） */
 export const LIGHT = {
-  bg0: '#f2ecde',
-  bg1: '#e9e0cc',
-  bg2: '#efe7d6',
-  ink: '#3d3527',                 // 墨棕
-  inkDim: 'rgba(61,53,39,0.55)',
-  inkFaint: 'rgba(61,53,39,0.3)',
-  gold: '#9c7c43',                // 哑金
-  goldDim: 'rgba(156,124,67,0.45)',
-  goldFaint: 'rgba(156,124,67,0.16)',
-  red: '#b04a3d',                 // 朱砂
-  line: 'rgba(61,53,39,0.22)',
+  bg0: '#fcf8ef',
+  bg1: '#f1eadb',
+  bg2: '#f6f1e6',
+  ink: '#3a3425',                 // 暖墨
+  inkDim: 'rgba(58,52,37,0.55)',
+  inkFaint: 'rgba(58,52,37,0.3)',
+  gold: '#4d8f7e',                // 深鼠尾草
+  goldDim: 'rgba(77,143,126,0.45)',
+  goldFaint: 'rgba(77,143,126,0.16)',
+  red: '#c96f52',                 // 陶土红
+  line: 'rgba(58,52,37,0.22)',
 };
 
-/** 浅色薄荷（日运 · 清新款：墨绿字 + 青绿金 + 暖赭忌） */
-export const MINT = {
-  bg0: '#eef3ee',
-  bg1: '#e4ece5',
-  bg2: '#e9f0ea',
-  ink: '#274038',                 // 墨绿
-  inkDim: 'rgba(39,64,56,0.55)',
-  inkFaint: 'rgba(39,64,56,0.3)',
-  gold: '#3f7d66',                // 青绿金（薄荷主色）
-  goldDim: 'rgba(63,125,102,0.45)',
-  goldFaint: 'rgba(63,125,102,0.16)',
-  red: '#b0563f',                 // 暖赭（忌）
-  line: 'rgba(39,64,56,0.2)',
-  // 纸牌配色（由模板按主题取用）
-  cardRed: '#b0563f',
-  cardBlack: '#2f4a41',
-  cardPaper: '#fbfcf6',
-  cardBorder: 'rgba(39,64,56,0.5)',
-  shadow: 'rgba(39,64,56,0.14)',
-};
+/** 分享图静态色板：DARK 暖纸 + LIGHT 浅纸，全鼠尾草手绘系全一致 */
 
 // ---------- 字体栈 ----------
+// 统一圆润无衬线：奶油糖果风不留衬线尖角（与 style.css --font-serif 对齐）
 
-export const SERIF = '"Noto Serif SC","Source Han Serif SC","Songti SC","SimSun","STSong","KaiTi",serif';
-export const SANS = '"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif';
-export const NUM = '"Georgia","Times New Roman",serif';
+export const SERIF = '"PingFang SC","HarmonyOS Sans SC","MiSans","Noto Sans SC","Microsoft YaHei","Segoe UI",sans-serif';
+export const SANS = '"PingFang SC","HarmonyOS Sans SC","MiSans","Noto Sans SC","Microsoft YaHei","Segoe UI",sans-serif';
+export const NUM = '"Segoe UI","PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
 
 /** 字体快捷：font(600, 24) / font(300, 14, NUM) */
 export function font(weight, size, family = SERIF) {

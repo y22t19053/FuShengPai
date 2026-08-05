@@ -105,26 +105,11 @@ export function renderOnboardStep() {
     } else {
       overlay.remove();
       completeOnboarding();
-      toast('有什么想问的，默念后抽牌即可', 2600, 'info');
-      focusQuestionInputAfterOnboarding();
     }
   });
 
   const skipBtn = overlay.querySelector('#onboardSkip');
-  if (skipBtn) skipBtn.addEventListener('click', () => { overlay.remove(); completeOnboarding(); focusQuestionInputAfterOnboarding(); });
-}
-
-// 引导结束后，桌面端自动聚焦问题输入框（移动端不弹键盘）
-function focusQuestionInputAfterOnboarding() {
-  if (!window.matchMedia || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
-  setTimeout(() => {
-    const input = document.getElementById('questionInput');
-    if (input) {
-      input.style.pointerEvents = 'auto';
-      input.style.zIndex = '3';
-      input.focus({ preventScroll: true });
-    }
-  }, 350);
+  if (skipBtn) skipBtn.addEventListener('click', () => { overlay.remove(); completeOnboarding(); });
 }
 
 export function showAIGuideModal() {
@@ -249,7 +234,7 @@ export function showHistoryDetail(index) {
     <div id="historyFollowUp" style="margin-top:12px;border-top:1px dashed var(--border);padding-top:10px;">
       <div style="display:flex;gap:6px;">
         <input id="historyFollowUpInput" placeholder="继续追问这张牌 / 这份解读……" autocomplete="off"
-          style="flex:1;font-size:0.85rem;padding:8px;border:1px solid var(--border);border-radius:6px;background:rgba(0,0,0,0.2);color:var(--text);">
+          style="flex:1;font-size:0.85rem;padding:8px;border:1px solid var(--border);border-radius:var(--r-hand-in);background:rgba(111,174,156,0.06);color:var(--text);">
         <button id="historyFollowUpSend" class="primary small" style="white-space:nowrap;">💬 追问</button>
       </div>
       <div id="historyFollowUpStatus" style="font-size:0.7rem;color:var(--dim);margin-top:6px;display:none;"></div>
@@ -428,7 +413,7 @@ export function renderPeriodReportInto(periodType) {
   const recentHtml = entries.slice(0, 3).map(t => {
     const s = t.durianScore || 0;
     const q = t.question ? String(t.question).slice(0, 20) : '未提问';
-    return `<div style="display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:6px;background:rgba(0,0,0,0.12);margin-bottom:4px;font-size:0.72rem;">
+    return `<div style="display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:var(--r-hand-in);background:rgba(111,174,156,0.05);margin-bottom:4px;font-size:0.72rem;">
       <span style="color:var(--dim);">${escapeForHTML(formatTimestamp(t.time).slice(5))}</span>
       <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeForHTML(q)}</span>
       <span style="font-weight:bold;">${s.toFixed(1)}</span>
@@ -437,31 +422,31 @@ export function renderPeriodReportInto(periodType) {
   }).join('');
 
   setHTML(area, `
-    <div style="background:rgba(0,0,0,0.18);border-radius:8px;padding:10px;">
+    <div style="background:rgba(111,174,156,0.06);border-radius:var(--r-hand-md);padding:10px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
         <strong style="font-size:0.9rem;">📅 ${label}报告</strong>
         <span style="font-size:0.7rem;color:var(--dim);">${stats.count} 次记录</span>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
-        <div style="background:rgba(0,0,0,0.2);padding:6px;border-radius:6px;text-align:center;">
+        <div style="background:rgba(111,174,156,0.08);padding:6px;border-radius:var(--r-hand-in);text-align:center;">
           <div style="font-size:0.6rem;color:var(--dim);">平均</div>
           <div style="font-size:1.1rem;font-weight:bold;">${stats.avg.toFixed(1)}</div>
         </div>
-        <div style="background:rgba(0,0,0,0.2);padding:6px;border-radius:6px;text-align:center;">
+        <div style="background:rgba(111,174,156,0.08);padding:6px;border-radius:var(--r-hand-in);text-align:center;">
           <div style="font-size:0.6rem;color:var(--dim);">最高</div>
           <div style="font-size:1.1rem;font-weight:bold;color:#F44336;">${stats.max}</div>
         </div>
-        <div style="background:rgba(0,0,0,0.2);padding:6px;border-radius:6px;text-align:center;">
+        <div style="background:rgba(111,174,156,0.08);padding:6px;border-radius:var(--r-hand-in);text-align:center;">
           <div style="font-size:0.6rem;color:var(--dim);">最低</div>
           <div style="font-size:1.1rem;font-weight:bold;color:#4CAF50;">${stats.min}</div>
         </div>
-        <div style="background:rgba(0,0,0,0.2);padding:6px;border-radius:6px;text-align:center;">
+        <div style="background:rgba(111,174,156,0.08);padding:6px;border-radius:var(--r-hand-in);text-align:center;">
           <div style="font-size:0.6rem;color:var(--dim);">趋势</div>
           <div style="font-size:1.1rem;font-weight:bold;">${trend}</div>
         </div>
       </div>
       ${comps ? `<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;font-size:0.6rem;color:var(--dim);text-align:center;margin:6px 0;">
-        <div>差值 ${comps.diff}</div><div>相克 ${comps.ke}</div><div>趋势 ${comps.trend}</div><div>张力 ${comps.tension}</div>
+        <div>差值 ${comps.diff}</div><div>压制 ${comps.ke}</div><div>趋势 ${comps.trend}</div><div>张力 ${comps.tension}</div>
       </div>` : ''}
       ${topQ ? `<div style="font-size:0.72rem;color:var(--dim);margin-top:4px;">常见问题：${topQ}</div>` : ''}
       ${recentHtml ? `<div style="margin-top:8px;font-size:0.72rem;color:var(--dim);">最近记录（点“当时的我”回看完整解读）：</div>${recentHtml}` : ''}
@@ -479,7 +464,7 @@ function renderTimelineList(timeline) {
     const pct = Math.round(s * 10);
     const color = s >= 7 ? '#F44336' : s >= 5 ? '#FF9800' : s >= 3 ? '#FFC107' : '#4CAF50';
     const q = t.question ? String(t.question).slice(0, 24) : '未提问';
-    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:rgba(0,0,0,0.15);margin-bottom:4px;">
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--r-hand-in);background:rgba(111,174,156,0.05);margin-bottom:4px;">
       <div style="flex:0 0 74px;font-size:0.6rem;color:var(--dim);">${escapeForHTML(formatTimestamp(t.time))}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-size:0.72rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeForHTML(q)}</div>
@@ -571,30 +556,30 @@ export function showDurianReport() {
   const html = `
     <h3>张力报告</h3>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin:8px 0;">
-      <div style="background:rgba(0,0,0,0.2);padding:6px;border-radius:6px;text-align:center;">
+      <div style="background:rgba(111,174,156,0.08);padding:6px;border-radius:var(--r-hand-in);text-align:center;">
         <div style="font-size:0.6rem;color:var(--dim);">平均</div>
         <div style="font-size:1.2rem;font-weight:bold;">${avg.toFixed(1)}</div>
       </div>
-      <div style="background:rgba(0,0,0,0.2);padding:6px;border-radius:6px;text-align:center;">
+      <div style="background:rgba(111,174,156,0.08);padding:6px;border-radius:var(--r-hand-in);text-align:center;">
         <div style="font-size:0.6rem;color:var(--dim);">最高</div>
         <div style="font-size:1.2rem;font-weight:bold;color:#F44336;">${max}</div>
       </div>
-      <div style="background:rgba(0,0,0,0.2);padding:6px;border-radius:6px;text-align:center;">
+      <div style="background:rgba(111,174,156,0.08);padding:6px;border-radius:var(--r-hand-in);text-align:center;">
         <div style="font-size:0.6rem;color:var(--dim);">最低</div>
         <div style="font-size:1.2rem;font-weight:bold;color:#4CAF50;">${min}</div>
       </div>
-      <div style="background:rgba(0,0,0,0.2);padding:6px;border-radius:6px;text-align:center;">
+      <div style="background:rgba(111,174,156,0.08);padding:6px;border-radius:var(--r-hand-in);text-align:center;">
         <div style="font-size:0.6rem;color:var(--dim);">趋势</div>
         <div style="font-size:1.2rem;font-weight:bold;">${trend}</div>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;font-size:0.6rem;color:var(--dim);text-align:center;margin:4px 0;">
       <div>差值 ${avgDiff}</div>
-      <div>相克 ${avgKe}</div>
+      <div>压制 ${avgKe}</div>
       <div>趋势 ${avgTrend}</div>
       <div>张力 ${avgTension}</div>
     </div>
-    <div style="padding:8px 12px;background:rgba(0,0,0,0.15);border-radius:6px;font-size:0.8rem;margin:6px 0;border-left:3px solid var(--accent);">
+    <div style="padding:8px 12px;background:rgba(111,174,156,0.06);border-radius:var(--r-hand-in);font-size:0.8rem;margin:6px 0;border-left:3px solid var(--accent);">
       ${escapeForHTML(advice)}
     </div>
     <p style="font-size:0.65rem;color:var(--dim);">基于最近 ${recent.length} 次记录</p>
@@ -624,8 +609,8 @@ export async function showRewardModal() {
       <h3 style="color:var(--accent);">☕ 赞赏支持</h3>
       <p style="color:var(--dim);font-size:0.85rem;">如果浮生牌对你有帮助，可以请我喝杯咖啡~</p>
       ${qrImg
-        ? `<img src="${qrImg.src}" alt="赞赏码" style="max-width:200px;border-radius:8px;margin:12px 0;">`
-        : `<img src="${imgBase}reward.png" alt="赞赏码" style="max-width:200px;border-radius:8px;margin:12px 0;"
+        ? `<img src="${qrImg.src}" alt="赞赏码" style="max-width:200px;border-radius:var(--r-hand-sm);margin:12px 0;">`
+        : `<img src="${imgBase}reward.png" alt="赞赏码" style="max-width:200px;border-radius:var(--r-hand-sm);margin:12px 0;"
              onerror="this.style.display='none';document.getElementById('rewardFallback').style.display='block'">
            <p id="rewardFallback" style="display:none;font-size:0.8rem;color:var(--dim);">
              ${rewardUrl ? '未找到赞赏码图片，请将图片放到项目根目录 public/reward.png' : '未配置赞赏链接，请设置 VITE_REWARD_URL 或放置 public/reward.png'}
@@ -654,7 +639,7 @@ export async function generateShareImage(options = {}) {
   const text = options.text || document.getElementById('interpretText')?.innerText || '';
   const template = options.template || '';
 
-  const TEMPLATES = ['tarot', 'daily', 'mint', 'divination'];
+  const TEMPLATES = ['tarot', 'daily', 'divination'];
   if (!TEMPLATES.includes(template)) { toast('未知分享模板', 2200, 'warning'); return; }
 
   canvas.width = 1080;
@@ -684,13 +669,24 @@ export async function generateShareImage(options = {}) {
   toast('✨ ' + typeLabel + '分享图已生成', 2200, 'success');
 }
 
-// ===== 保存分享图（文件名带毫秒时间戳，永不同名覆盖） =====
+// ===== 保存分享图（桌面壳走原生保存对话框；浏览器走下载；移动端提示长按） =====
 export function saveShareImage() {
   const canvas = document.getElementById('shareCanvas');
   if (!canvas) { toast('没有图片可保存', 2000, 'info'); return; }
 
   canvas.toBlob(function(blob) {
     if (!blob) { toast('保存失败', 2200, 'warning'); return; }
+    // Electron 桌面壳：弹原生保存对话框
+    if (window.fspDesktop?.saveShareFile) {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = String(reader.result).split(',')[1] || '';
+        const ok = await window.fspDesktop.saveShareFile(base64, getUniqueFilename());
+        toast(ok ? '💾 图片已保存' : '已取消保存', 2400, ok ? 'success' : 'info');
+      };
+      reader.readAsDataURL(blob);
+      return;
+    }
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.download = getUniqueFilename();
@@ -701,6 +697,30 @@ export function saveShareImage() {
     URL.revokeObjectURL(url);
     toast('💾 图片已保存（如果未自动下载，请长按图片保存）', 2400, 'success');
   }, 'image/png');
+}
+
+// ===== 复制分享图（移动端优先 Web Share API，其次 ClipboardItem） =====
+export async function copyShareImage() {
+  const canvas = document.getElementById('shareCanvas');
+  if (!canvas) { toast('没有图片可复制', 2000, 'info'); return; }
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+  if (!blob) { toast('复制失败', 2200, 'warning'); return; }
+
+  // 移动端：系统分享面板（含存相册/发微信等）
+  if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], 'share.png', { type: 'image/png' })] })) {
+    try {
+      await navigator.share({ files: [new File([blob], 'share.png', { type: 'image/png' })], title: '浮生牌' });
+      toast('✨ 已调起系统分享', 2000, 'success');
+      return;
+    } catch (e) { /* 用户取消则走复制兜底 */ }
+  }
+  // 桌面：复制到剪贴板
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    toast('📋 图片已复制到剪贴板', 2200, 'success');
+  } catch (e) {
+    toast('复制失败，请直接保存图片', 2200, 'warning');
+  }
 }
 
 // ===== 数据迁移弹窗 =====

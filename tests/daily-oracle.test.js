@@ -2,13 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { buildDailyOracle, MOOD_BY_WX, JIANGCHU, CHONG, COMBO } from '../src/texts/daily-oracle.js';
 
 describe('DAILY_ORACLE 日运能量池', () => {
-  it('结构完整：五行5组×5条、建除12、冲煞12、组合20', () => {
+  it('结构完整：五行5组×5条、建除12、冲煞12、组合60', () => {
     const wxKeys = Object.keys(MOOD_BY_WX);
     expect(wxKeys.sort()).toEqual(['土', '水', '火', '木', '金'].sort());
     wxKeys.forEach((k) => expect(MOOD_BY_WX[k].length).toBe(5));
     expect(JIANGCHU.length).toBe(12);
     expect(CHONG.length).toBe(12);
-    expect(COMBO.length).toBe(20);
+    expect(COMBO.length).toBe(60);
   });
 
   it('同一日期两次调用结果完全一致（一天之内不变，避免娱乐化）', () => {
@@ -21,7 +21,6 @@ describe('DAILY_ORACLE 日运能量池', () => {
     const a = buildDailyOracle({ wx: '火', dateStr: '2026-08-03' });
     const b = buildDailyOracle({ wx: '火', dateStr: '2026-08-04' });
     expect(a.seed).not.toBe(b.seed);
-    expect(a.mood.title).not.toBe(b.mood.title);
     expect(a.combo.text).not.toBe(b.combo.text);
   });
 

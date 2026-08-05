@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes, viewport-fit=cover">
   <title>浮生牌 · 观牌知势</title>
-  <meta name="theme-color" content="#0c120f">
+  <meta name="theme-color" content="#f6f1e6">
   <!-- iOS PWA：全屏运行 + 状态栏样式 + 主屏图标（PNG，Safari 不支持 SVG 图标） -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -16,10 +16,10 @@
   <style>
     /* AI 高级参数折叠 */
     .ai-adv-toggle {
-      background: rgba(154,171,127,0.08);
-      border: 1px solid var(--border, #9aab7f55);
-      border-radius: 6px;
-      color: var(--accent, #9aab7f);
+      background: rgba(10,186,181,0.1);
+      border: 1px solid var(--border, #6fae9c80);
+      border-radius: 8px;
+      color: var(--accent, #6fae9c);
       font-size: 0.7rem;
       padding: 5px 10px;
       cursor: pointer;
@@ -31,9 +31,9 @@
       display: none;
       margin-top: 8px;
       padding: 8px 10px;
-      background: rgba(0,0,0,0.15);
+      background: rgba(10,186,181,0.04);
       border-radius: 8px;
-      border: 1px dashed var(--border, #9aab7f44);
+      border: 1px dashed var(--border, #6fae9c73);
       text-align: left;
     }
     .ai-adv-panel.open { display: block; }
@@ -42,7 +42,7 @@
       justify-content: space-between;
       align-items: center;
       font-size: 0.7rem;
-      color: var(--dim, #999);
+      color: var(--dim, #8b8068);
       margin: 6px 0;
       gap: 8px;
     }
@@ -178,9 +178,9 @@
     </div>
 
     <!-- 日运类型选择弹窗 -->
-    <div id="fortuneTypeModal" hidden style="position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:999;">
-      <div style="background:var(--bg, #111a15);border:1px solid var(--border, #9aab7f55);border-radius:12px;padding:20px;min-width:240px;text-align:center;">
-        <h3 style="color:var(--accent, #9aab7f);margin-bottom:12px;">☯ 选择日运类型</h3>
+    <div id="fortuneTypeModal" hidden style="position:fixed;inset:0;background:rgba(140,70,105,0.4);display:flex;align-items:center;justify-content:center;z-index:999;">
+      <div style="background:var(--bg, #fcf8ef);border:1px solid var(--border, #6fae9c80);border-radius:12px;padding:20px;min-width:240px;text-align:center;">
+        <h3 style="color:var(--accent, #6fae9c);margin-bottom:12px;">☯ 选择日运类型</h3>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
           <button data-action="shareDaily" data-fortune="wealth" class="small outline">💰 财运</button>
           <button data-action="shareDaily" data-fortune="love" class="small outline">🌸 桃花</button>
@@ -202,13 +202,14 @@
       <canvas id="shareCanvas"></canvas>
       <div class="btn-row">
         <button data-action="saveShareImage" class="primary small">保存到相册</button>
+        <button data-action="copyShareImage" class="outline small">复制</button>
         <button data-action="closeShare" class="outline small">关闭</button>
       </div>
     </div>
   </div>
 
   <footer style="margin-top:26px;clear:both;padding:14px 16px 26px;text-align:center;font-size:0.66rem;color:#5c5c70;line-height:2;">
-    <div>🔒 数据只存本机浏览器 · 换设备/备份请点顶部「备份」导出，再在新设备导入</div>
+    <div>🔒 数据只存本机 · 换设备请点顶部「备份」</div>
     <div>牌灵，是你潜意识在扑克牌上的投影 · 观牌知势，不语已明</div>
   </footer>
   <script type="module" src="/src/ui.js"></script>

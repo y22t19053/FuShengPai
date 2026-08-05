@@ -4,7 +4,7 @@
 //       朱砂只用于牌面红字与「忌」，金色只用于「宜」与标签，克制不夺目。
 
 import {
-  W, H, M, CW, LIGHT, MINT, SERIF, NUM, font,
+  W, H, M, CW, LIGHT, SERIF, NUM, font,
   roundRectPath, wrapText, hairline, paintBackground, drawBrandBar, drawFooter,
 } from '../theme.js';
 import { drawPokerCard } from '../poker.js';
@@ -39,7 +39,7 @@ function weekday(dateText) {
 /**
  * 日运海报（1080×1440，垂直中轴）
  * data: { cardMain{rank,suit,wx,color}, title, line, quote, dateText, fortuneType, element }
- * t: 主题色板（LIGHT 宣纸 / MINT 薄荷）
+ * t: 主题色板（LIGHT 宣纸）
  */
 async function renderDailyCore(ctx, w, h, data, t) {
   const card = data.cardMain || { rank: '?', suit: '', wx: '土', color: 'black' };
@@ -58,14 +58,14 @@ async function renderDailyCore(ctx, w, h, data, t) {
   const wd = weekday(dateText);
   const metaLine = wd ? `${wd} · ${weather}象` : `${weather}象`;
 
-  // 纸牌配色随主题走（宣纸=墨棕，薄荷=墨绿）
+  // 纸牌配色随主题走（暖纸=暖墨棕，鼠尾草=墨绿）
   const cardStyle = {
-    red: t.cardRed || '#b03a2e',
-    black: t.cardBlack || '#3a3226',
-    paper: t.cardPaper || '#fdfaf3',
-    border: t.cardBorder || 'rgba(61,53,39,0.55)',
+    red: t.cardRed || '#c96f52',
+    black: t.cardBlack || '#3a3425',
+    paper: t.cardPaper || '#fcf8ef',
+    border: t.cardBorder || 'rgba(58,52,37,0.55)',
   };
-  const cardShadow = t.shadow || 'rgba(61,53,39,0.15)';
+  const cardShadow = t.shadow || 'rgba(58,52,37,0.15)';
 
   // ---------- 1. 背景 + 品牌栏 ----------
   paintBackground(ctx, t, w, h);
@@ -177,9 +177,4 @@ async function renderDailyCore(ctx, w, h, data, t) {
 /** 日运宣纸海报（默认款） */
 export function renderDaily(ctx, w, h, data) {
   return renderDailyCore(ctx, w, h, data, LIGHT);
-}
-
-/** 日运薄荷海报（清新款） */
-export function renderDailyMint(ctx, w, h, data) {
-  return renderDailyCore(ctx, w, h, data, MINT);
 }

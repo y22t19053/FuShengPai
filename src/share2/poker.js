@@ -1,5 +1,5 @@
 // ===== src/share2/poker.js · 标准扑克牌绘制引擎（终局版） =====
-// 温润米白 #fdfaf3 底 + 1px 深灰 #2a2a2a 极细边框；
+// 手绘暖纸 #fcf8ef 底 + 1px 暖灰 #6b6352 极细边框；
 // 左上角标 rank+suit、右下角标旋转 180° 倒置（正反交错）；
 // 中心图案：A-10 单一巨大花色符号（占据卡面中心 ~60%，摒弃分散小点）；
 // J/Q/K 极简几何宫廷符号（J=剑+盾、Q=皇冠+权杖、K=王冠+交叉双剑）；
@@ -9,8 +9,8 @@
 /** 花色字符 */
 const SUIT_GLYPH = { '♠': '♠', '♥': '♥', '♦': '♦', '♣': '♣' };
 
-/** 全局衬线字体栈（思源宋体 / Georgia 优先） */
-const FONT = '"Georgia","Noto Serif SC","Source Han Serif SC","Songti SC","SimSun","STSong",serif';
+/** 全局圆润无衬线字体栈（奶油糖果风，无衬线尖角） */
+const FONT = '"PingFang SC","HarmonyOS Sans SC","MiSans","Noto Sans SC","Microsoft YaHei","Segoe UI",sans-serif';
 
 /** 是否为 Joker（支持 cardMain 形态 rank='大王'/'小王' 与原始牌 isJoker） */
 function isJokerCard(card) {
@@ -149,7 +149,7 @@ function jesterHat(ctx, cx, cy, s, color, outline) {
   ctx.stroke();
 }
 
-/** 带字距的 JOKER 艺术字（Georgia 粗体，逐字绘制 + 金线描边） */
+/** 带字距的 JOKER 艺术字（圆润无衬线粗体，逐字绘制 + 金线描边） */
 function jokerWord(ctx, text, cx, cy, font, color, outline) {
   ctx.font = font;
   ctx.fillStyle = color;
@@ -173,14 +173,14 @@ function jokerWord(ctx, text, cx, cy, font, color, outline) {
 /** Joker 牌面（大王=白底红字金线，小王=黑底白字金线） */
 function drawJokerFace(ctx, card, x, y, w, h, big) {
   const minDim = Math.min(w, h);
-  const paper = big ? '#fdfaf3' : '#0e0e12';
-  const ink = big ? '#c0392b' : '#f2f2f0';
-  const gold = 'rgba(154,171,127,0.9)';
+  const paper = big ? '#fcf8ef' : '#3a3425';
+  const ink = big ? '#b05f45' : '#f2f2f0';
+  const gold = 'rgba(111,174,156,0.9)';
   // 底
   ctx.fillStyle = paper;
   ctx.fillRect(x, y, w, h);
   // 极细边框（小王用淡白描边）
-  ctx.strokeStyle = big ? '#2a2a2a' : 'rgba(242,242,240,0.5)';
+  ctx.strokeStyle = big ? '#6b6352' : 'rgba(242,242,240,0.5)';
   ctx.lineWidth = 1;
   ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
   // 中央小丑帽徽章（勾线版）
@@ -216,7 +216,7 @@ function bigSuit(ctx, x, y, w, h, suit, ink, isAce) {
   ctx.fillStyle = ink;
   ctx.fillText(SUIT_GLYPH[suit] || suit, cx, cy);
   // 极细内光描边（米白，浮雕质感）
-  ctx.strokeStyle = 'rgba(253,250,243,0.38)';
+  ctx.strokeStyle = 'rgba(252,248,239,0.38)';
   ctx.lineWidth = Math.max(1, minDim * 0.012);
   ctx.strokeText(SUIT_GLYPH[suit] || suit, cx, cy);
   ctx.restore();
@@ -242,15 +242,15 @@ export function drawPokerCard(ctx, card, x, y, w, h, opts = {}) {
   }
 
   const isRed = isRedCard(card, opts);
-  const red = opts.red || '#c0392b';
-  const black = opts.black || '#1a1a1a';
-  const paper = opts.paper || '#fdfaf3';
+  const red = opts.red || '#b05f45';
+  const black = opts.black || '#3a3425';
+  const paper = opts.paper || '#fcf8ef';
   const ink = isRed ? red : black;
 
-  // 温润米白底 + 1px 极细深灰边框
+  // 手绘暖纸底 + 1px 极细暖灰边框
   ctx.fillStyle = paper;
   ctx.fillRect(x, y, w, h);
-  ctx.strokeStyle = opts.border || '#2a2a2a';
+  ctx.strokeStyle = opts.border || '#6b6352';
   ctx.lineWidth = 1;
   ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
 

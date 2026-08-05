@@ -1,5 +1,5 @@
 // ===== src/persona.js · 扑克牌人格 + 单牌运势体系 =====
-import { getWuxing } from './data.js';
+import { getWuxing, DAILY_FORTUNE_TYPES } from './data.js';
 import { pick } from './constants.js';
 import { WUXING_FORTUNE_POOLS, WUXING_MOOD_SHORTS } from './texts/fortune-pools.js';
 
@@ -58,16 +58,8 @@ export function getPokerPersona(card) {
   };
 }
 
-// ---- 单牌运势类别（含学业） ----
-export const FORTUNE_TYPES = [
-  { key: 'overall', label: '综合', icon: '☯' },
-  { key: 'wealth',  label: '财运', icon: '💰' },
-  { key: 'love',    label: '桃花', icon: '🌸' },
-  { key: 'noble',   label: '贵人', icon: '🤝' },
-  { key: 'career',  label: '事业', icon: '⚡' },
-  { key: 'health',  label: '健康', icon: '🌿' },
-  { key: 'study',   label: '学业', icon: '📚' }
-];
+// ---- 单牌运势类别（含学业）：与 data.js DAILY_FORTUNE_TYPES 同源，避免两处维护 ----
+export const FORTUNE_TYPES = DAILY_FORTUNE_TYPES;
 
 // ---- 吉凶判定 ----
 function fortuneGrade(wx) {

@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@fontsource/noto-serif-sc": "^5.3.0",
+    "lunar-javascript": "^1.7.7",
     "qrcode": "^1.5.4"
   }
 }

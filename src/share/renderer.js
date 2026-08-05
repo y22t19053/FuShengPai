@@ -1,7 +1,7 @@
 // ===== src/share/renderer.js · 统一渲染器（根据模板类型调度） =====
 import { drawDivinationShare } from './templates/divination.js';
 import { renderArcana } from '../share2/templates/arcana.js';
-import { renderDaily, renderDailyMint } from '../share2/templates/daily.js';
+import { renderDaily } from '../share2/templates/daily.js';
 
 // 模板注册表（未来可动态扩展）
 const TEMPLATE_REGISTRY = {
@@ -9,7 +9,6 @@ const TEMPLATE_REGISTRY = {
   tarot: renderArcana,   // 牌灵 · share2 新引擎（原生 Canvas，零 DOM 截图，无指纹/编号）
   arcana: renderArcana,  // 牌灵 · 新模板名别名
   daily: renderDaily,    // 日运 · share2 新引擎（原生 Canvas，零 DOM 截图，无指纹/编号）
-  mint: renderDailyMint, // 日运 · 薄荷清新款（墨绿字 + 青绿金）
 };
 
 /**

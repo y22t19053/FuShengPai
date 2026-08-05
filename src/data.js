@@ -230,11 +230,11 @@ export function getGongEnvironment(gongWx, cardWx) {
   if (!gongWx || !cardWx) return null;
   const rel = getShengKe(cardWx, gongWx);
   const map = {
-    '生我': { key: 'gongSheng',  label: '宫生牌', desc: '此宫如沃土，滋养牌的能量，环境助力，顺势可成。', score: 2 },
-    '我生': { key: 'cardSheng',  label: '牌生宫', desc: '牌在此宫为宫供能，事在推进但自身有所消耗，宜掌握节奏。', score: 1 },
-    '克我': { key: 'gongKe',     label: '宫克牌', desc: '此宫的能量压过牌，环境阻力明显，宜守不宜攻。', score: -2 },
-    '我克': { key: 'cardKe',     label: '牌克宫', desc: '牌的能量压过此宫，需主动破局方能施展。', score: 1 },
-    '同我': { key: 'biHe',       label: '比和',   desc: '牌与宫能量同频、相互共振，顺势增强，最为稳妥。', score: 3 },
+    '生我': { key: 'gongSheng',  label: '宫生牌', plain: '宫滋养牌', desc: '此宫如沃土，滋养牌的能量，环境助力，顺势可成。', score: 2 },
+    '我生': { key: 'cardSheng',  label: '牌生宫', plain: '牌滋养宫', desc: '牌在此宫为宫供能，事在推进但自身有所消耗，宜掌握节奏。', score: 1 },
+    '克我': { key: 'gongKe',     label: '宫克牌', plain: '宫压着牌', desc: '此宫的能量压过牌，环境阻力明显，宜守不宜攻。', score: -2 },
+    '我克': { key: 'cardKe',     label: '牌克宫', plain: '牌压过宫', desc: '牌的能量压过此宫，需主动破局方能施展。', score: 1 },
+    '同我': { key: 'biHe',       label: '比和',   plain: '与宫同气', desc: '牌与宫能量同频、相互共振，顺势增强，最为稳妥。', score: 3 },
   };
   return map[rel] || null;
 }
@@ -287,8 +287,20 @@ export function getShengKeLabel(relation) {
   return map[relation] || '—';
 }
 
+// 体用关系的白话版（用户可见；内部仍用 生我/我生/克我/我克 计算）
+export function getRelationPlain(relation) {
+  const map = { '生我': '它滋养你', '我生': '你在滋养它', '克我': '它在压着你', '我克': '你能掌控它', '同我': '与你同气' };
+  return map[relation] || '—';
+}
+
 export function getWangState(cardWx, gongWx) {
   const rel = getShengKe(cardWx, gongWx);
   const map = { '同我': '旺', '我生': '相', '生我': '休', '我克': '囚', '克我': '死' };
   return map[rel] || '平';
+}
+
+// 旺衰状态的白话版（用户可见；内部仍用 旺/相/休/囚/死 计算）
+export function getWangStatePlain(state) {
+  const map = { '旺': '正旺', '相': '在上升', '休': '在休整', '囚': '被困住', '死': '在停滞' };
+  return map[state] || state;
 }

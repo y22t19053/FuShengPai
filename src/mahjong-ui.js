@@ -40,15 +40,15 @@ function getModal() {
 
 // ---------- 牌面渲染 ----------
 
-/** 单张牌面（骨白牌面 + 竹青字）：万=青瓷 / 条=竹青 / 筒=朱 / 风=朱(北=墨) / 箭=朱·绿·白 */
+/** 单张牌面（纸感牌面 + 手绘字色）：万=雾蓝 / 条=鼠尾草 / 筒=陶土红 / 风=陶土红(北=骨灰) / 箭=陶土红·鼠尾草·骨白 */
 const CHAR_COLOR = {
-  'wan':   '#7fa9b5',
-  'tiao':  '#9aab7f',
-  'tong':  '#c25b4a',
-  'feng':  '#c25b4a',
-  'jian1': '#c25b4a',
-  'jian2': '#9aab7f',
-  'jian3': '#cfc9b8',
+  'wan':   '#8fb0c3',
+  'tiao':  '#5c8a7a',
+  'tong':  '#c96f52',
+  'feng':  '#c96f52',
+  'jian1': '#c96f52',
+  'jian2': '#5c8a7a',
+  'jian3': '#c9b3a6',
 };
 
 function tileFaceHTML(tile, size = 54) {
@@ -312,7 +312,7 @@ function dailyReadingHTML(r, alreadyDrawn) {
       </div>
       <div style="margin:10px 0;">${tileFaceHTML(r.tile, 64)}</div>
       <div style="font-size:0.9rem;color:var(--text);line-height:1.8;padding:0 12px;">${escapeForHTML(r.meaning)}</div>
-      <div style="font-size:0.85rem;color:var(--cinnabar,#b03a2e);font-weight:600;margin:10px 0 4px;">${escapeForHTML(r.verdict)}</div>
+      <div style="font-size:0.85rem;color:var(--cinnabar,#c96f52);font-weight:600;margin:10px 0 4px;">${escapeForHTML(r.verdict)}</div>
       <div style="font-size:0.8rem;color:var(--accent);margin:4px 0;">🧭 财神方位：${escapeForHTML(r.direction)}</div>
       <div style="font-size:0.78rem;color:var(--dim);margin:8px 0;">宜：${escapeForHTML(r.yi)}　忌：${escapeForHTML(r.ji)}</div>
       <div class="closing-line" style="font-size:0.85rem;color:var(--accent);font-style:italic;margin:10px 0 12px;">牌已定，事在人。明日再来摸一张。</div>

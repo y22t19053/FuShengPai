@@ -239,19 +239,63 @@ export function completeOnboarding() {
   return safeSet(ONBOARDING_KEY, true);
 }
 
-// ---------- 导出 / 导入 ----------
+// ---------- 牌灵 ----------
+export function getPaige() {
+  return safeGet(PAIGE_KEY) || null;
+}
+
+// ---------- 导出 / 导入（UIGF 风格统一格式：info 元数据 + records 记录数组） ----------
+const APP_VERSION = '1.0.0';
+
+function buildInfo() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return {
+    export_app: '浮生牌',
+    export_app_version: APP_VERSION,
+    export_timestamp: Date.now(),
+    export_date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    version: 'v2.0.0',
+    lang: 'zh-cn'
+  };
+}
+
+// history → records（统一记录数组，第三方/脚本可直接消费；缺失字段留空不报错）
+function historyToRecords(history) {
+  return (history || [])
+    .map(h => {
+      if (!h || typeof h !== 'object') return null;
+      return {
+        type: h.type || 'reading',
+        periodType: h.periodType || null,
+        periodKey: h.periodKey || null,
+        fortuneType: h.fortuneType || null,
+        spreadType: h.spreadType || null,
+        card: h.card || null,
+        threeCards: h.threeCards || null,
+        question: h.question || '',
+        text: h.text || '',
+        time: h.time,
+        durianScore: h.durianScore || 0
+      };
+    })
+    .filter(Boolean);
+}
+
 export function exportAllDataJson() {
+  const history = getHistory();
   const data = {
-    version: 1,
-    exportedAt: Date.now(),
-    history: getHistory(),
+    info: buildInfo(),
+    version: 2,
+    records: historyToRecords(history),
+    history,
     profile: getProfile(),
     settings: getApiSettings(),
     timeline: getTimeline(),
     timeCapsule: getTimeCapsule(),
     drawTimestamps: getDrawTimestamps(),
     periodCards: getStoredPeriodCards(),
-    paige: safeGet(PAIGE_KEY)
+    paige: getPaige()
   };
   return JSON.stringify(data, null, 2);
 }
@@ -278,7 +322,8 @@ function mergeHistory(a, b) {
 export function importAllData(jsonStr) {
   try {
     const data = JSON.parse(jsonStr);
-    if (!data || data.version !== 1) throw new Error('版本不兼容');
+    // v1 = 旧格式；v2 = UIGF 风格（info + records），两者都兼容
+    if (!data || (data.version !== 1 && data.version !== 2)) throw new Error('版本不兼容');
 
     // 历史记录：合并去重，保留较新
     if (Array.isArray(data.history)) {

@@ -32,12 +32,13 @@ const SOLAR_TERMS = [
   { m: 12, d: 22, name: '冬至', ask: '宜归根' },
 ];
 
-// 四季 accent（--accent / --accent-rgb 覆盖值；秋 = 默认玄金）
+// 四季 accent（--accent / --accent-rgb 覆盖值；秋 = 默认鼠尾草绿，与 :root 自洽）
+// 铁律：手绘绘本风——莫兰迪低饱和，暖纸底 + 鼠尾草薄荷绿主色 + 陶土红点缀，忌高饱和撞色。
 export const SEASON_ACCENTS = {
-  '春': { accent: '#9aab7f', rgb: '154,171,127' }, // 竹绿
-  '夏': { accent: '#7fa9b5', rgb: '127,169,181' }, // 青瓷
-  '秋': { accent: '#b0a05a', rgb: '176,160,90' }, // 藤黄（老牌馆藤面椅色）
-  '冬': { accent: '#97a3c4', rgb: '151,163,196' }, // 雪青
+  '春': { accent: '#8fc0ad', rgb: '143,192,173' }, // 春芽鼠尾草（春醒）
+  '夏': { accent: '#7aa8b8', rgb: '122,168,184' }, // 雾蓝（夏凉）
+  '秋': { accent: '#6fae9c', rgb: '111,174,156' }, // 鼠尾草（默认主色）
+  '冬': { accent: '#5c8a7a', rgb: '92,138,122' }, // 深鼠尾草（冬敛）
 };
 
 /** 季节（2-4 春 / 5-7 夏 / 8-10 秋 / 11-1 冬） */
@@ -76,20 +77,23 @@ export function applySeasonAccent(d = new Date()) {
 
 // ---------- 进门迎客：时段一句 + 常客承认 + 昨日之牌回访 ----------
 
+// 时段按 from 升序排列——循环在第一个 h < from 处 break，
+// 数组乱序（23 排首位）会导致 0-22 点全部误命中最晚的深夜语。
 const HOUR_GREETINGS = [
-  { from: 23, text: '这么晚还在想事，先抽一张安静一下。' },
   { from: 5,  text: '天刚亮，来问点什么？' },
   { from: 8,  text: '今天来问点什么？' },
   { from: 11, text: '午间小憩，抽一张歇一歇。' },
   { from: 14, text: '下午好，来问点什么？' },
   { from: 18, text: '收工了，抽一张听听它说什么。' },
   { from: 21, text: '晚上好，今天想聊点什么？' },
+  { from: 23, text: '这么晚还在想事，先抽一张安静一下。' },
 ];
 
 /** 时段迎客语（安静一句，像店家隔着门帘点头） */
 export function getHourGreeting(d = new Date()) {
   const h = d.getHours();
-  let g = HOUR_GREETINGS[0];
+  // 兜底取末位（深夜档）：0-4 点同样归「这么晚还在想事」
+  let g = HOUR_GREETINGS[HOUR_GREETINGS.length - 1];
   for (const item of HOUR_GREETINGS) {
     if (h >= item.from) g = item;
     else break;

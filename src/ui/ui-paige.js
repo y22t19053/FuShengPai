@@ -206,16 +206,16 @@ function showPaiGeDetail(modal, content, status) {
       <div style="font-size:0.7rem;color:var(--dim);margin-bottom:4px;">你的牌灵 · 人生课题</div>
       <div style="
         width:110px;height:155px;
-        background:rgba(255,255,255,0.05);
+        background:rgba(255,255,255,0.7);
         border:2px solid var(--border);
-        border-radius:12px;
+        border-radius:var(--r-hand-sm);
         margin:12px auto;
         display:flex;
         flex-direction:column;
         align-items:center;
         justify-content:center;
         gap:4px;
-        box-shadow:0 4px 20px rgba(0,0,0,0.3);
+        box-shadow:0 4px 20px rgba(111,174,156,0.22), 2px 3px 0 rgba(77,143,126,0.13);
       ">
         <span style="font-size:2.2rem;font-weight:bold;color:${colorText};">${escapeForHTML(rank)}${escapeForHTML(suit)}</span>
         <span style="font-size:0.7rem;color:var(--accent);">${escapeForHTML(question?.title || '')}</span>
@@ -225,7 +225,7 @@ function showPaiGeDetail(modal, content, status) {
       <div style="font-size:0.9rem;color:var(--dim);line-height:1.8;padding:0 12px;white-space:pre-wrap;">“${escapeForHTML(question?.question || '')}”</div>
 
       <div style="display:flex;gap:4px;justify-content:center;margin:10px 0;">
-        ${(question?.keywords || []).map(kw => `<span style="font-size:0.7rem;background:rgba(var(--accent-rgb),0.15);border:1px solid rgba(var(--accent-rgb),0.3);border-radius:12px;padding:4px 10px;color:var(--accent);">${escapeForHTML(kw)}</span>`).join('')}
+        ${(question?.keywords || []).map(kw => `<span style="font-size:0.7rem;background:rgba(var(--accent-rgb),0.15);border:1px solid rgba(var(--accent-rgb),0.3);border-radius:var(--r-hand-btn);padding:4px 10px;color:var(--accent);">${escapeForHTML(kw)}</span>`).join('')}
       </div>
 
       <p class="num" style="font-size:0.65rem;color:var(--dim);">抽于 ${new Date(stored.drawnAt).toLocaleString()}</p>

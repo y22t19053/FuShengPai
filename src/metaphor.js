@@ -9,7 +9,7 @@ const TIYONG_METAPHORS = {
   '我生': ['你手里有一杯水，而你正在把它倒出去。', '你在给一盏灯加油，但灯不是你的。', '你像一棵树，把果子给别人摘走了。'],
   '克我': ['你觉得被什么压住了，但不是石头，是一块铁板。', '有一个人站在你前面，你走不过去。', '你像在逆风里骑自行车，很累但不敢停。'],
   '我克': ['你面前有一团乱麻，但你手里有一把刀。', '你像骑在一匹马上，它不太听你的话，但你能控制它。', '你面前有一扇门，门后有声音，但门你推得开。'],
-  '同我': ['你和你面对的东西站在同一个高度。', '你们是两条并肩的河，谁也不快，谁也不慢。', '你和这个局面像两面镜子对着。'],
+  '同我': ['你和你面对的东西站在同一个高度。', '你们站的位置一样高，谁也不用先低头。', '你和这个局面像两面镜子对着。'],
 };
 
 const GONG_METAPHORS = {
@@ -24,10 +24,38 @@ const GONG_METAPHORS = {
   9: '你身上带着一团火，自己觉得烫，别人觉得亮。',
 };
 
-const HIGH_DIFF_METAPHORS = ['你手里的地图和你站的地方对不上。', '你心里的钟表和墙上的钟差了几分钟。'];
-const LOW_DIFF_METAPHORS = ['你们之间的距离很近，近到快看不见。', '一切都很顺，顺到你有点不放心。'];
-const WANG_METAPHORS = ['你现在火很旺，风小了反而更好烧。', '你正站在自己的节奏上，别被谁带跑。'];
-const DEAD_METAPHORS = ['这是一潭水，好久没有动过了。', '你握着一把土，越紧越漏。'];
+// 差值隐喻：原来每档只有 2 句，同一局面二次必撞句；现扩到 5 句并新增「中差值」档。
+const HIGH_DIFF_METAPHORS = [
+  '你手里的地图和你站的地方对不上。',
+  '你心里的钟表和墙上的钟差了几分钟。',
+  '天气预报说晴天，你出门带把伞也不是不行。',
+  '鞋码差半号，能穿，但走远路脚会知道。',
+  '两个人说话，一个在夏天，一个在冬天。',
+];
+const MID_DIFF_METAPHORS = [
+  '路是对的，就是比预计多两个弯。',
+  '火候差一点，再添一把柴，或者再等五分钟，都行。',
+  '声音差半拍，不是走调，是还没到该合上的那一段。',
+];
+const LOW_DIFF_METAPHORS = [
+  '你们之间的距离很近，近到快看不见。',
+  '一切都很顺，顺到你有点不放心。',
+  '两片叶子几乎叠在一起，只差一阵风。',
+  '拼图只差最后一块，而且它就在手边。',
+  '水已经烧到 98 度，剩下两度不用守着看。',
+];
+const WANG_METAPHORS = [
+  '你现在火很旺，风小了反而更好烧。',
+  '你正站在自己的节奏上，别被谁带跑。',
+  '顺风的时候帆要吃饱，但舵别松。',
+  '灯已经亮到你身上了，就把它演完。',
+];
+const DEAD_METAPHORS = [
+  '这是一潭水，好久没有动过了。',
+  '你握着一把土，越紧越漏。',
+  '钟摆还在走，只是没人给它上发条了。',
+  '炉子里还有余温，先添柴，别急着封火。',
+];
 
 export function generateMetaphor(context) {
   const parts = [];
@@ -39,6 +67,7 @@ export function generateMetaphor(context) {
   if (context.diff !== undefined && context.diff !== null) {
     const absDiff = Math.abs(context.diff);
     if (absDiff > 5) parts.push(pick(HIGH_DIFF_METAPHORS));
+    else if (absDiff >= 3 && absDiff <= 5) parts.push(pick(MID_DIFF_METAPHORS));
     else if (absDiff <= 2) parts.push(pick(LOW_DIFF_METAPHORS));
   }
 

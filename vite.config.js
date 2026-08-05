@@ -24,10 +24,10 @@ export default defineConfig({
         id: '/',
         name: '浮生牌 · 观测者的镜子',
         short_name: '浮生牌',
-        description: '献给高敏感人群的AI时代玄学工具：不替你做决定，但帮你把心里的话说出来。',
+        description: '不预测命运，只聊聊今天怎么过。抽一张牌，看看自己真正想选什么。',
         lang: 'zh-CN',
-        theme_color: '#1a1626',
-        background_color: '#1a1626',
+        theme_color: '#f6f1e6',
+        background_color: '#f6f1e6',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '.',
@@ -54,8 +54,8 @@ export default defineConfig({
         ]
       },
       workbox: {
-        // 排除 noto-serif 中文字体字集（~5MB 分片）：桌面在线按需请求、离线回退系统宋体，
-        // 移动端完全不加载字体，避免拖累 PWA 安装与首屏
+        // 不再加载网络字体：奶油主题统一系统圆润无衬线（PingFang/微软雅黑），
+        // PWA 离线零字体依赖，首屏更快、包体更小
         globPatterns: ['**/*.{js,css,html,svg,png,webp}'],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true

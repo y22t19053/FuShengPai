@@ -1,6 +1,6 @@
-// ===== src/share2/templates/arcana.js · 牌灵海报（统一设计系统 · 深色墨绿竹青） =====
+// ===== src/share2/templates/arcana.js · 牌灵海报（统一设计系统 · 奶油薄荷蒂芙尼） =====
 // 基于 theme.js 骨架：品牌栏 → 大标题 → 左侧大牌面 + 右侧档案 → 底部金句 → 落款+二维码。
-// 原则：左对齐网格、1px 竹青细线分隔、无噪点无光斑、光效只留竹青细框微光（克制）。
+// 原则：左对齐网格、1px 薄荷细线分隔、无噪点无光斑、光效只留薄荷细框微光（克制）。
 
 import {
   W, H, M, CW, DARK, SERIF, SANS, NUM, font,
@@ -8,15 +8,12 @@ import {
 } from '../theme.js';
 import { drawPokerCard } from '../poker.js';
 
-/** 克我者（五行相克推导，单牌场景的体用关系） */
-const KE = { 木: '金', 火: '水', 土: '木', 金: '火', 水: '土' };
-
 /** 五行力量点阵：满点数（木/金旺 4，火 3，土/水平 2） */
 const POWER = { 木: 4, 火: 3, 土: 2, 金: 4, 水: 2 };
 
 /** 五行属性文案（克制点缀） */
 const WX_LABEL = { 木: '生长', 火: '明动', 土: '承载', 金: '肃敛', 水: '润下' };
-const WX_COLOR = { 木: '#9aab7f', 火: '#c96a5a', 土: '#b0a05a', 金: '#c9cdbf', 水: '#7d97ad' };
+const WX_COLOR = { 木: '#7ba88f', 火: '#c96f52', 土: '#c9b184', 金: '#a89f8f', 水: '#7a9cb0' };
 
 /** 日期 2026.08.03 */
 function dotDate(dateText) {
@@ -33,13 +30,13 @@ export async function renderArcana(ctx, w, h, data) {
   const t = DARK;
   const card = data.cardMain || { rank: '?', suit: '', wx: '土', color: 'black' };
   const wx = card.wx || data.element || '土';
-  const relation = data.relation || `克我 · ${KE[wx] || '金'}`;
+  const relation = data.relation || '受克 · 宜守';
   const power = POWER[wx] || 3;
   // 底部金句：优先取牌灵课题原文（paige.question）——「牌是镜子」的定位下，
   // 课题比名人名言更像这面镜子；无课题时才回退名人名言/兜底文案。
   const quote = (data.paige?.question || data.quote || data.line || '观牌知势').replace(/^“|”$/g, '');
   const dateText = data.dateText || '';
-  const wxColor = WX_COLOR[wx] || '#9aab7f';
+  const wxColor = WX_COLOR[wx] || '#6fae9c';
   const wxLabel = WX_LABEL[wx] || '';
   const keywords = (data.keywords || []).slice(0, 3);
   const L = M;
@@ -67,15 +64,15 @@ export async function renderArcana(ctx, w, h, data) {
   const bx = L, by = 430, bw = 420, bh = 588;
   const cx = bx + bw / 2, cy = by + bh / 2;
 
-  // 3.1 竹青极细外框（只留一层细框 + 极淡微光，无第二层噪线）
+  // 3.1 蒂芙尼极细外框（只留一层细框 + 极淡微光，无第二层噪线）
   ctx.save();
   const gold = ctx.createLinearGradient(bx - 8, by - 8, bx + bw + 8, by + bh + 8);
-  gold.addColorStop(0, '#3d4a32');
-  gold.addColorStop(0.5, '#9aab7f');
-  gold.addColorStop(1, '#3d4a32');
+  gold.addColorStop(0, '#4d8f7e');
+  gold.addColorStop(0.5, '#6fae9c');
+  gold.addColorStop(1, '#4d8f7e');
   ctx.strokeStyle = gold;
   ctx.lineWidth = 1.5;
-  ctx.shadowColor = 'rgba(154,171,127,0.25)';
+  ctx.shadowColor = 'rgba(111,174,156,0.28)';
   ctx.shadowBlur = 18;
   roundRectPath(ctx, bx - 8, by - 8, bw + 16, bh + 16, 6);
   ctx.stroke();
@@ -84,10 +81,10 @@ export async function renderArcana(ctx, w, h, data) {
 
   // 3.2 真实扑克牌主体
   drawPokerCard(ctx, card, bx, by, bw, bh, {
-    red: '#c0392b',
-    black: '#1a1a1a',
-    paper: '#fdfaf3',
-    border: '#2a2a2a',
+    red: '#c96f52',
+    black: '#3a3425',
+    paper: '#fcf8ef',
+    border: '#6b6352',
   });
 
   // ---------- 4. 右侧档案区（严格对齐，x 由网格推导） ----------

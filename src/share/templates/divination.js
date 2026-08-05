@@ -1,7 +1,7 @@
-// ===== src/share/templates/divination.js · 解读海报（统一设计系统 · 深色玄金） =====
+// ===== src/share/templates/divination.js · 解读海报（统一设计系统 · 暖纸手绘） =====
 // 基于 theme.js 骨架（DARK 色板）：品牌栏 → 标题 + 金句 → 体用双卡 + 关系徽章
 //   → 天机线三宫 → 解读正文（可读优先）→ 张力指数条 → 落款 + 二维码。
-// 原则：左对齐网格、1px 金线分隔、无噪点无光斑、光效只留体用卡暗金微光（克制）。
+// 原则：左对齐网格、1px 细线分隔、无噪点无光斑、光效只留体用卡微光（克制）。
 
 import {
   W, H, M, CW, DARK, SERIF, SANS, NUM, font,
@@ -11,7 +11,7 @@ import { drawPokerCard } from '../../share2/poker.js';
 
 /** 关系徽章：生克 → 中文标签 + 颜色（克制，不做夸张渐变） */
 const REL_LABEL = { 生我: '大吉', 我生: '小凶', 克我: '大凶', 我克: '小吉', 同我: '平' };
-const REL_COLOR = { 生我: '#9aab7f', 我生: '#9aab7f', 克我: '#c96a5a', 我克: '#7d97ad', 同我: '#b0a05a' };
+const REL_COLOR = { 生我: '#6fae9c', 我生: '#8fc0ad', 克我: '#c96f52', 我克: '#7a9cb0', 同我: '#7ba88f' };
 
 /** 天机线三宫标签 */
 const GONG_PHASE = { 0: '起点', 1: '经过', 2: '结果' };
@@ -74,9 +74,9 @@ export async function drawDivinationShare(ctx, w, h, data) {
   // 3.3 关系徽章（居中，圆形 + 细描边，克制微光）
   const badgeR = 40;
   ctx.save();
-  ctx.shadowColor = 'rgba(154,171,127,0.18)';
+  ctx.shadowColor = 'rgba(111,174,156,0.18)';
   ctx.shadowBlur = 12;
-  ctx.fillStyle = 'rgba(236,232,221,0.06)';
+  ctx.fillStyle = 'rgba(111,174,156,0.12)';
   ctx.beginPath();
   ctx.arc(badgeCX, badgeCY, badgeR, 0, Math.PI * 2);
   ctx.fill();
@@ -84,7 +84,7 @@ export async function drawDivinationShare(ctx, w, h, data) {
   const rel = data.relation || '未知';
   const relLabel = REL_LABEL[rel] || '平';
   const relColor = REL_COLOR[rel] || t.gold;
-  ctx.strokeStyle = 'rgba(154,171,127,0.4)';
+  ctx.strokeStyle = 'rgba(111,174,156,0.4)';
   ctx.lineWidth = 1.2;
   ctx.stroke();
   ctx.fillStyle = relColor;
@@ -191,7 +191,7 @@ export async function drawDivinationShare(ctx, w, h, data) {
   const barColor = score >= 7 ? '#c96a5a' : score >= 4 ? t.gold : '#8a9a5a';
   for (let i = 0; i < n; i++) {
     const x = L + i * (segW + 4);
-    ctx.fillStyle = i < fillCount ? barColor : 'rgba(236,232,221,0.12)';
+    ctx.fillStyle = i < fillCount ? barColor : 'rgba(58,52,37,0.1)';
     roundRectPath(ctx, x, barY, segW, barH, 2);
     ctx.fill();
   }
@@ -217,7 +217,7 @@ function drawTiyongCard(ctx, t, x, y, w, h, card, label) {
 
   // 卡底
   ctx.save();
-  ctx.fillStyle = 'rgba(236,232,221,0.05)';
+  ctx.fillStyle = 'rgba(252,248,239,0.85)';
   roundRectPath(ctx, x, y, w, h, 8);
   ctx.fill();
   ctx.strokeStyle = t.line;
