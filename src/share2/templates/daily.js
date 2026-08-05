@@ -63,7 +63,7 @@ async function renderDailyCore(ctx, w, h, data, t) {
   const cardStyle = {
     red: t.cardRed || '#c96f52',
     black: t.cardBlack || '#3a3425',
-    paper: t.cardPaper || '#fcf8ef',
+    paper: t.cardPaper || '#f6f0e2',
     border: t.cardBorder || 'rgba(58,52,37,0.55)',
   };
   const cardShadow = t.shadow || 'rgba(58,52,37,0.15)';

@@ -51,7 +51,7 @@ function showInstallBanner() {
   banner.id = 'pwaInstallBanner';
   banner.style.cssText = [
     'position:fixed', 'left:16px', 'right:16px', 'bottom:16px',
-    'z-index:1200', 'background:linear-gradient(135deg,#fcf8ef,#f1eadb)',
+    'z-index:1200', 'background:linear-gradient(135deg,#f6f0e2,#eae2cf)',
     'border:1px solid #6fae9c80', 'border-radius:16px 22px 14px 20px', 'padding:12px 14px',
     'display:flex', 'align-items:center', 'gap:10px',
     'box-shadow:0 8px 30px rgba(92,138,122,.18), 4px 5px 0 rgba(77,143,126,0.16)', 'font-size:0.8rem'
@@ -62,7 +62,7 @@ function showInstallBanner() {
         ? '在 Safari 中把浮生牌「添加到主屏幕」，就能像 App 一样使用'
         : '把浮生牌添加到主屏幕 · 秒开、离线可用、更像一个真正的 App'
     }</div>
-    <button id="pwaInstallNow" style="background:linear-gradient(135deg,#8fc0ad,#6fae9c);color:#f6f1e6;border:none;border-radius:18px 24px 16px 22px;padding:6px 14px;font-weight:700;cursor:pointer;flex-shrink:0;box-shadow:0 3px 0 rgba(77,143,126,0.35);">${
+    <button id="pwaInstallNow" style="background:linear-gradient(135deg,#8fc0ad,#6fae9c);color:#efe9d8;border:none;border-radius:18px 24px 16px 22px;padding:6px 14px;font-weight:700;cursor:pointer;flex-shrink:0;box-shadow:0 3px 0 rgba(77,143,126,0.35);">${
       ios ? '查看步骤' : '添加'
     }</button>
     <button id="pwaInstallClose" style="background:none;border:none;color:#8b8068;cursor:pointer;font-size:0.9rem;flex-shrink:0;" aria-label="关闭">✕</button>`;
@@ -111,7 +111,7 @@ function showIOSGuide() {
 
   const sheet = document.createElement('div');
   sheet.style.cssText = [
-    'background:linear-gradient(160deg,#fcf8ef,#f1eadb)', 'border:1px solid #6fae9c73',
+    'background:linear-gradient(160deg,#f6f0e2,#eae2cf)', 'border:1px solid #6fae9c73',
     'border-radius:22px 28px 20px 26px', 'max-width:340px', 'width:100%', 'padding:20px 18px',
     'color:#3a3425', 'font-size:0.85rem', 'line-height:1.55',
     'box-shadow:0 14px 46px rgba(92,138,122,.22), 5px 6px 0 rgba(77,143,126,0.16)'
@@ -131,7 +131,7 @@ function showIOSGuide() {
       <div style="font-size:1.25rem;flex-shrink:0;line-height:1.2;">3️⃣</div>
       <div>点右上角「<b>添加</b>」。浮生牌图标将出现在桌面，点开即像 App 一样全屏运行。</div>
     </div>
-    <button id="pwaGuideDone" style="width:100%;background:linear-gradient(135deg,#8fc0ad,#6fae9c);color:#f6f1e6;border:none;border-radius:20px 26px 18px 24px;padding:10px 0;font-weight:700;cursor:pointer;font-size:0.9rem;box-shadow:0 4px 0 rgba(77,143,126,0.35);">我知道了</button>
+    <button id="pwaGuideDone" style="width:100%;background:linear-gradient(135deg,#8fc0ad,#6fae9c);color:#efe9d8;border:none;border-radius:20px 26px 18px 24px;padding:10px 0;font-weight:700;cursor:pointer;font-size:0.9rem;box-shadow:0 4px 0 rgba(77,143,126,0.35);">我知道了</button>
   `;
 
   overlay.appendChild(sheet);

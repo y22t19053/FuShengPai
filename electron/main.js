@@ -16,7 +16,7 @@ function createWindow() {
     title: '浮生牌 · 观牌知势',
     icon: path.join(__dirname, '..', 'public', 'icons', 'fsp-icon.svg'),
     autoHideMenuBar: true,
-    backgroundColor: '#f6f1e6',
+    backgroundColor: '#efe9d8',
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,

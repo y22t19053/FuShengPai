@@ -997,7 +997,7 @@ export function openPeriodDetail(periodType, fortuneType = 'overall') {
   const html = `
     <div style="text-align:center;">
       <div style="font-size:0.8rem;color:var(--dim);margin-bottom:8px;">${typeIcon} ${escapeForHTML(typeLabel)} · 你的牌</div>
-      <div class="card-face-small ${colorCls}" style="margin:10px auto;width:80px;height:112px;display:flex;align-items:center;justify-content:center;flex-direction:column;border-radius:10px;border:3px solid var(--border);background:#fcf8ef;animation:revealPop .5s ease both;">
+      <div class="card-face-small ${colorCls}" style="margin:10px auto;width:80px;height:112px;display:flex;align-items:center;justify-content:center;flex-direction:column;border-radius:10px;border:3px solid var(--border);background:#f6f0e2;animation:revealPop .5s ease both;">
         <span style="font-size:2rem;font-weight:bold;">${escapeForHTML(rank)}</span>
         <span style="font-size:1.4rem;">${escapeForHTML(suit)}</span>
         <span style="font-size:0.7rem;color:var(--dim);margin-top:2px;">${escapeForHTML(wx)}</span>
@@ -1134,7 +1134,7 @@ export function confirmPeriodPick(periodType, card, fortuneType = 'overall') {
   const html = `
     <div style="text-align:center;">
       <div style="font-size:0.8rem;color:var(--dim);margin-bottom:8px;">${escapeForHTML(typeLabel)} · 你抽到了</div>
-      <div class="card-face-small ${colorCls}" style="margin:10px auto;width:80px;height:112px;display:flex;align-items:center;justify-content:center;flex-direction:column;border-radius:10px;border:3px solid var(--border);background:#fcf8ef;animation:revealPop .5s ease both;">
+      <div class="card-face-small ${colorCls}" style="margin:10px auto;width:80px;height:112px;display:flex;align-items:center;justify-content:center;flex-direction:column;border-radius:10px;border:3px solid var(--border);background:#f6f0e2;animation:revealPop .5s ease both;">
         <span style="font-size:2rem;font-weight:bold;">${escapeForHTML(rank)}</span>
         <span style="font-size:1.4rem;">${escapeForHTML(suit)}</span>
         <span style="font-size:0.7rem;color:var(--dim);margin-top:2px;">${escapeForHTML(wx)}</span>

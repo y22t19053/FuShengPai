@@ -99,9 +99,9 @@ export const CW = W - M * 2; // 内容宽 = 888
 
 /** 暖纸底（牌灵 / 解读）——手绘绘本：暖纸米白、鼠尾草点缀、暖墨字 */
 export const DARK = {
-  bg0: '#f6f1e6',
-  bg1: '#ede5d5',
-  bg2: '#e2d9c4',
+  bg0: '#efe9d8',
+  bg1: '#e6ddc9',
+  bg2: '#dbd0b6',
   ink: '#3a3425',                 // 主文字（暖墨）
   inkDim: 'rgba(58,52,37,0.58)',
   inkFaint: 'rgba(58,52,37,0.32)',
@@ -114,9 +114,9 @@ export const DARK = {
 
 /** 浅纸底（日运） */
 export const LIGHT = {
-  bg0: '#fcf8ef',
-  bg1: '#f1eadb',
-  bg2: '#f6f1e6',
+  bg0: '#f6f0e2',
+  bg1: '#eae2cf',
+  bg2: '#efe9d8',
   ink: '#3a3425',                 // 暖墨
   inkDim: 'rgba(58,52,37,0.55)',
   inkFaint: 'rgba(58,52,37,0.3)',
@@ -262,10 +262,10 @@ export async function drawFooter(ctx, t, { note = '牌是提示，不是命令�
   const qrY = y - qrSize + 4;
   // 死链接钉死：不用 window.location，防止本地环境干扰
   const qrTarget = 'https://y22t19053.github.io/FuShengPai/';
-  const qrImg = await loadQRImage(qrTarget, qrSize, { dark: '#3a3226', light: '#f6f1e6' });
+  const qrImg = await loadQRImage(qrTarget, qrSize, { dark: '#3a3226', light: '#efe9d8' });
   if (!qrImg) return;
   ctx.save();
-  ctx.fillStyle = '#f6f1e6';
+  ctx.fillStyle = '#efe9d8';
   roundRectPath(ctx, qrX - 6, qrY - 6, qrSize + 12, qrSize + 12, 8);
   ctx.fill();
   ctx.strokeStyle = 'rgba(58,50,38,0.25)';

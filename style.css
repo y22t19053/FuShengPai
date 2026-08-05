@@ -7,15 +7,15 @@
  * 材质：body 极淡单色纸点（radial-gradient 小圆点）+ 暖色柔光；卡片纸感底 + 暖沙粗描边。
  */
 :root {
-  --bg: #f6f1e6;
-  --bg2: #ede5d5;
-  --bg3: #e2d9c4;
-  --panel: #fcf8ef;
-  --panel2: #f1eadb;
-  --border: #b3a78c;
-  --border-soft: #dcd3bd;
+  --bg: #efe9d8;
+  --bg2: #e6ddc9;
+  --bg3: #dbd0b6;
+  --panel: #f6f0e2;
+  --panel2: #eae2cf;
+  --border: #aa9d80;
+  --border-soft: #d5cbb2;
   --text: #3a3425;
-  --dim: #8b8068;
+  --dim: #857a63;
   --accent: #6fae9c;
   --accent-rgb: 111, 174, 156;
   --accent-soft: rgba(var(--accent-rgb), 0.14);
@@ -37,14 +37,14 @@
   --cinnabar-text: #b05f45;
   --cinnabar-soft: rgba(201, 111, 82, 0.12);
   /* 暖木 */
-  --wood: #cfc3a9;
+  --wood: #c9bca0;
   /* 中性弱档 */
-  --line-faint: #e8e0cd;
-  --ink-faint: #8f846c;
-  --ink-ghost: #a89c84;
+  --line-faint: #e2d9c2;
+  --ink-faint: #887d65;
+  --ink-ghost: #a0937b;
   /* hero 入口渐变底（纸白→薄荷淡雾） */
-  --hero-bg0: #fdfaf2;
-  --hero-bg1: #eef3ea;
+  --hero-bg0: #f8f2e5;
+  --hero-bg1: #e7eee5;
   --good: #4d8f7e;
   --bad: #c96f52;
   --bad-rgb: 201, 111, 82;
@@ -98,8 +98,8 @@ body {
 body {
   padding: 8px;
   background:
-    radial-gradient(circle at 85% 8%, rgba(111, 174, 156, 0.10) 0%, transparent 32%),
-    radial-gradient(circle at 15% 72%, rgba(201, 111, 82, 0.05) 0%, transparent 28%),
+    radial-gradient(circle at 85% 8%, rgba(111, 174, 156, 0.08) 0%, transparent 32%),
+    radial-gradient(circle at 15% 72%, rgba(201, 111, 82, 0.04) 0%, transparent 28%),
     var(--bg);
   background-attachment: fixed;
 }
@@ -112,7 +112,7 @@ body::before {
   pointer-events: none;
   z-index: 0;
   background-image:
-    radial-gradient(circle, rgba(111, 174, 156, 0.07) 1.5px, transparent 2px);
+    radial-gradient(circle, rgba(111, 174, 156, 0.06) 1.5px, transparent 2px);
   background-size: 44px 44px;
 }
 
@@ -661,13 +661,13 @@ select:focus-visible {
 .mini-card.black {
   color: #3a3425;
   border-color: #d8cdb6;
-  background: linear-gradient(180deg, #fcf8ef, #f1eadb);
+  background: linear-gradient(180deg, #f6f0e2, #eae2cf);
 }
 
 .mini-card.gold {
   color: var(--gold-mute);
   border-color: rgba(var(--accent-rgb), 0.55);
-  background: linear-gradient(180deg, #f6f1e6, #ede5d5);
+  background: linear-gradient(180deg, #efe9d8, #e6ddc9);
 }
 
 .empty-dash {
@@ -768,7 +768,7 @@ select:focus-visible {
 .card-back {
   background:
     radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.8) 0%, transparent 55%),
-    radial-gradient(ellipse at 50% 50%, #fcf8ef 0%, #f1eadb 65%, #e4dcc6 100%);
+    radial-gradient(ellipse at 50% 50%, #f6f0e2 0%, #eae2cf 65%, #ded4ba 100%);
   border-color: rgba(var(--accent-rgb), 0.55);
   -webkit-touch-callout: none;
   transform: rotate(var(--wobble));
@@ -889,7 +889,7 @@ select:focus-visible {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(160deg, #fcf8ef 0%, #eef3ea 100%);
+  background: linear-gradient(160deg, #f6f0e2 0%, #e7eee5 100%);
   border: 3px solid rgba(var(--accent-rgb), 0.5);
   color: #3a3425;
   font-family: var(--font-sans);
@@ -969,7 +969,7 @@ select:focus-visible {
 .card-face-small.black {
   background:
     radial-gradient(circle at 50% 35%, rgba(58, 52, 37, 0.05) 0%, transparent 60%),
-    linear-gradient(180deg, #fcf8ef, #f1eadb);
+    linear-gradient(180deg, #f6f0e2, #eae2cf);
   border-color: #d8cdb6;
 }
 
@@ -982,7 +982,7 @@ select:focus-visible {
 .card-face-small.gold {
   background:
     radial-gradient(circle at 50% 35%, rgba(var(--accent-rgb), 0.18) 0%, transparent 60%),
-    linear-gradient(180deg, #f6f1e6, #ede5d5);
+    linear-gradient(180deg, #efe9d8, #e6ddc9);
   border-color: rgba(var(--accent-rgb), 0.55);
 }
 
@@ -1308,7 +1308,7 @@ textarea::placeholder {
 }
 
 select option {
-  background: #fcf8ef;
+  background: #f6f0e2;
   color: var(--text);
 }
 
@@ -1998,7 +1998,7 @@ input[type='time']::-webkit-calendar-picker-indicator {
   width: 60px;
   height: 84px;
   border-radius: var(--r-hand-sm);
-  background: linear-gradient(100deg, #f6f1e6 30%, #e3ead6 50%, #f6f1e6 70%);
+  background: linear-gradient(100deg, #efe9d8 30%, #e1e8d3 50%, #efe9d8 70%);
   background-size: 200% 100%;
   animation: shimmer 1.4s ease-in-out infinite;
   flex-shrink: 0;
@@ -2321,7 +2321,7 @@ body.dragging-card .card-face-small {
   border-radius: var(--r-hand-sm);
   background:
     radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.8) 0%, transparent 55%),
-    radial-gradient(ellipse at 50% 50%, #fcf8ef 0%, #f1eadb 65%, #e4dcc6 100%);
+    radial-gradient(ellipse at 50% 50%, #f6f0e2 0%, #eae2cf 65%, #ded4ba 100%);
   border: 2px solid rgba(var(--accent-rgb), 0.4);
   display: flex;
   align-items: center;
@@ -2445,7 +2445,7 @@ body.dragging-card .card-face-small {
   user-select: none;
   background:
     radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.85) 0%, transparent 55%),
-    radial-gradient(ellipse at 50% 50%, #fcf8ef 0%, #f1eadb 60%, #e4dcc6 100%);
+    radial-gradient(ellipse at 50% 50%, #f6f0e2 0%, #eae2cf 60%, #ded4ba 100%);
   border: 2px solid rgba(var(--accent-rgb), 0.6);
   box-shadow:
     inset 0 0 12px rgba(255, 255, 255, 0.5),
@@ -2492,7 +2492,7 @@ body.dragging-card .card-face-small {
 .mj-tile-face {
   position: relative;
   border-radius: var(--r-hand-sm);
-  background: linear-gradient(145deg, #fcf8ef 0%, #eef3ea 100%);
+  background: linear-gradient(145deg, #f6f0e2 0%, #e7eee5 100%);
   border: 2px solid rgba(var(--accent-rgb), 0.5);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.9),

@@ -407,7 +407,7 @@ function bannerShell({ theme = 'tarot', label, sub, cardCls, cardText, goldBorde
     ? 'width:58px;height:82px;font-size:1.2rem;border-radius:var(--r-hand-sm);border:2px solid var(--accent);'
     : 'width:58px;height:82px;font-size:1.2rem;border-radius:var(--r-hand-sm);';
   const boxStyle = isEast
-    ? 'flex:1 1 300px;min-width:280px;background:linear-gradient(135deg,#fcf8ef,#f1eadb);border:1px solid #c96f5266;border-radius:var(--r-hand-md);padding:14px 16px;display:flex;gap:14px;align-items:center;'
+    ? 'flex:1 1 300px;min-width:280px;background:linear-gradient(135deg,#f6f0e2,#eae2cf);border:1px solid #c96f5266;border-radius:var(--r-hand-md);padding:14px 16px;display:flex;gap:14px;align-items:center;'
     : 'flex:1 1 300px;min-width:280px;background:linear-gradient(135deg,var(--hero-bg0),var(--hero-bg1));border:1px solid rgba(var(--accent-rgb),0.4);border-radius:var(--r-hand-md);padding:14px 16px;display:flex;gap:14px;align-items:center;';
   const labelColor = isEast ? '#c96f52' : 'var(--accent)';      // 陶土红 vs 鼠尾草
   const subColor = isEast ? '#8b8068' : 'var(--ink-ghost)';
@@ -701,7 +701,7 @@ export function renderResultPreview(cards = [], opts = {}) {
     const wx = getWuxing(c);
     const label = i === 0 ? '你' : (i === 1 ? '所问之事' : '');
     return `
-      <div class="reveal-card ${colorCls}" style="width:104px;height:146px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:var(--r-hand-sm);border:3px solid var(--border);background:#fcf8ef;box-shadow:var(--cut-sm);animation:revealPop .5s ease ${i * 0.14}s both;">
+      <div class="reveal-card ${colorCls}" style="width:104px;height:146px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:var(--r-hand-sm);border:3px solid var(--border);background:#f6f0e2;box-shadow:var(--cut-sm);animation:revealPop .5s ease ${i * 0.14}s both;">
         <span style="font-size:2.6rem;font-weight:bold;line-height:1;">${escapeForHTML(rank)}</span>
         <span style="font-size:1.7rem;line-height:1.2;">${escapeForHTML(suit)}</span>
         <span style="font-size:0.65rem;color:var(--dim);margin-top:4px;">${escapeForHTML(wx)}${label ? ' · ' + label : ''}</span>

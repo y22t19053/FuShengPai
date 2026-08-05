@@ -1,5 +1,5 @@
 // ===== src/share2/poker.js · 标准扑克牌绘制引擎（终局版） =====
-// 手绘暖纸 #fcf8ef 底 + 1px 暖灰 #6b6352 极细边框；
+// 手绘暖纸 #f6f0e2 底 + 1px 暖灰 #6b6352 极细边框；
 // 左上角标 rank+suit、右下角标旋转 180° 倒置（正反交错）；
 // 中心图案：A-10 单一巨大花色符号（占据卡面中心 ~60%，摒弃分散小点）；
 // J/Q/K 极简几何宫廷符号（J=剑+盾、Q=皇冠+权杖、K=王冠+交叉双剑）；
@@ -173,7 +173,7 @@ function jokerWord(ctx, text, cx, cy, font, color, outline) {
 /** Joker 牌面（大王=白底红字金线，小王=黑底白字金线） */
 function drawJokerFace(ctx, card, x, y, w, h, big) {
   const minDim = Math.min(w, h);
-  const paper = big ? '#fcf8ef' : '#3a3425';
+  const paper = big ? '#f6f0e2' : '#3a3425';
   const ink = big ? '#b05f45' : '#f2f2f0';
   const gold = 'rgba(111,174,156,0.9)';
   // 底
@@ -244,7 +244,7 @@ export function drawPokerCard(ctx, card, x, y, w, h, opts = {}) {
   const isRed = isRedCard(card, opts);
   const red = opts.red || '#b05f45';
   const black = opts.black || '#3a3425';
-  const paper = opts.paper || '#fcf8ef';
+  const paper = opts.paper || '#f6f0e2';
   const ink = isRed ? red : black;
 
   // 手绘暖纸底 + 1px 极细暖灰边框

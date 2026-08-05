@@ -84,7 +84,7 @@ export async function renderArcana(ctx, w, h, data) {
   drawPokerCard(ctx, card, bx, by, bw, bh, {
     red: '#c96f52',
     black: '#3a3425',
-    paper: '#fcf8ef',
+    paper: '#f6f0e2',
     border: '#6b6352',
   });
 

@@ -6,6 +6,28 @@ export function injectAnimations() {
   const app = document.getElementById('appRoot');
   if (app) {
     app.style.animation = 'fadeIn 0.3s ease';
+    // 兜底：浏览器会在后台标签页暂停 CSS 动画，页面若在后台加载，
+    // 入场动画（fadeIn / fadeSlide）会冻结在 from{opacity:0}，切回时
+    // 整页透明、看似「点不动」。检测到页面恢复可见时直接清掉动画归位。
+    const forceVisible = () => {
+      if (document.hidden) return;
+      const root = document.getElementById('appRoot');
+      if (!root) return;
+      root.style.animation = 'none';
+      root.style.opacity = '1';
+      // 内容区（hero 等）的 fadeSlide 同理：恢复可见时直接显示
+      document.querySelectorAll('#coreArea > *').forEach((el) => {
+        el.style.animation = 'none';
+        el.style.opacity = '1';
+      });
+      document.removeEventListener('visibilitychange', forceVisible);
+      window.removeEventListener('pageshow', forceVisible);
+    };
+    document.addEventListener('visibilitychange', forceVisible);
+    // bfcache 恢复时动画状态未知，同样兜底（首次加载 persisted=false 不触发）
+    window.addEventListener('pageshow', (e) => {
+      if (e.persisted) forceVisible();
+    });
   }
   
   // 牌堆洗牌动画（在按钮触发时加类）
