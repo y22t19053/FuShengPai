@@ -1,6 +1,6 @@
-// ===== src/share2/templates/arcana.js · 牌灵海报（统一设计系统 · 深色玄金） =====
+// ===== src/share2/templates/arcana.js · 牌灵海报（统一设计系统 · 深色墨绿竹青） =====
 // 基于 theme.js 骨架：品牌栏 → 大标题 → 左侧大牌面 + 右侧档案 → 底部金句 → 落款+二维码。
-// 原则：左对齐网格、1px 金线分隔、无噪点无光斑、光效只留暗金细框微光（克制）。
+// 原则：左对齐网格、1px 竹青细线分隔、无噪点无光斑、光效只留竹青细框微光（克制）。
 
 import {
   W, H, M, CW, DARK, SERIF, SANS, NUM, font,
@@ -16,7 +16,7 @@ const POWER = { 木: 4, 火: 3, 土: 2, 金: 4, 水: 2 };
 
 /** 五行属性文案（克制点缀） */
 const WX_LABEL = { 木: '生长', 火: '明动', 土: '承载', 金: '肃敛', 水: '润下' };
-const WX_COLOR = { 木: '#8a9a5a', 火: '#c96a5a', 土: '#b09a5a', 金: '#c9a96e', 水: '#7a9ab0' };
+const WX_COLOR = { 木: '#9aab7f', 火: '#c96a5a', 土: '#b0a05a', 金: '#c9cdbf', 水: '#7d97ad' };
 
 /** 日期 2026.08.03 */
 function dotDate(dateText) {
@@ -39,7 +39,7 @@ export async function renderArcana(ctx, w, h, data) {
   // 课题比名人名言更像这面镜子；无课题时才回退名人名言/兜底文案。
   const quote = (data.paige?.question || data.quote || data.line || '观牌知势').replace(/^“|”$/g, '');
   const dateText = data.dateText || '';
-  const wxColor = WX_COLOR[wx] || '#c9a96e';
+  const wxColor = WX_COLOR[wx] || '#9aab7f';
   const wxLabel = WX_LABEL[wx] || '';
   const keywords = (data.keywords || []).slice(0, 3);
   const L = M;
@@ -67,15 +67,15 @@ export async function renderArcana(ctx, w, h, data) {
   const bx = L, by = 430, bw = 420, bh = 588;
   const cx = bx + bw / 2, cy = by + bh / 2;
 
-  // 3.1 暗金极细外框（只留一层细框 + 极淡微光，无第二层噪线）
+  // 3.1 竹青极细外框（只留一层细框 + 极淡微光，无第二层噪线）
   ctx.save();
   const gold = ctx.createLinearGradient(bx - 8, by - 8, bx + bw + 8, by + bh + 8);
-  gold.addColorStop(0, '#5c4a26');
-  gold.addColorStop(0.5, '#c9a96e');
-  gold.addColorStop(1, '#5c4a26');
+  gold.addColorStop(0, '#3d4a32');
+  gold.addColorStop(0.5, '#9aab7f');
+  gold.addColorStop(1, '#3d4a32');
   ctx.strokeStyle = gold;
   ctx.lineWidth = 1.5;
-  ctx.shadowColor = 'rgba(201,169,110,0.25)';
+  ctx.shadowColor = 'rgba(154,171,127,0.25)';
   ctx.shadowBlur = 18;
   roundRectPath(ctx, bx - 8, by - 8, bw + 16, bh + 16, 6);
   ctx.stroke();

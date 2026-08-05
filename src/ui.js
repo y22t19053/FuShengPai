@@ -46,7 +46,7 @@ import {
   getRecommendedGongForCategory, getGongEnvironment,
   DAILY_FORTUNE_TYPES, getDailyFortuneType
 } from './data.js';
-import { MAX_DAILY_OBSERVATIONS, pick } from './constants.js';
+import { MAX_DAILY_OBSERVATIONS, pick, TING_DURATION } from './constants.js';
 import { UI_TEXTS, STATUS_POOL, REMINDER_POOL, ACTION_POOL } from './texts/index.js';
 import { getDailyMirrorLine, getSceneLines, getWakeUpLine } from './texts/mirror-pools.js';
 import { buildDailyOracle } from './texts/daily-oracle.js';
@@ -765,10 +765,10 @@ export function openPeriodDeck(periodType, fortuneType = 'overall') {
   const cardW = isTouch ? 52 : 60;
   const cardH = isTouch ? 72 : 84;
 
-  // 统一抽牌界面：牌背网格 + 点击翻牌动画（触摸/桌面一致，牌灵同款仪式感）
+  // 统一抽牌界面：牌背网格 + 摸牌手势（按住牌背 → 400ms 听牌 → 松手开牌）
   const html = `
     <h3 style="text-align:center;">${escapeForHTML(title)}</h3>
-    <p id="periodDeckHint" style="text-align:center;font-size:0.75rem;color:var(--dim);margin-bottom:10px;">凭直觉，点一张牌——翻开的瞬间即定，本周期不可重抽。</p>
+    <p id="periodDeckHint" style="text-align:center;font-size:0.75rem;color:var(--dim);margin-bottom:10px;">凭直觉，按住一张牌背——听牌片刻，松手即开。翻开的瞬间即定，本周期不可重抽。</p>
     <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-height:${isTouch ? 300 : 400}px;overflow-y:auto;padding:10px;" id="periodDeckGrid">
       ${shuffled.map((c, idx) => `
         <div class="card-back" data-period-card-idx="${idx}" style="flex-shrink:0;width:${cardW}px;height:${cardH}px;cursor:pointer;margin:4px;animation:dealIn 0.4s var(--ease) backwards;animation-delay:${Math.min(idx * 12, 500)}ms;"></div>`).join('')}
@@ -798,12 +798,11 @@ export function openPeriodDeck(periodType, fortuneType = 'overall') {
     });
     if (el) {
       el.style.opacity = '1';
-      // 张力窗口：点击 → 牌背轻微抖动 + 震感 30ms → 停顿 400ms → 才翻牌
+      // 张力窗口：摸稳 → 牌背轻微抖动 → 才翻牌
       el.classList.add('card-tension');
       // 服务：翻牌前一声「想好了，就翻。」——服务员在桌边欠身，不是催你下单
       const hint = content.querySelector('#periodDeckHint');
       if (hint) hint.textContent = '想好了，就翻。';
-      if (navigator.vibrate) navigator.vibrate(30);
       playCardSound('tap');
       setTimeout(() => {
         if (isJoker) {
@@ -827,11 +826,52 @@ export function openPeriodDeck(periodType, fortuneType = 'overall') {
     }, settle);
   }
 
-  content.querySelectorAll('#periodDeckGrid .card-back').forEach(el => {
-    el.addEventListener('click', function() {
-      flipAndConfirm(parseInt(this.dataset.periodCardIdx));
-    });
-  });
+  content.querySelectorAll('#periodDeckGrid .card-back').forEach(el => bindHoldToFlip(el));
+
+  // 摸牌手势：按住牌背 → 听牌（想好了，就翻。）→ 松手开牌；提前松手 = 没摸稳，作罢
+  function bindHoldToFlip(el) {
+    const idx = parseInt(el.dataset.periodCardIdx);
+    const hint = content.querySelector('#periodDeckHint');
+    const originalHint = hint ? hint.textContent : '';
+    let held = false;
+    let timer = null;
+    const cleanup = () => {
+      window.clearTimeout(timer);
+      el.classList.remove('card-holding', 'card-ting');
+      el.removeEventListener('pointerup', onUp);
+      el.removeEventListener('pointercancel', onCancel);
+    };
+    const onUp = () => {
+      cleanup();
+      if (held) {
+        flipAndConfirm(idx);
+      } else if (hint) {
+        hint.textContent = originalHint;
+      }
+    };
+    const onCancel = () => {
+      cleanup();
+      if (hint) hint.textContent = originalHint;
+    };
+    const onDown = (e) => {
+      if (periodLocked) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      el.setPointerCapture?.(e.pointerId);
+      el.classList.add('card-holding');
+      if (hint) hint.textContent = '按住牌背 · 听牌片刻…';
+      timer = window.setTimeout(() => {
+        held = true;
+        el.classList.remove('card-holding');
+        el.classList.add('card-ting');
+        if (hint) hint.textContent = '想好了，就翻。';
+        if (navigator.vibrate) navigator.vibrate(30);
+        playCardSound('tap'); // 摸牌一声轻竹
+      }, TING_DURATION);
+    };
+    el.addEventListener('pointerdown', onDown);
+    el.addEventListener('pointerup', onUp);
+    el.addEventListener('pointercancel', onCancel);
+  }
 
   document.getElementById('periodRandomBtn')?.addEventListener('click', () => {
     flipAndConfirm(Math.floor(Math.random() * shuffled.length));

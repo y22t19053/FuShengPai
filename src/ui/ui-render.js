@@ -22,6 +22,7 @@ import { toast } from './ui-modal.js';
 import { isCardPlaced } from './ui-drag.js';
 import { escapeForHTML, setHTML } from '../utils/safe.js';
 import { syncQuestionFromInput } from '../utils/flow-helpers.js';
+import { getSystem, setSystem } from '../mahjong-ui.js';
 
 // 旬：进店即换菜单——把季节 accent 应用到 :root（全站 --accent 跟随）
 applySeasonAccent();
@@ -34,7 +35,7 @@ export function renderTeachingPanel() {
     <div style="max-width:680px;margin:0 auto;padding:8px 0;line-height:1.9;">
       <h3 style="color:var(--accent);margin-bottom:12px;">🃏 浮生牌 · 三分钟上手</h3>
       
-      <div style="background:rgba(201,160,96,0.06);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;">
+      <div style="background:rgba(var(--accent-rgb),0.06);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;">
         <strong style="color:var(--accent);">核心玩法一句话：</strong>
         <span style="color:var(--text);">选两张牌代表「你」和「所问之事」，再往九宫格放牌，找一条直线，看它提示的起因、经过与结果。</span>
       </div>
@@ -65,7 +66,7 @@ export function renderTeachingPanel() {
       <p>· 日运支持<strong>细选类别</strong>：综合、财运、桃花、贵人、事业、健康、学业。</p>
       <p>· 每个类别独立抽牌、独立锁定。</p>
       <p>· 点击已抽牌面可直接查看解读。</p>
-      <div style="background:rgba(201,160,96,0.06);border:1px solid var(--border);border-radius:8px;padding:10px;margin:8px 0;font-size:0.8rem;">
+      <div style="background:rgba(var(--accent-rgb),0.06);border:1px solid var(--border);border-radius:8px;padding:10px;margin:8px 0;font-size:0.8rem;">
         <strong style="color:var(--accent);">周期判定方法：</strong><br>
         日运：今天（自然日）<br>
         周运：当前自然周（周一~周日）<br>
@@ -183,6 +184,78 @@ function buildHeroGreeting() {
   return { main, sub: subs.join(' ') };
 }
 
+// ===== 双体系 Hero：扑克 / 麻将（用户自选，丝滑切换，各自独立、可交叉验证） =====
+function buildHeroHTML() {
+  const greeting = buildHeroGreeting();
+  const isMj = getSystem() === 'mahjong';
+  return `
+    <!-- 🃏 主入口区（普通人打开即用：一个大牌背，点一下） -->
+    <div id="heroSection" class="hero">
+      <div class="hero-eyebrow">· 浮 生 若 梦 ·</div>
+      <div class="hero-gold-title">${isMj ? '摸 三 张 牌' : '抽 一 张 牌'}</div>
+      <div class="hero-sub">${isMj ? '不预测命运，只按老牌馆的规矩，聊聊今天怎么过' : '不预测命运，只聊聊今天可以怎么过'}</div>
+      <div class="hero-greeting">${escapeForHTML(greeting.main)}</div>
+      ${greeting.sub ? `<div class="hero-greeting-sub">${escapeForHTML(greeting.sub)}</div>` : ''}
+      <div class="hero-actions">
+        <button id="quickDrawBtn" class="btn-hero btn-hero-gold">${isMj ? '🀄 摸三张' : '🃏 抽一张'}</button>
+        <button id="quickDailyBtn" class="btn-hero btn-hero-cinnabar">${isMj ? '🀄 今日手气' : '☯ 今日运势'}</button>
+      </div>
+      <div class="hero-link-row">
+        <button id="paigeBtn" class="btn-hero-link">我的牌灵 · 长期课题</button>
+        <span class="sys-switch">
+          <button id="sysPokerBtn" class="sys-btn ${isMj ? '' : 'on'}" title="扑克占卜">🃏 扑克</button>
+          <button id="sysMahjongBtn" class="sys-btn ${isMj ? 'on' : ''}" title="麻将占卜 · 老牌馆">🀄 麻将</button>
+        </span>
+      </div>
+      <div class="hero-note">${isMj ? '默念一件事，按住牌背 · 听牌片刻 · 只存本机' : '默念一件事，点一下 · 30 秒读完 · 只存本机'}</div>
+    </div>`;
+}
+
+function bindHeroActions() {
+  // 牌灵入口
+  document.getElementById('paigeBtn')?.addEventListener('click', () => {
+    import('./ui-paige.js').then(m => m.openPaiGe());
+  });
+
+  // 今日运势/今日手气：扑克=综合日运，麻将=每日一张手气
+  document.getElementById('quickDailyBtn')?.addEventListener('click', () => {
+    if (getSystem() === 'mahjong') {
+      import('../mahjong-ui.js').then(m => m.openMahjongDaily());
+    } else {
+      import('../ui.js').then(m => m.openPeriodDeck('daily'));
+    }
+  });
+
+  // 抽一张/摸三张：扑克=直抽，麻将=天地人三张
+  document.getElementById('quickDrawBtn')?.addEventListener('click', () => {
+    if (getSystem() === 'mahjong') {
+      import('../mahjong-ui.js').then(m => m.openMahjongDraw());
+    } else {
+      import('../ui.js').then(m => m.lazyStart());
+    }
+  });
+
+  // 双体系丝滑切换：独立且可交叉验证（各自存储，互不覆盖）
+  document.getElementById('sysPokerBtn')?.addEventListener('click', () => {
+    setSystem('poker');
+    toast('已切换：扑克占卜', 1600, 'success');
+    refreshHero();
+  });
+  document.getElementById('sysMahjongBtn')?.addEventListener('click', () => {
+    setSystem('mahjong');
+    toast('已切换：麻将占卜 · 老牌馆', 1600, 'success');
+    refreshHero();
+  });
+}
+
+/** 切换体系后只重渲染 Hero，其余面板原地不动（丝滑） */
+export function refreshHero() {
+  const hero = document.getElementById('heroSection');
+  if (!hero) return;
+  hero.innerHTML = buildHeroHTML();
+  bindHeroActions();
+}
+
 // ===== 首页：窄Hero + 深度占卜台 =====
 export function renderStep1() {
   const core = document.getElementById('coreArea');
@@ -211,25 +284,9 @@ export function renderStep1() {
   };
 
   const storedPeriods = getStoredPeriodCards();
-  const greeting = buildHeroGreeting();
 
   const html = `
-    <!-- 🃏 主入口区（普通人打开即用：一个大牌背，点一下） -->
-    <div id="heroSection" class="hero">
-      <div class="hero-eyebrow">· 浮 生 若 梦 ·</div>
-      <div class="hero-gold-title">抽 一 张 牌</div>
-      <div class="hero-sub">不预测命运，只聊聊今天可以怎么过</div>
-      <div class="hero-greeting">${escapeForHTML(greeting.main)}</div>
-      ${greeting.sub ? `<div class="hero-greeting-sub">${escapeForHTML(greeting.sub)}</div>` : ''}
-      <div class="hero-actions">
-        <button id="quickDrawBtn" class="btn-hero btn-hero-gold">🃏 抽一张</button>
-        <button id="quickDailyBtn" class="btn-hero btn-hero-cinnabar">☯ 今日运势</button>
-      </div>
-      <div class="hero-link-row">
-        <button id="paigeBtn" class="btn-hero-link">我的牌灵 · 长期课题</button>
-      </div>
-      <div class="hero-note">默念一件事，点一下 · 30 秒读完 · 只存本机</div>
-    </div>
+    ${buildHeroHTML()}
 
     <!-- 🃏 牌灵 + 🌤 今日日运（已抽则直接可见，无需点击；未抽给轻引导） -->
     <div id="dualStrip" style="margin-bottom: 14px;"></div>
@@ -268,20 +325,8 @@ export function renderStep1() {
   `;
   setHTML(core, html);
 
-  // 牌灵入口
-  document.getElementById('paigeBtn')?.addEventListener('click', () => {
-    import('./ui-paige.js').then(m => m.openPaiGe());
-  });
-
-  // 今日运势：一键直达综合日运（已抽过则查看，未抽过直接开抽）
-  document.getElementById('quickDailyBtn')?.addEventListener('click', () => {
-    import('../ui.js').then(m => m.openPeriodDeck('daily'));
-  });
-
-  // 抽一张：跳过起念，直接落牌出结果
-  document.getElementById('quickDrawBtn')?.addEventListener('click', () => {
-    import('../ui.js').then(m => m.lazyStart());
-  });
+  // hero 全部交互（牌灵 / 摸三张 / 今日手气 / 双体系切换）
+  bindHeroActions();
 
   // 更多周期运：弹出弹窗
   document.getElementById('morePeriodBtn')?.addEventListener('click', function(e) {
@@ -334,7 +379,7 @@ export function renderStep1() {
     if (!guide) return;
     guide.style.display = 'block';
     guide.innerHTML = `
-      <div style="color:#c9a96e;font-weight:bold;margin-bottom:8px;">🤔 理清问题</div>
+      <div style="color:var(--accent);font-weight:bold;margin-bottom:8px;">🤔 理清问题</div>
       <h4 style="color:#c8c8d8;">5W2H</h4>
       <p><strong>What</strong> 你要问的事是什么？</p>
       <p><strong>Why</strong> 为什么现在问？</p>
@@ -354,22 +399,22 @@ export function renderStep1() {
 }
 
 // ===== 牌灵 + 今日日运 双横幅（对等展示：已抽直接可见，未抽给轻引导） =====
-// theme: 'tarot'（西方·深空暗金） / 'daily'（东方·宣纸朱砂）——东西方美学硬隔离
+// theme: 'tarot'（牌灵·墨绿竹青） / 'daily'（日运·宣纸朱砂）——两套美学各自独立
 function bannerShell({ theme = 'tarot', label, sub, cardCls, cardText, goldBorder, title, line, tags, shareId, viewHTML }) {
   const isEast = theme === 'daily';
   const cardStyle = goldBorder
-    ? 'width:58px;height:82px;font-size:1.2rem;border-radius:8px;border:2px solid #c9a96e;'
+    ? 'width:58px;height:82px;font-size:1.2rem;border-radius:8px;border:2px solid var(--accent);'
     : 'width:58px;height:82px;font-size:1.2rem;border-radius:8px;';
   const boxStyle = isEast
-    ? 'flex:1 1 300px;min-width:280px;background:rgba(25,22,28,0.85);border:1px solid #b03a2e88;border-radius:12px;padding:14px 16px;display:flex;gap:14px;align-items:center;backdrop-filter:blur(4px);'
-    : 'flex:1 1 300px;min-width:280px;background:linear-gradient(135deg,#0d0b1c,#191530);border:1px solid #c9a96e66;border-radius:12px;padding:14px 16px;display:flex;gap:14px;align-items:center;';
-  const labelColor = isEast ? '#e07a66' : '#c9a96e';      // 朱砂(亮) vs 暗金
-  const subColor = isEast ? '#a89a82' : '#8b8ba0';
-  const titleColor = isEast ? '#d6cbb5' : '#e8e4da';
-  const lineColor = isEast ? '#a89a82' : '#a8a4b8';
+    ? 'flex:1 1 300px;min-width:280px;background:rgba(17,26,21,0.85);border:1px solid #b03a2e88;border-radius:12px;padding:14px 16px;display:flex;gap:14px;align-items:center;backdrop-filter:blur(4px);'
+    : 'flex:1 1 300px;min-width:280px;background:linear-gradient(135deg,var(--hero-bg0),var(--hero-bg1));border:1px solid rgba(var(--accent-rgb),0.4);border-radius:12px;padding:14px 16px;display:flex;gap:14px;align-items:center;';
+  const labelColor = isEast ? '#e07a66' : 'var(--accent)';      // 朱砂(亮) vs 竹青
+  const subColor = isEast ? '#a89a82' : 'var(--ink-ghost)';
+  const titleColor = isEast ? '#d6cbb5' : 'var(--text)';
+  const lineColor = isEast ? '#a89a82' : 'var(--dim)';
   const tagStyle = isEast
     ? 'border:1px solid #e07a6688;color:#e07a66;font-size:0.6rem;padding:2px 8px;border-radius:10px;'
-    : 'border:1px solid #c9a96e55;color:#c9a96e;font-size:0.6rem;padding:2px 8px;border-radius:10px;';
+    : 'border:1px solid rgba(var(--accent-rgb),0.33);color:var(--accent);font-size:0.6rem;padding:2px 8px;border-radius:10px;';
   const shareBtnHTML = isEast
     ? `background:rgba(176,58,46,0.15);color:#e07a66;border:1px solid #b03a2e88;font-weight:700;min-width:72px;`
     : `background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);font-weight:700;min-width:72px;`;
@@ -423,16 +468,16 @@ export function renderTodayFortuneStrip() {
         line: q?.question || hook.line,
         tags,
         shareId: 'paigeBannerShareBtn',
-        viewHTML: '<button data-action="openPaiGe" class="small outline" style="color:#c9a96e;border-color:#c9a96e66;">查看</button>',
+        viewHTML: '<button data-action="openPaiGe" class="small outline" style="color:var(--accent);border-color:rgba(var(--accent-rgb),0.4);">查看</button>',
       });
     }
   } catch (e) { paigeCard = null; }
 
   if (!paigeBanner) {
     paigeBanner = `
-      <div style="flex:1 1 300px;min-width:280px;background:linear-gradient(135deg,#0d0b1c,#191530);border:1px dashed #c9a96e66;border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-        <div style="font-size:0.78rem;color:#8b8ba0;">
-          <span style="color:#c9a96e;font-weight:700;">🃏 我的牌灵</span>
+      <div style="flex:1 1 300px;min-width:280px;background:linear-gradient(135deg,var(--hero-bg0),var(--hero-bg1));border:1px dashed rgba(var(--accent-rgb),0.4);border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <div style="font-size:0.78rem;color:var(--ink-ghost);">
+          <span style="color:var(--accent);font-weight:700;">🃏 我的牌灵</span>
           <span style="opacity:0.85;"> · 一签守护 · 只存本机</span>
         </div>
         <button id="drawPaigeBannerBtn" style="background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);padding:7px 18px;border-radius:18px;font-size:0.8rem;font-weight:700;cursor:pointer;">抽一张</button>
@@ -670,7 +715,7 @@ export function renderFullReport(text, modules = null, summary = null) {
   if (!result) return;
 
   const summaryHTML = `
-    <div style="background:rgba(201,160,96,0.06);border-left:3px solid var(--accent);padding:12px 16px;border-radius:4px;margin-bottom:12px;">
+    <div style="background:rgba(var(--accent-rgb),0.06);border-left:3px solid var(--accent);padding:12px 16px;border-radius:4px;margin-bottom:12px;">
       <div style="font-size:0.7rem;color:var(--dim);">此刻的你</div>
       <div style="font-size:1.05rem;font-weight:bold;margin:4px 0;line-height:1.6;">${escapeForHTML(summary.status)}</div>
       <div style="font-size:0.7rem;color:var(--dim);margin-top:8px;">一个提醒</div>

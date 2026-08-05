@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes, viewport-fit=cover">
   <title>浮生牌 · 观牌知势</title>
-  <meta name="theme-color" content="#1a1626">
+  <meta name="theme-color" content="#0c120f">
   <!-- iOS PWA：全屏运行 + 状态栏样式 + 主屏图标（PNG，Safari 不支持 SVG 图标） -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -16,10 +16,10 @@
   <style>
     /* AI 高级参数折叠 */
     .ai-adv-toggle {
-      background: rgba(201,160,96,0.08);
-      border: 1px solid var(--border, #c9a06055);
+      background: rgba(154,171,127,0.08);
+      border: 1px solid var(--border, #9aab7f55);
       border-radius: 6px;
-      color: var(--accent, #c9a060);
+      color: var(--accent, #9aab7f);
       font-size: 0.7rem;
       padding: 5px 10px;
       cursor: pointer;
@@ -33,7 +33,7 @@
       padding: 8px 10px;
       background: rgba(0,0,0,0.15);
       border-radius: 8px;
-      border: 1px dashed var(--border, #c9a06044);
+      border: 1px dashed var(--border, #9aab7f44);
       text-align: left;
     }
     .ai-adv-panel.open { display: block; }
@@ -179,8 +179,8 @@
 
     <!-- 日运类型选择弹窗 -->
     <div id="fortuneTypeModal" hidden style="position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:999;">
-      <div style="background:var(--bg, #1a1626);border:1px solid var(--border, #c9a06055);border-radius:12px;padding:20px;min-width:240px;text-align:center;">
-        <h3 style="color:var(--accent, #c9a060);margin-bottom:12px;">☯ 选择日运类型</h3>
+      <div style="background:var(--bg, #111a15);border:1px solid var(--border, #9aab7f55);border-radius:12px;padding:20px;min-width:240px;text-align:center;">
+        <h3 style="color:var(--accent, #9aab7f);margin-bottom:12px;">☯ 选择日运类型</h3>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
           <button data-action="shareDaily" data-fortune="wealth" class="small outline">💰 财运</button>
           <button data-action="shareDaily" data-fortune="love" class="small outline">🌸 桃花</button>

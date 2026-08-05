@@ -2,6 +2,7 @@
 
 export const MAX_DAILY_OBSERVATIONS = 8;
 export const LONG_PRESS_DURATION = 300;
+export const TING_DURATION = 400; // 听牌：按住牌背的悬念停顿（摸牌→开牌）
 export const SCROLL_MAX_SPEED = 150;
 export const SCROLL_STEP_INCREMENT = 25;
 
@@ -26,11 +27,11 @@ export const MODES = {
 };
 
 export const WX_COLORS = {
-  木: '#5a7a4a',
-  火: '#a04040',
-  土: '#9a7a4a',
-  金: '#6a6a5a',
-  水: '#4a6a8a',
+  木: '#9aab7f', // 青 · 岁星
+  火: '#c96a5a', // 赤 · 荧惑
+  土: '#b0a05a', // 黄 · 镇星
+  金: '#c9cdbf', // 白 · 太白
+  水: '#7d97ad', // 黑 · 辰星（暗底用青蓝代，避免纯黑隐形）
   天: '#8a7a5a',
   人: '#5a5a6a',
 };

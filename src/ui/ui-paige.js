@@ -1,4 +1,4 @@
-// ===== src/ui/ui-paige.js · 牌灵卡（盲抽版：背面朝上，点击翻牌确认） =====
+// ===== src/ui/ui-paige.js · 牌灵卡（盲抽版：背面朝上，按住听牌，松手开牌） =====
 import { state } from '../state.js';
 import { createDeck, shuffle } from '../engine.js';
 import { getCardColor, getWuxing } from '../data.js';
@@ -6,6 +6,7 @@ import { getPaiGeQuestion, PAIGE_HASHTAGS } from '../texts/social.js';
 import { toast } from './ui-modal.js';
 import { escapeForHTML, setHTML } from '../utils/safe.js';
 import { playCardSound } from '../utils/sound.js';
+import { TING_DURATION } from '../constants.js';
 
 const STORAGE_KEY = 'fsp_paige';
 const HISTORY_KEY = 'fsp_history';
@@ -73,7 +74,7 @@ function showPaiGeDraw(modal, content) {
     <div style="text-align:center;"> 
       <h3 style="color:var(--accent);">🃏 盲抽你的牌灵</h3>
       <p id="paigeDeckHint" style="font-size:0.8rem;color:var(--dim);margin:8px 0 16px;">
-        凭直觉，点一张牌。<br>
+        凭直觉，按住一张牌背，听牌片刻，松手即开。<br>
         翻开的瞬间，你的无意识会借这张牌，
         说出它想让你看见的课题。
         <br>
@@ -107,12 +108,11 @@ function showPaiGeDraw(modal, content) {
     });
     if (el) {
       el.style.opacity = '1';
-      // 张力窗口：抖动 + 震感 30ms → 停顿 400ms → 翻牌
+      // 张力窗口：摸稳 → 牌背轻微抖动 → 才翻牌
       el.classList.add('card-tension');
       // 服务：想好了，就翻。
       const hint = content.querySelector('#paigeDeckHint');
       if (hint) hint.textContent = '想好了，就翻。';
-      if (navigator.vibrate) navigator.vibrate(30);
       playCardSound('tap');
       setTimeout(() => {
         el.outerHTML = `<div class="card-face ${getCardColor(card)}" style="width:64px;height:88px;margin:0 auto;animation:cardFlip 0.5s;">${escapeForHTML(card.isJoker ? card.type : card.rank)}${escapeForHTML(card.isJoker ? '' : card.suit)}</div>`;
@@ -122,12 +122,52 @@ function showPaiGeDraw(modal, content) {
     setTimeout(() => confirmPaiGePick(card), 420 + 550);
   }
 
-  content.querySelectorAll('[data-paige-card-idx]').forEach(el => {
-    el.addEventListener('click', function() {
-      const idx = parseInt(this.dataset.paigeCardIdx);
-      flipPaiGeCard(idx, deck[idx]);
-    });
-  });
+  content.querySelectorAll('[data-paige-card-idx]').forEach(el => bindHoldToFlip(el));
+
+  // 摸牌手势：按住牌背 → 听牌（想好了，就翻。）→ 松手开牌；提前松手 = 没摸稳，作罢
+  function bindHoldToFlip(el) {
+    const idx = parseInt(el.dataset.paigeCardIdx);
+    const hint = content.querySelector('#paigeDeckHint');
+    const originalHint = hint ? hint.textContent : '';
+    let held = false;
+    let timer = null;
+    const cleanup = () => {
+      window.clearTimeout(timer);
+      el.classList.remove('card-holding', 'card-ting');
+      el.removeEventListener('pointerup', onUp);
+      el.removeEventListener('pointercancel', onCancel);
+    };
+    const onUp = () => {
+      cleanup();
+      if (held) {
+        flipPaiGeCard(idx, deck[idx]);
+      } else if (hint) {
+        hint.textContent = originalHint;
+      }
+    };
+    const onCancel = () => {
+      cleanup();
+      if (hint) hint.textContent = originalHint;
+    };
+    const onDown = (e) => {
+      if (paigeLocked) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      el.setPointerCapture?.(e.pointerId);
+      el.classList.add('card-holding');
+      if (hint) hint.textContent = '按住牌背 · 听牌片刻…';
+      timer = window.setTimeout(() => {
+        held = true;
+        el.classList.remove('card-holding');
+        el.classList.add('card-ting');
+        if (hint) hint.textContent = '想好了，就翻。';
+        if (navigator.vibrate) navigator.vibrate(30);
+        playCardSound('tap'); // 摸牌一声轻竹
+      }, TING_DURATION);
+    };
+    el.addEventListener('pointerdown', onDown);
+    el.addEventListener('pointerup', onUp);
+    el.addEventListener('pointercancel', onCancel);
+  }
 
   document.getElementById('paigeRandomBtn')?.addEventListener('click', () => {
     const idx = Math.floor(Math.random() * deck.length);
@@ -185,7 +225,7 @@ function showPaiGeDetail(modal, content, status) {
       <div style="font-size:0.9rem;color:var(--dim);line-height:1.8;padding:0 12px;white-space:pre-wrap;">“${escapeForHTML(question?.question || '')}”</div>
 
       <div style="display:flex;gap:4px;justify-content:center;margin:10px 0;">
-        ${(question?.keywords || []).map(kw => `<span style="font-size:0.7rem;background:rgba(201,160,96,0.15);border:1px solid rgba(201,160,96,0.3);border-radius:12px;padding:4px 10px;color:var(--accent);">${escapeForHTML(kw)}</span>`).join('')}
+        ${(question?.keywords || []).map(kw => `<span style="font-size:0.7rem;background:rgba(var(--accent-rgb),0.15);border:1px solid rgba(var(--accent-rgb),0.3);border-radius:12px;padding:4px 10px;color:var(--accent);">${escapeForHTML(kw)}</span>`).join('')}
       </div>
 
       <p class="num" style="font-size:0.65rem;color:var(--dim);">抽于 ${new Date(stored.drawnAt).toLocaleString()}</p>
@@ -207,7 +247,7 @@ function showPaiGeDetail(modal, content, status) {
     import('./ui-modal.js').then(mod => mod.generateShareImage({ 
       type: 'paige', 
       card, 
-      template: 'tarot' // 牌灵专属：西方塔罗·深空星辉
+      template: 'tarot' // 牌灵专属：五行青典（本名五星，无拉丁符号）
     }));
   });
 

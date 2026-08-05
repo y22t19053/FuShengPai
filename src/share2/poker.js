@@ -175,7 +175,7 @@ function drawJokerFace(ctx, card, x, y, w, h, big) {
   const minDim = Math.min(w, h);
   const paper = big ? '#fdfaf3' : '#0e0e12';
   const ink = big ? '#c0392b' : '#f2f2f0';
-  const gold = 'rgba(201,169,110,0.9)';
+  const gold = 'rgba(154,171,127,0.9)';
   // 底
   ctx.fillStyle = paper;
   ctx.fillRect(x, y, w, h);

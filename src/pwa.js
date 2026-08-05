@@ -52,7 +52,7 @@ function showInstallBanner() {
   banner.style.cssText = [
     'position:fixed', 'left:16px', 'right:16px', 'bottom:16px',
     'z-index:1200', 'background:linear-gradient(135deg,#1d1d2b,#26263a)',
-    'border:1px solid #c9a96e66', 'border-radius:12px', 'padding:12px 14px',
+    'border:1px solid #9aab7f66', 'border-radius:12px', 'padding:12px 14px',
     'display:flex', 'align-items:center', 'gap:10px',
     'box-shadow:0 8px 30px rgba(0,0,0,.45)', 'font-size:0.8rem'
   ].join(';');
@@ -62,7 +62,7 @@ function showInstallBanner() {
         ? '在 Safari 中把浮生牌「添加到主屏幕」，就能像 App 一样使用'
         : '把浮生牌添加到主屏幕 · 秒开、离线可用、更像一个真正的 App'
     }</div>
-    <button id="pwaInstallNow" style="background:linear-gradient(135deg,#c9a96e,#8b6f47);color:#121216;border:none;border-radius:16px;padding:6px 14px;font-weight:700;cursor:pointer;flex-shrink:0;">${
+    <button id="pwaInstallNow" style="background:linear-gradient(135deg,#9aab7f,#5f7050);color:#0c120f;border:none;border-radius:16px;padding:6px 14px;font-weight:700;cursor:pointer;flex-shrink:0;">${
       ios ? '查看步骤' : '添加'
     }</button>
     <button id="pwaInstallClose" style="background:none;border:none;color:#8b8ba0;cursor:pointer;font-size:0.9rem;flex-shrink:0;" aria-label="关闭">✕</button>`;
@@ -111,7 +111,7 @@ function showIOSGuide() {
 
   const sheet = document.createElement('div');
   sheet.style.cssText = [
-    'background:linear-gradient(160deg,#232336,#191928)', 'border:1px solid #c9a96e55',
+    'background:linear-gradient(160deg,#1a2a20,#141f18)', 'border:1px solid #9aab7f55',
     'border-radius:16px', 'max-width:340px', 'width:100%', 'padding:20px 18px',
     'color:#e8e4da', 'font-size:0.85rem', 'line-height:1.55',
     'box-shadow:0 14px 46px rgba(0,0,0,.55)'
@@ -131,7 +131,7 @@ function showIOSGuide() {
       <div style="font-size:1.25rem;flex-shrink:0;line-height:1.2;">3️⃣</div>
       <div>点右上角「<b>添加</b>」。浮生牌图标将出现在桌面，点开即像 App 一样全屏运行。</div>
     </div>
-    <button id="pwaGuideDone" style="width:100%;background:linear-gradient(135deg,#c9a96e,#8b6f47);color:#121216;border:none;border-radius:20px;padding:10px 0;font-weight:700;cursor:pointer;font-size:0.9rem;">我知道了</button>
+    <button id="pwaGuideDone" style="width:100%;background:linear-gradient(135deg,#9aab7f,#5f7050);color:#0c120f;border:none;border-radius:20px;padding:10px 0;font-weight:700;cursor:pointer;font-size:0.9rem;">我知道了</button>
   `;
 
   overlay.appendChild(sheet);

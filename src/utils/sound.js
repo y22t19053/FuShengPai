@@ -1,7 +1,8 @@
-// ===== src/utils/sound.js · 尺八单音（WebAudio 合成，零资源，离线可用） =====
-// 寂：声音只留一个——尺八感短音（气声、衰减、不循环）。
-//   翻牌一声、收尾一声，其余时刻全静音。安静本身就是仪式的一部分。
-// 尺八特点：气声起振 + 基频 + 轻微音高下滑（meri）+ 长指数衰减。
+// ===== src/utils/sound.js · 老牌馆声音系统（WebAudio 合成，零资源，离线可用） =====
+// 两层声音，各司其职：
+//   1. 牌声（主）：麻将牌碰撞的「嗒」——竹的闷、骨的脆、玉的亮，三种材质。
+//      洗牌一声、摸牌一声、开牌各一声。这是中国人刻进 DNA 的声音记忆。
+//   2. 尺八（留白）：只用于天命时刻（大小王/自摸）与送客收尾——气声、衰减、不循环。
 // 只在用户手势内触发，懒创建 AudioContext，静默降级。
 
 let ctx = null;
@@ -24,6 +25,110 @@ function makeNoiseBuf(c, dur) {
   for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
   return buf;
 }
+
+// ---------- 一、牌声：竹 / 骨 / 玉 ----------
+
+/** 三材质参数：竹（闷）/ 骨（脆）/ 玉（亮） */
+const TILE_MATERIALS = {
+  bamboo: { freq: 190,  dur: 0.06, gain: 0.22, bright: 0.15 }, // 闷：木质重，低频
+  bone:   { freq: 460,  dur: 0.045, gain: 0.3, bright: 0.4  }, // 脆：中频干脆
+  jade:   { freq: 900,  dur: 0.09, gain: 0.26, bright: 0.6  }, // 亮：高频有余韵
+};
+
+/**
+ * 一声牌相击（嗒）：阻尼振荡主体 + 高八度泛音（材质亮度）+ 木质噪声瞬态
+ * @param {AudioContext} c
+ * @param {string} material 'bamboo'|'bone'|'jade'
+ * @param {number} [vol] 音量倍率（洗牌时压低）
+ */
+function tileClick(c, material = 'bone', vol = 1) {
+  const p = TILE_MATERIALS[material] || TILE_MATERIALS.bone;
+  const t0 = c.currentTime;
+  const dur = p.dur;
+
+  // 主体：短促阻尼振荡（嗒的基音）
+  const osc = c.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(p.freq, t0);
+  osc.frequency.exponentialRampToValueAtTime(p.freq * 0.8, t0 + dur);
+  const og = c.createGain();
+  og.gain.setValueAtTime(0.0001, t0);
+  og.gain.exponentialRampToValueAtTime(p.gain * vol, t0 + 0.003);
+  og.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(og);
+
+  // 泛音：高八度三角波，决定「脆/亮」程度
+  const osc2 = c.createOscillator();
+  osc2.type = 'triangle';
+  osc2.frequency.setValueAtTime(p.freq * 2.4, t0);
+  const og2 = c.createGain();
+  og2.gain.setValueAtTime(0.0001, t0);
+  og2.gain.exponentialRampToValueAtTime(p.gain * p.bright * vol, t0 + 0.002);
+  og2.gain.exponentialRampToValueAtTime(0.0001, t0 + dur * 0.7);
+  osc2.connect(og2);
+
+  // 木质噪声瞬态（骨牌碰撞的「嗒」气口）
+  const ns = c.createBufferSource();
+  ns.buffer = makeNoiseBuf(c, 0.03);
+  const nf = c.createBiquadFilter();
+  nf.type = 'highpass';
+  nf.frequency.value = 900;
+  const ng = c.createGain();
+  ng.gain.setValueAtTime(0.0001, t0);
+  ng.gain.exponentialRampToValueAtTime(p.gain * 0.5 * vol, t0 + 0.002);
+  ng.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.025);
+  ns.connect(nf);
+  nf.connect(ng);
+
+  og.connect(c.destination);
+  og2.connect(c.destination);
+  ng.connect(c.destination);
+
+  osc.start(t0); osc2.start(t0); ns.start(t0);
+  osc.stop(t0 + dur + 0.03); osc2.stop(t0 + dur * 0.75 + 0.03); ns.stop(t0 + 0.03);
+}
+
+/**
+ * 洗牌声：六七声低响错落的「嗒」——牌在绿呢上被归拢的动静
+ */
+export function playWashSound() {
+  const c = getCtx();
+  if (!c) return;
+  try {
+    const mat = ['bamboo', 'bone', 'bamboo', 'jade', 'bone', 'bamboo'];
+    for (let i = 0; i < mat.length; i++) {
+      window.setTimeout(() => {
+        const cc = getCtx();
+        if (cc) tileClick(cc, mat[i], 0.35 + Math.random() * 0.15);
+      }, i * 85);
+    }
+  } catch (e) { /* 静默降级 */ }
+}
+
+/**
+ * 摸牌声：一声极轻的竹闷——手指按住牌背的瞬间
+ */
+export function playMoPaiSound() {
+  const c = getCtx();
+  if (!c) return;
+  try {
+    tileClick(c, 'bamboo', 0.28);
+  } catch (e) { /* 静默降级 */ }
+}
+
+/**
+ * 开牌声：按材质出牌（竹/骨/玉）
+ * @param {'bamboo'|'bone'|'jade'} material
+ */
+export function playKaiPaiSound(material = 'bone') {
+  const c = getCtx();
+  if (!c) return;
+  try {
+    tileClick(c, material, 1);
+  } catch (e) { /* 静默降级 */ }
+}
+
+// ---------- 二、尺八：天命与送客 ----------
 
 /**
  * 尺八单音：基频 sine + 气声（噪声→带通）→ 各自指数衰减到长尾
@@ -79,14 +184,15 @@ function shakuTone(c, dur, freq, gain, opts = {}) {
 
 /**
  * 纸牌声（兼容旧签名）
- * @param {'tap'|'flip'|'place'} kind - tap/place 一律静音（寂），flip 出尺八一声
+ * @param {'tap'|'flip'|'place'} kind - tap=摸牌一声轻竹 / flip=开牌一声骨牌 / place 静音
  */
 export function playCardSound(kind = 'flip') {
   const c = getCtx();
   if (!c) return;
-  if (kind !== 'flip') return; // 寂：点击、落子无声，只留翻牌
   try {
-    shakuTone(c, 0.9, 349.23, 0.2, { glideFrom: 1.02 }); // F4 翻牌一声
+    if (kind === 'flip') { tileClick(c, 'bone', 1); return; }
+    if (kind === 'tap') { tileClick(c, 'bamboo', 0.28); return; }
+    // place：落子无声（寂）
   } catch (e) { /* 静默降级 */ }
 }
 

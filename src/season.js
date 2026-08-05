@@ -36,7 +36,7 @@ const SOLAR_TERMS = [
 export const SEASON_ACCENTS = {
   '春': { accent: '#9aab7f', rgb: '154,171,127' }, // 竹绿
   '夏': { accent: '#7fa9b5', rgb: '127,169,181' }, // 青瓷
-  '秋': { accent: '#c9a96e', rgb: '201,169,110' }, // 玄金（默认）
+  '秋': { accent: '#b0a05a', rgb: '176,160,90' }, // 藤黄（老牌馆藤面椅色）
   '冬': { accent: '#97a3c4', rgb: '151,163,196' }, // 雪青
 };
 

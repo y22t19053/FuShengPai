@@ -1,40 +1,41 @@
-/* ===== 浮生牌 · 暗夜金主题 =====
- * 色板单一来源：所有半透明金 = rgba(var(--accent-rgb), a)，
- * 亮金/哑金/金棕三档由 --gold-bright / --gold-mute / --gold-dim 提供。
- * 与 src/share2/theme.js DARK 色板同源（bg=#12101c / gold=#c9a96e / ink=#ece8dd）。
+/* ===== 浮生牌 · 老牌馆墨绿主题 =====
+ * 色板单一来源：所有半透明主色 = rgba(var(--accent-rgb), a)，
+ * 亮/哑/弱三档由 --gold-bright / --gold-mute / --gold-dim 提供。
+ * 与 src/share2/theme.js DARK 色板同源（bg=#0c120f / accent=竹青 #9aab7f / ink=骨白 #e7ece4）。
+ * 紫是借来的，青是自家的——墨绿呢面、竹青点缀、骨白牌面、一点朱砂。
  */
 :root {
-  --bg: #12101c;
-  --bg2: #1a1628;
-  --bg3: #221d33;
-  --panel: #1b1830;
-  --panel2: #211d38;
-  --border: #33304d;
-  --border-soft: #2a2740;
-  --text: #e8e6f2;
-  --dim: #a5a0c0;
-  --accent: #c9a96e;
-  --accent-rgb: 201, 169, 110;
+  --bg: #0c120f;
+  --bg2: #111a15;
+  --bg3: #16221b;
+  --panel: #121d17;
+  --panel2: #16231c;
+  --border: #2a3b31;
+  --border-soft: #223129;
+  --text: #e7ece4;
+  --dim: #9bab9f;
+  --accent: #9aab7f;
+  --accent-rgb: 154, 171, 127;
   --accent-soft: rgba(var(--accent-rgb), 0.14);
   --accent-glow: rgba(var(--accent-rgb), 0.35);
-  --gold: #c9a96e;
+  --gold: #9aab7f;
   --goldGlow: rgba(var(--accent-rgb), 0.18);
-  /* 金色家族收敛：亮金（高亮/渐变中段）/ 哑金（牌面金字）/ 金棕（弱化装饰） */
-  --gold-bright: #e8cf9a;
-  --gold-mute: #9c7c43;
-  --gold-dim: #8b6f47;
-  /* 朱砂系（日运/警示暖红，非金色） */
+  /* 竹青家族收敛：亮（竹梢高光）/ 哑（骨面竹字）/ 弱（藤面暗纹） */
+  --gold-bright: #c3d3a4;
+  --gold-mute: #71845a;
+  --gold-dim: #5f7050;
+  /* 朱砂系（日运/警示暖红，体系内唯一允许的"一点朱"） */
   --cinnabar: #b03a2e;
   --cinnabar-rgb: 176, 58, 46;
   --cinnabar-text: #e07a66;
   --cinnabar-soft: rgba(176, 58, 46, 0.16);
-  /* 中性弱档（原先散落的 #323242 / #77778a / #8b8ba0） */
-  --line-faint: #323242;
-  --ink-faint: #77778a;
-  --ink-ghost: #8b8ba0;
+  /* 中性弱档 */
+  --line-faint: #26352c;
+  --ink-faint: #6e7e74;
+  --ink-ghost: #7f8f85;
   /* hero 入口渐变底 */
-  --hero-bg0: #0d0b1c;
-  --hero-bg1: #191530;
+  --hero-bg0: #0a100d;
+  --hero-bg1: #101c15;
   --good: #5a9a6a;
   --bad: #d45050;
   --bad-rgb: 212, 80, 80;
@@ -74,7 +75,7 @@ body {
   padding: 8px;
   background:
     radial-gradient(ellipse at 50% -10%, rgba(var(--accent-rgb), 0.12) 0%, transparent 55%),
-    radial-gradient(ellipse at 30% 20%, #1a1628 0%, var(--bg) 70%);
+    radial-gradient(ellipse at 30% 20%, #111a15 0%, var(--bg) 70%);
   background-attachment: fixed;
 }
 
@@ -586,7 +587,7 @@ select:focus-visible {
   justify-content: center;
   font-size: 1.2rem;
   font-weight: bold;
-  background: #1a1a2a;
+  background: #17241d;
   color: var(--text);
   flex-shrink: 0;
   box-shadow:
@@ -601,15 +602,15 @@ select:focus-visible {
 }
 
 .mini-card.black {
-  color: #d8d6e8;
-  border-color: #4a4668;
-  background: linear-gradient(180deg, #1c1a2e, #17142a);
+  color: #e4ead8;
+  border-color: #2f4a3c;
+  background: linear-gradient(180deg, #1a2a20, #141f18);
 }
 
 .mini-card.gold {
   color: var(--accent);
   border-color: rgba(var(--accent-rgb), 0.5);
-  background: linear-gradient(180deg, #2a2518, #221d14);
+  background: linear-gradient(180deg, #222d1c, #1b2416);
 }
 
 .empty-dash {
@@ -680,7 +681,7 @@ select:focus-visible {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #1a1a2a;
+  background: #17241d;
   border: 2px solid var(--border);
   cursor: pointer;
   transition: transform 0.2s var(--spring), border-color 0.2s var(--ease), opacity 0.2s var(--ease), box-shadow 0.2s var(--ease);
@@ -693,12 +694,30 @@ select:focus-visible {
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-/* 牌背：径向渐变 + CSS噪点（侘寂：旧纸和墨，不是烫金） */
+/* 牌背：径向渐变 + CSS噪点（老牌馆：墨绿呢面的暗、竹青徽记的静） */
 .card-back {
   background:
-    radial-gradient(circle at 50% 40%, rgba(232, 230, 242, 0.06) 0%, transparent 55%),
-    radial-gradient(ellipse at 50% 50%, #2b2742 0%, #17142a 65%, #12101c 100%);
-  border-color: #3d3a5a;
+    radial-gradient(circle at 50% 40%, rgba(231, 236, 228, 0.05) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 50%, #1d2b23 0%, #131f18 65%, #0c120f 100%);
+  border-color: #2b3f33;
+  -webkit-touch-callout: none;
+}
+
+/* 摸牌手势：按住（起手）→ 听牌（牌已定）→ 松手开牌 */
+.card-back.card-holding {
+  transform: translateY(-4px) scale(1.02);
+}
+
+.card-back.card-ting {
+  transform: translateY(-8px) scale(1.05);
+  border-color: var(--accent);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 0 18px rgba(var(--accent-rgb), 0.35);
+}
+
+.card-back.card-ting::after {
+  color: rgba(231, 236, 228, 0.6);
 }
 
 .card-back::before {
@@ -711,7 +730,7 @@ select:focus-visible {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.14'/%3E%3C/svg%3E");
 }
 
-/* 牌背中央菱形徽记（金 → 墨：弱米白墨色，无光晕） */
+/* 牌背中央菱形徽记（墨 → 竹青：弱米青，无光晕） */
 .card-back::after {
   content: '◆';
   position: absolute;
@@ -719,7 +738,7 @@ select:focus-visible {
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: 1.4rem;
-  color: rgba(232, 230, 242, 0.26);
+  color: rgba(231, 236, 228, 0.24);
 }
 
 /* 牌落位翻牌：放入九宫时轻翻转，强化「玩」的反馈 */
@@ -871,21 +890,21 @@ select:focus-visible {
 
 .card-face-small.black {
   background:
-    radial-gradient(circle at 50% 35%, rgba(200, 200, 255, 0.08) 0%, transparent 60%),
-    linear-gradient(180deg, #1e1c30, #17142a);
-  border-color: #4a4668;
+    radial-gradient(circle at 50% 35%, rgba(200, 220, 200, 0.07) 0%, transparent 60%),
+    linear-gradient(180deg, #1a2a20, #131f18);
+  border-color: #2f4a3c;
 }
 
 .card-face-small.black .rank,
 .card-face-small.black .suit {
-  color: #f0effa;
-  text-shadow: 0 0 8px rgba(240, 239, 250, 0.25);
+  color: #e8efe4;
+  text-shadow: 0 0 8px rgba(232, 239, 228, 0.25);
 }
 
 .card-face-small.gold {
   background:
     radial-gradient(circle at 50% 35%, rgba(var(--accent-rgb), 0.2) 0%, transparent 60%),
-    linear-gradient(180deg, #2a2518, #221d14);
+    linear-gradient(180deg, #222d1c, #1b2416);
   border-color: rgba(var(--accent-rgb), 0.5);
 }
 
@@ -1120,7 +1139,7 @@ button.ghost {
 }
 
 button.ghost:hover {
-  border-color: #4a4668;
+  border-color: #2f4a3c;
   color: var(--text);
   box-shadow: none;
 }
@@ -1817,7 +1836,7 @@ input[type='time']::-webkit-calendar-picker-indicator {
   width: 60px;
   height: 84px;
   border-radius: 8px;
-  background: linear-gradient(100deg, #17142a 30%, #2a2640 50%, #17142a 70%);
+  background: linear-gradient(100deg, #16221b 30%, #22312a 50%, #16221b 70%);
   background-size: 200% 100%;
   animation: shimmer 1.4s ease-in-out infinite;
   flex-shrink: 0;
@@ -1970,6 +1989,11 @@ body.dragging-card .card-face-small {
 
 .hero-link-row {
   margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .btn-hero-link {
@@ -1985,6 +2009,32 @@ body.dragging-card .card-face-small {
 .btn-hero-link:hover {
   color: var(--gold-dim);
   border-color: rgba(var(--accent-rgb), 0.65);
+}
+
+/* 双体系切换：扑克 / 麻将（用户自选，丝滑切换） */
+.sys-switch {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-soft);
+}
+.sys-btn {
+  background: transparent;
+  color: var(--ink-faint);
+  border: none;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
+}
+.sys-btn:hover { color: var(--text); }
+.sys-btn.on {
+  background: rgba(var(--accent-rgb), 0.16);
+  color: var(--gold-bright);
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.5);
 }
 
 .hero-note {
@@ -2069,13 +2119,13 @@ body.dragging-card .card-face-small {
   height: 62px;
   border-radius: 7px;
   background:
-    radial-gradient(circle at 50% 40%, rgba(232, 230, 242, 0.05) 0%, transparent 55%),
-    radial-gradient(ellipse at 50% 50%, #2b2742 0%, #17142a 65%, #12101c 100%);
-  border: 1px solid rgba(232, 230, 242, 0.16);
+    radial-gradient(circle at 50% 40%, rgba(231, 236, 228, 0.05) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 50%, #1d2b23 0%, #131f18 65%, #0c120f 100%);
+  border: 1px solid rgba(231, 236, 228, 0.16);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(232, 230, 242, 0.28);
+  color: rgba(231, 236, 228, 0.28);
   font-size: 0.85rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
   transform: rotate(-4deg);
@@ -2155,4 +2205,139 @@ body.dragging-card .card-face-small {
   background: rgba(var(--accent-rgb), 0.12);
   border-color: rgba(var(--accent-rgb), 0.5);
   box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.25);
+}
+
+/* ===================== 老牌馆 · 麻将占卜（绿呢桌面 · 竹/骨/玉牌） ===================== */
+
+/* 绿呢桌面：纯代码纹理，零资源。木框 + 呢面噪点 + 中央柔光 */
+.felt-table {
+  position: relative;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(154, 171, 127, 0.10) 0%, transparent 62%),
+    radial-gradient(ellipse at 50% 50%, #1d3a2c 0%, #142a1f 55%, #0e1f17 100%);
+  border: 8px solid #2a2018; /* 木框：老桌沿 */
+  border-radius: 16px;
+  box-shadow:
+    inset 0 0 46px rgba(0, 0, 0, 0.55),
+    0 10px 30px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.felt-table::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 10px;
+  background:
+    repeating-linear-gradient(0deg, rgba(231, 236, 228, 0.016) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(231, 236, 228, 0.012) 0 1px, transparent 1px 3px);
+}
+.felt-table > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* 竹饰横梁（老牌馆：藤编/竹的旧） */
+.bamboo-rail {
+  height: 6px;
+  border-radius: 3px;
+  background: repeating-linear-gradient(90deg, #9aab7f 0 14px, #7d8f63 14px 16px);
+  opacity: 0.5;
+}
+
+/* 牌背：骨白镶边的墨绿背，码在绿呢上 */
+.mj-tile-back {
+  position: relative;
+  border-radius: 8px;
+  cursor: pointer;
+  -webkit-touch-callout: none;
+  user-select: none;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(231, 236, 228, 0.06) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 50%, #1c2c22 0%, #132019 60%, #0b120e 100%);
+  border: 1px solid #31473a;
+  box-shadow:
+    inset 0 0 12px rgba(0, 0, 0, 0.5),
+    0 3px 8px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+.mj-tile-back::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px dashed rgba(231, 236, 228, 0.18);
+  border-radius: 5px;
+}
+.mj-tile-label {
+  position: relative;
+  z-index: 1;
+  font-size: 0.58rem;
+  color: rgba(231, 236, 228, 0.42);
+  letter-spacing: 0.08em;
+}
+
+/* 摸牌手势：按住（起手）→ 听牌（牌已定）→ 松手开牌 */
+.mj-tile-back.mj-holding {
+  transform: translateY(-5px) scale(1.02);
+}
+.mj-tile-back.mj-ting {
+  transform: translateY(-9px) scale(1.05);
+  border-color: var(--accent);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.45),
+    0 0 20px rgba(var(--accent-rgb), 0.4);
+}
+.mj-tile-back.mj-ting::after {
+  border-color: rgba(var(--accent-rgb), 0.45);
+}
+.mj-tile-back.mj-ting .mj-tile-label {
+  color: rgba(231, 236, 228, 0.65);
+}
+
+/* 牌面：骨白底，竹青描边（老牌馆：骨的白） */
+.mj-tile-face {
+  position: relative;
+  border-radius: 8px;
+  background: linear-gradient(145deg, #f0ecdf 0%, #d9d3c2 100%);
+  border: 1px solid #3a4a3e;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 4px 12px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin: 0 auto;
+}
+.mj-tile-num {
+  font-weight: 800;
+  line-height: 1;
+  font-family: var(--font-serif, serif);
+}
+.mj-tile-suit {
+  font-size: 0.55em;
+  color: var(--ink-ghost);
+  line-height: 1;
+  margin-top: 3px;
+}
+
+/* 天命时刻：自摸/三元（整局唯一允许「多」的位置） */
+@keyframes mjHeaven {
+  0% { box-shadow: 0 0 0 rgba(var(--accent-rgb), 0); }
+  35% { box-shadow: 0 0 44px rgba(var(--accent-rgb), 0.8); }
+  100% { box-shadow: 0 0 0 rgba(var(--accent-rgb), 0); }
+}
+.mj-heaven {
+  color: var(--gold-bright);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: rgba(var(--accent-rgb), 0.14);
+  border: 1px solid rgba(var(--accent-rgb), 0.5);
+  animation: mjHeaven 1.1s ease-out 0.2s 2;
 }

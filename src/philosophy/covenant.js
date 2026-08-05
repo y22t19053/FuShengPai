@@ -1,4 +1,7 @@
 // ===== src/philosophy/covenant.js · 浮生牌宪章（软性约定） =====
+// 铁律（用户原话）：这段体验，是让人更记得这张牌、更接近自己的感受，
+// 还是让人更想点下一次？前者是仪式，后者是赌博。
+// —— 一切判词、限次、拦截都以此为尺。
 
 export const COVENANT = {
   disclaimer: true,

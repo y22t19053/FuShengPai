@@ -11,7 +11,7 @@ import { drawPokerCard } from '../../share2/poker.js';
 
 /** 关系徽章：生克 → 中文标签 + 颜色（克制，不做夸张渐变） */
 const REL_LABEL = { 生我: '大吉', 我生: '小凶', 克我: '大凶', 我克: '小吉', 同我: '平' };
-const REL_COLOR = { 生我: '#c9a96e', 我生: '#8a9a5a', 克我: '#c96a5a', 我克: '#7a9ab0', 同我: '#b09a5a' };
+const REL_COLOR = { 生我: '#9aab7f', 我生: '#9aab7f', 克我: '#c96a5a', 我克: '#7d97ad', 同我: '#b0a05a' };
 
 /** 天机线三宫标签 */
 const GONG_PHASE = { 0: '起点', 1: '经过', 2: '结果' };
@@ -74,7 +74,7 @@ export async function drawDivinationShare(ctx, w, h, data) {
   // 3.3 关系徽章（居中，圆形 + 细描边，克制微光）
   const badgeR = 40;
   ctx.save();
-  ctx.shadowColor = 'rgba(201,169,110,0.18)';
+  ctx.shadowColor = 'rgba(154,171,127,0.18)';
   ctx.shadowBlur = 12;
   ctx.fillStyle = 'rgba(236,232,221,0.06)';
   ctx.beginPath();
@@ -84,7 +84,7 @@ export async function drawDivinationShare(ctx, w, h, data) {
   const rel = data.relation || '未知';
   const relLabel = REL_LABEL[rel] || '平';
   const relColor = REL_COLOR[rel] || t.gold;
-  ctx.strokeStyle = 'rgba(201,169,110,0.4)';
+  ctx.strokeStyle = 'rgba(154,171,127,0.4)';
   ctx.lineWidth = 1.2;
   ctx.stroke();
   ctx.fillStyle = relColor;

@@ -265,8 +265,8 @@ export function initDrag() {
     const target = e.target.closest('.empty-dash, .gong');
     if (target) {
       clearHighlight();
-      target.style.boxShadow = '0 0 16px 4px rgba(201,160,96,0.5)';
-      target.style.borderColor = '#c9a060';
+      target.style.boxShadow = '0 0 16px 4px rgba(var(--accent-rgb),0.5)';
+      target.style.borderColor = 'var(--accent)';
       lastHighlightEl = target;
     }
   });
