@@ -42,14 +42,12 @@ import {
 import { MAX_DAILY_OBSERVATIONS, pick } from './constants.js';
 import { UI_TEXTS, STATUS_POOL, REMINDER_POOL, ACTION_POOL } from './texts/index.js';
 import { getDailyMirrorLine, getSceneLines, getWakeUpLine } from './texts/mirror-pools.js';
-import { buildDailyOracle } from './texts/daily-oracle.js';
 import { getAlmanac } from './calendar.js';
-import { getPokerPersona } from './persona.js';
 import { calculateDurianIndex } from './durian.js';
+import { runEngine } from './engines/index.js';
 import { generateFingerprint, seedToX0, chaoticGenerator, chaoticShuffle } from './chaos.js';
 import { interceptQuestion, checkDependency, getSealStatus } from './philosophy/ethics.js';
 import { applyCovenant } from './philosophy/covenant.js';
-import { generateSingleCardMetaphor } from './metaphor.js';
 import { escapeForHTML, setHTML } from './utils/safe.js';
 import { playCardSound, playJokerSound, playPlaceSound } from './utils/sound.js';
 import { initPWA } from './pwa.js';
@@ -488,7 +486,7 @@ export function openPeriodDeck(periodType, fortuneType = 'overall') {
     const settle = isJoker ? 420 + 900 : 420 + 550;
     setTimeout(() => {
       if (isJoker) {
-        const persona = getPokerPersona(card);
+        const persona = runEngine('poker', { card })?.persona;
         if (persona) toast(`⚡ ${card.type} · ${persona.core}`, 3200, 'success');
       }
       confirmPeriodPick(periodType, card, fortuneType);
@@ -551,8 +549,9 @@ function buildManualCardButtons() {
 }
 
 // ===== 赛博黄历（仅日运展示）：真实建除/冲煞/农历/神煞方位 + 白话宜忌 =====
+// 走统一契约 daily 引擎（黄历部分）
 function buildDailyOracleBlock(wx, dateStr) {
-  const oracle = buildDailyOracle({ wx, dateStr });
+  const oracle = runEngine('daily', { wx, dateStr })?.oracle || {};
   const a = oracle.almanac || {};
   const shenSha = a.shenSha || {};
   const termText = a.term ? `今日${a.term} · ` : '';
@@ -739,7 +738,7 @@ export function confirmPeriodPick(periodType, card, fortuneType = 'overall') {
   const suit = card.isJoker ? '' : card.suit;
   const periodKey = getCurrentPeriodKey(periodType);
   const typeLabel = periodType === 'daily' ? getDailyFortuneType(fortuneType).label : cfg.label;
-  const metaphor = generateSingleCardMetaphor(card, wx, typeLabel, fortuneType);
+  const metaphor = runEngine('poker', { card, fortuneType, periodLabel: typeLabel })?.metaphor || '';
 
   // 情绪镜像（结果页顶部）+ 场景短句（日运专属）
   const mirrorLine = getDailyMirrorLine();

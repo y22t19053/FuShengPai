@@ -17,8 +17,7 @@ import { playClosingSound } from '../utils/sound.js';
 import { UI_TEXTS, HISTORY_EMPTY, PHYSICAL_GUIDE, STATUS_POOL, REMINDER_POOL, ACTION_POOL } from '../texts/index.js';
 import { pick } from '../constants.js';
 import { calculateDurianIndex, getDurianColor } from '../durian.js';
-import { getDailyFortune, getPokerPersona } from '../persona.js';
-import { getFriendCircleHook, getFortuneTags, getPaiGeQuestion } from '../texts/social.js';
+import { runEngine } from '../engines/index.js';
 import { toast } from './ui-modal.js';
 import { isCardPlaced } from './ui-drag.js';
 import { escapeForHTML, setHTML } from '../utils/safe.js';
@@ -445,7 +444,7 @@ export function renderTodayFortuneStrip() {
   const el = document.getElementById('dualStrip');
   if (!el) return;
 
-  // ---- ① 牌灵横幅 ----
+  // ---- ① 牌灵横幅（走统一契约 paige 引擎） ----
   let paigeBanner = '';
   let paigeCard = null;
   try {
@@ -453,8 +452,9 @@ export function renderTodayFortuneStrip() {
     const paigeData = raw ? JSON.parse(raw) : null;
     if (paigeData && paigeData.card) {
       paigeCard = paigeData.card;
-      const q = getPaiGeQuestion(paigeCard);
-      const hook = getFriendCircleHook(paigeCard);
+      const paige = runEngine('paige', { card: paigeCard });
+      const q = paige?.question || null;
+      const hook = paige?.hook || { title: '', line: '', tags: [] };
       const tags = (q?.keywords?.length ? q.keywords : hook.tags || []).slice(0, 3);
       const colorCls = getCardColor(paigeCard);
       const rank = paigeCard.isJoker ? paigeCard.type : paigeCard.rank;
@@ -500,9 +500,11 @@ export function renderTodayFortuneStrip() {
     const main = drawn.find(x => x.t.key === 'overall') || drawn[0];
     dailyCard = main.stored.card;
     dailyTypeKey = main.t.key;
-    const fortune = getDailyFortune(dailyCard, main.t.key) || { grade: '中平', typeLabel: main.t.label };
-    const hook = getFriendCircleHook(dailyCard);
-    const tags = getFortuneTags(dailyCard, main.t.key).slice(0, 3);
+    // 走统一契约 daily 引擎：黄历 + 单牌运势 + 分享素材
+    const daily = runEngine('daily', { card: dailyCard, fortuneType: main.t.key, dateStr: todayKey });
+    const fortune = daily?.fortune || { grade: '中平', typeLabel: main.t.label };
+    const hook = daily?.hook || { title: '', line: '', tags: [] };
+    const tags = (daily?.tags || []).slice(0, 3);
     const colorCls = getCardColor(dailyCard);
     const rank = dailyCard.isJoker ? dailyCard.type : dailyCard.rank;
     const suit = dailyCard.isJoker ? '' : dailyCard.suit;
