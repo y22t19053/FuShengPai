@@ -1,7 +1,7 @@
 // ===== src/share2/templates/arcana.js · 牌灵档案（DOM 版 · 深纸） =====
 // 主题「它想对你说」：品牌栏 → 大字标题 → 中央牌 → 五行/关键词 → 签语 → 落款。
 
-import { PAPER, FONT_SANS, FOOTER_NOTES, pickBySeed, TAG_BY_WX, paperBackground } from '../style.js';
+import { getPaper, FONT_SANS, FOOTER_NOTES, pickBySeed, TAG_BY_WX, paperBackground } from '../style.js';
 import { roughBoxSVG, wxIconSVG, sealBoxSVG, dividerSVG } from '../rough-svg.js';
 import { pokerCardHTML, qrBoxHTML } from './cards.js';
 import { escapeForHTML } from '../../utils/safe.js';
@@ -15,7 +15,7 @@ const M = 96;
  * data: { cardMain/card, title, line, quote, element, keywords, dateText, paige }
  */
 export function renderArcanaHTML(data, qr) {
-  const p = PAPER.dark;
+  const p = getPaper().dark;
   const card = data.cardMain || data.card || { rank: '?', suit: '', wx: '土', color: 'black' };
   const wx = card.wx || data.element || '土';
   const dateText = data.dateText || '';
@@ -30,7 +30,7 @@ export function renderArcanaHTML(data, qr) {
     paper: p.paper,
     red: p.red,
     ink: p.ink,
-    border: 'rgba(243,235,220,0.42)',
+    border: p.border,
     shadow: p.cardShadow,
     font: FONT_SANS,
   });
@@ -68,8 +68,8 @@ export function renderArcanaHTML(data, qr) {
     <div style="position:absolute;left:${M}px;bottom:${M}px;">
       ${dividerSVG(0, 480, 0, { stroke: p.line })}
       <div style="display:flex;align-items:center;gap:16px;margin-top:28px;">
-        <div style="width:46px;height:46px;position:relative;text-align:center;color:#c05648;font-size:16px;font-weight:700;font-family:${FONT_SANS};line-height:1.24;flex-shrink:0;">
-          ${sealBoxSVG(46, '#c05648')}
+        <div style="width:46px;height:46px;position:relative;text-align:center;color:${p.red};font-size:16px;font-weight:700;font-family:${FONT_SANS};line-height:1.24;flex-shrink:0;">
+          ${sealBoxSVG(46, p.red)}
           <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);">浮<br>生</div>
         </div>
         <div>
@@ -79,7 +79,7 @@ export function renderArcanaHTML(data, qr) {
       </div>
     </div>
     <div style="position:absolute;right:${M}px;bottom:${M - 14}px;">
-      ${qrBoxHTML(qr, { size: 128, bg: p.qrLight, border: 'rgba(243,235,220,0.2)', ink: p.goldDeep, inkFaint: p.inkFaint, font: FONT_SANS })}
+      ${qrBoxHTML(qr, { size: 128, bg: p.qrLight, border: p.line, ink: p.goldDeep, inkFaint: p.inkFaint, font: FONT_SANS })}
     </div>`;
 
   return `

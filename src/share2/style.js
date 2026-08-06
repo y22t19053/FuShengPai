@@ -2,6 +2,9 @@
 // 新一代分享图引擎：HTML+CSS 排版 → html-to-image 截图。
 // 本文件只存设计 token 与文案池（无 canvas、无 DOM 副作用），模板与 stage 共用。
 // 色板与旧 canvas 版 theme.js 同源：暖纸米白 / 鼠尾草薄荷 / 暖墨棕 / 朱砂。
+// 动态配色：getPaper() 从 src/palettes.js 按日期取当日双色板（每日轮换，同日稳定）。
+
+import { buildSharePaper } from '../palettes.js';
 
 /** 圆润无衬线字体栈（与主站一致，手绘绘本风不留尖角） */
 export const FONT_SANS =
@@ -32,6 +35,14 @@ export const PAPER = {
     pillBg: 'rgba(77,143,126,0.10)',
   },
 };
+
+let _paperCache = null;
+
+/** 当日分享图双色板（动态配色：深/动作/亮/情绪四组按日期轮换；qrLight 恒白保证可扫） */
+export function getPaper() {
+  if (!_paperCache) _paperCache = buildSharePaper();
+  return _paperCache;
+}
 
 /** 二维码目标（钉死，不用 window.location，防本地环境干扰） */
 export const QR_TARGET = 'https://y22t19053.github.io/FuShengPai/';

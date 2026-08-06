@@ -2,7 +2,7 @@
 // HTML+CSS 排版：品牌栏 → 日期组 → 中央牌 → 五行标签 → 宜/忌双栏 → 金句意象 → 落款。
 // 以 1080×1440 固定画布绝对定位铺陈；rough SVG 手绘边框/分隔/印章/五行图标。
 
-import { PAPER, FONT_SANS, FOOTER_NOTES, pickBySeed, YI_JI, WEATHER, TAG_BY_WX, paperBackground } from '../style.js';
+import { getPaper, FONT_SANS, FOOTER_NOTES, pickBySeed, YI_JI, WEATHER, TAG_BY_WX, paperBackground } from '../style.js';
 import { roughBoxSVG, wxIconSVG, sealBoxSVG, dividerSVG } from '../rough-svg.js';
 import { pokerCardHTML, qrBoxHTML } from './cards.js';
 import { escapeForHTML } from '../../utils/safe.js';
@@ -32,7 +32,7 @@ function weekday(dateText) {
  * data: { cardMain/card, title, line, quote, dateText, fortuneType, element, oracle }
  */
 export function renderDailyHTML(data, qr) {
-  const p = PAPER.light;
+  const p = getPaper().light;
   const card = data.cardMain || data.card || { rank: '?', suit: '', wx: '土', color: 'black' };
   const wx = card.wx || data.element || '土';
   const yiji = YI_JI[wx] || YI_JI['土'];
@@ -56,7 +56,7 @@ export function renderDailyHTML(data, qr) {
     paper: p.paper,
     red: p.red,
     ink: p.ink,
-    border: 'rgba(58,52,37,0.5)',
+    border: p.border,
     shadow: p.cardShadow,
     font: FONT_SANS,
   });
@@ -75,7 +75,7 @@ export function renderDailyHTML(data, qr) {
   const jiText = escapeForHTML(ji.join('、'));
   const column = (title, color, text, left) => `
     <div style="position:absolute;${left ? 'left' : 'right'}:${M}px;top:984px;width:408px;height:152px;">
-      ${roughBoxSVG(0, 0, 408, 152, { r: 18, stroke: left ? p.gold : p.red, strokeWidth: 1.8, roughness: 1.2, fill: left ? p.pillBg : 'rgba(201,111,82,0.07)' })}
+      ${roughBoxSVG(0, 0, 408, 152, { r: 18, stroke: left ? p.gold : p.red, strokeWidth: 1.8, roughness: 1.2, fill: left ? p.pillBg : p.pillRed })}
       <div style="position:absolute;left:26px;top:20px;color:${color};font-size:30px;font-weight:800;font-family:${FONT_SANS};letter-spacing:6px;">${title}</div>
       <div style="position:absolute;left:26px;top:76px;right:20px;color:${p.ink};font-size:26px;font-weight:600;font-family:${FONT_SANS};line-height:1.4;">${text}</div>
     </div>`;
@@ -96,8 +96,8 @@ export function renderDailyHTML(data, qr) {
     <div style="position:absolute;left:${M}px;bottom:${M}px;">
       ${dividerSVG(0, 480, 0, { stroke: p.line })}
       <div style="display:flex;align-items:center;gap:16px;margin-top:28px;">
-        <div style="width:46px;height:46px;position:relative;text-align:center;color:#a83b32;font-size:16px;font-weight:700;font-family:${FONT_SANS};line-height:1.24;flex-shrink:0;">
-          ${sealBoxSVG(46)}
+        <div style="width:46px;height:46px;position:relative;text-align:center;color:${p.red};font-size:16px;font-weight:700;font-family:${FONT_SANS};line-height:1.24;flex-shrink:0;">
+          ${sealBoxSVG(46, p.red)}
           <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);">浮<br>生</div>
         </div>
         <div>
@@ -107,7 +107,7 @@ export function renderDailyHTML(data, qr) {
       </div>
     </div>
     <div style="position:absolute;right:${M}px;bottom:${M - 14}px;">
-      ${qrBoxHTML(qr, { size: 128, bg: p.qrLight, border: 'rgba(58,50,38,0.22)', ink: p.goldDeep, inkFaint: p.inkFaint, font: FONT_SANS })}
+      ${qrBoxHTML(qr, { size: 128, bg: p.qrLight, border: p.line, ink: p.goldDeep, inkFaint: p.inkFaint, font: FONT_SANS })}
     </div>`;
 
   return `

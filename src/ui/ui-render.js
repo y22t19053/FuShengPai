@@ -11,6 +11,7 @@ import {
 import { createDeck, shuffle, calcFullBaZi, calcDiff, getDiffLevel, getDiffValue } from '../engine.js';
 import { getApiSettings, getProfile, getHistory, getStoredPeriodCards, getDrawTimestamps } from '../storage.js';
 import { getSeasonInfo, getHourGreeting, getVisitStreak, getYesterdayCard, cardLabel, applySeasonAccent } from '../season.js';
+import { applyPaletteToRoot } from '../palettes.js';
 import { getAlmanac } from '../calendar.js';
 import { getClosingLine } from '../philosophy/covenant.js';
 import { playClosingSound } from '../utils/sound.js';
@@ -24,8 +25,9 @@ import { escapeForHTML, setHTML } from '../utils/safe.js';
 import { syncQuestionFromInput } from '../utils/flow-helpers.js';
 import { getSystem, setSystem } from '../mahjong-ui.js';
 
-// 旬：进店即换菜单——把季节 accent 应用到 :root（全站 --accent 跟随）
+// 旬：进店即换菜单——季节 accent 打底，再被「十组动态配色」覆盖（同日稳定、跨日轮换）
 applySeasonAccent();
+applyPaletteToRoot();
 
 // ===== 新手教程 =====
 export function renderTeachingPanel() {
@@ -730,14 +732,15 @@ export function renderFullReport(text, modules = null, summary = null) {
   const result = document.getElementById('resultArea');
   if (!result) return;
 
+  // 三句摘要 = 情绪卡（粉/黄系当日 --mood），边框/底色/建议行都随情绪色
   const summaryHTML = `
-    <div style="background:rgba(var(--accent-rgb),0.06);border-left:3px solid var(--accent);padding:12px 16px;border-radius:var(--r-hand-in);margin-bottom:12px;">
+    <div style="background:var(--mood-soft);border-left:3px solid var(--mood);padding:12px 16px;border-radius:var(--r-hand-in);margin-bottom:12px;">
       <div style="font-size:0.7rem;color:var(--dim);">此刻的你</div>
       <div style="font-size:1.05rem;font-weight:bold;margin:4px 0;line-height:1.6;">${escapeForHTML(summary.status)}</div>
       <div style="font-size:0.7rem;color:var(--dim);margin-top:8px;">一个提醒</div>
       <div style="font-size:0.9rem;line-height:1.6;">${escapeForHTML(summary.reminder)}</div>
       <div style="font-size:0.7rem;color:var(--dim);margin-top:8px;">一句建议</div>
-      <div style="font-size:0.9rem;line-height:1.6;color:var(--accent);">${escapeForHTML(summary.action)}</div>
+      <div style="font-size:0.9rem;line-height:1.6;color:var(--mood);">${escapeForHTML(summary.action)}</div>
     </div>
   `;
 

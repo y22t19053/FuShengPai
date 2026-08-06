@@ -102,6 +102,16 @@
   --felt-0: #e3ecd8;
   --felt-1: #d3e4c4;
   --felt-2: #c2d8ae;
+  /* 动态配色专用 token（palettes.js 每日覆盖）：情绪粉黄 / 结构绿紫 / 亮色原色 / 分享纸 */
+  --structure: #7b2cbf;
+  --structure-rgb: 123, 44, 191;
+  --structure-soft: rgba(123, 44, 191, 0.1);
+  --mood: #d9c184;
+  --mood-rgb: 217, 193, 132;
+  --mood-soft: rgba(217, 193, 132, 0.14);
+  --accent-bright: #80ed99;
+  --accent-bright-rgb: 128, 237, 153;
+  --paper: #fdfaf1;
   --wood-frame: #cfc3a9;            /* 桌沿木框（区别于 --wood 面板木格） */
   /* 遮罩（模态/引导：深绿压暗，唯一遮罩色） */
   --overlay: rgba(30, 80, 70, 0.5);
@@ -670,7 +680,7 @@ select:focus-visible {
 }
 
 .tiyong-bar .separator {
-  color: var(--accent);
+  color: var(--structure);
   font-size: 1.2rem;
 }
 
@@ -1133,8 +1143,8 @@ select:focus-visible {
 }
 
 .gong.confirmed {
-  border-color: var(--accent);
-  background: rgba(var(--accent-rgb), 0.08);
+  border-color: var(--structure);
+  background: var(--structure-soft);
 }
 
 .gong.recommended {
