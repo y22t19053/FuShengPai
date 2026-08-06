@@ -14,7 +14,7 @@ import {
   renderPeriodReportInto, replayTimelineEntry,
   togglePanel, showHistoryDetail, generateShareCode,
   importShareCode, generateShareImage, saveShareImage, copyShareImage, showAIGuideModal,
-  showDataMigrationModal, showDailyFortunePicker
+  showDataMigrationModal, showDailyFortunePicker, renderMonthlyTensionInto
 } from './ui/ui-modal.js';
 import {
   initDrag, setLine, findCardById, isCardPlaced,
@@ -26,7 +26,7 @@ import {
   saveReading, addTimelineEntry, saveTimeCapsule, getTimeCapsule,
   deleteHistoryItem, exportAllData, updateHistoryChat,
   getStoredPeriodCards, saveStoredPeriodCard, addPeriodHistoryEntry,
-  getHistory
+  getHistory, getTimeline
 } from './storage.js';
 import { requestReading, requestFollowUp, testApiConnection } from './ai.js';
 import {
@@ -1183,6 +1183,9 @@ export function handleAction(action, dataset, el = null) {
     case 'reports': showReportsModal(); break;
     case 'periodReport':
       if (dataset.period) renderPeriodReportInto(dataset.period);
+      break;
+    case 'tensionRange':
+      renderMonthlyTensionInto(getTimeline(), Number(dataset.months) || 12);
       break;
     case 'replayTimeline':
       if (dataset.time !== undefined) replayTimelineEntry(Number(dataset.time));

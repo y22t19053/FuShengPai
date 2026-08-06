@@ -20,7 +20,9 @@ export function renderArcanaHTML(data, qr) {
   const wx = card.wx || data.element || '土';
   const dateText = data.dateText || '';
   const keywords = (data.keywords && data.keywords.length ? data.keywords : ['观牌', '知势']).slice(0, 4);
-  const line = (data.line || data.quote || '它想对你说').replace(/^“|”$/g, '');
+  let line = (data.line || data.quote || '它想对你说').replace(/^“|”$/g, '');
+  // 签语限 42 字：与右下二维码同高的横向空间有限，超长截断保证两行内不重叠
+  if (line.length > 42) line = line.slice(0, 42) + '…';
   const signTag = TAG_BY_WX[wx] || '今日一句';
   const note = pickBySeed(dateText, FOOTER_NOTES);
 
@@ -62,7 +64,7 @@ export function renderArcanaHTML(data, qr) {
         <span>${escapeForHTML(signTag)}</span>
       </div>
     </div>
-    <div style="position:absolute;left:140px;right:140px;top:1096px;text-align:center;color:${p.ink};font-size:31px;font-weight:500;font-family:${FONT_SANS};line-height:1.62;">「${escapeForHTML(line)}」</div>`;
+    <div style="position:absolute;left:140px;right:340px;top:1096px;text-align:center;color:${p.ink};font-size:28px;font-weight:500;font-family:${FONT_SANS};line-height:1.5;overflow-wrap:break-word;">「${escapeForHTML(line)}」</div>`;
 
   // 底部：落款 + 印章 + 二维码引导
   const footerHTML = `

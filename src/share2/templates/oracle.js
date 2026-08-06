@@ -7,7 +7,6 @@ import { frameBoxSVG, sealBoxSVG, dividerSVG, wxIconSVG } from '../frame-svg.js'
 import { qrBoxHTML } from './cards.js';
 import { escapeForHTML } from '../../utils/safe.js';
 import { getTrueSolarHour, getLonForCity } from '../../utils/solar-time.js';
-import { pickHourLine } from '../../texts/hour-pools.js';
 
 const W = 1080;
 const H = 1440;
@@ -47,12 +46,12 @@ export function renderOracleHTML(data, qr) {
   const facts = [navin && `纳音·${navin}`, nineStar && `九星·${nineStar}`, xunKong].filter(Boolean);
 
   // 真太阳时辰（出生地经度缺省东八区）
+  // 只显示干支时辰+钟表时间（短格式）。白话象义留在页内黄历块，海报上一长句会换行顶到右下二维码。
   let trueHourLine = '';
   try {
     const th = getTrueSolarHour(new Date(), getLonForCity(data.birthPlace) || null);
     if (th && th.ganZhi) {
-      const hourLine = pickHourLine(dateText || '', th.zhi);
-      trueHourLine = `${th.ganZhi}${th.label}时 ${String(th.solar.getHours()).padStart(2, '0')}:${String(th.solar.getMinutes()).padStart(2, '0')}${hourLine ? ' · ' + hourLine : ''}`;
+      trueHourLine = `${th.ganZhi}${th.label}时 ${String(th.solar.getHours()).padStart(2, '0')}:${String(th.solar.getMinutes()).padStart(2, '0')}`;
     }
   } catch (e) { /* 忽略 */ }
 
@@ -119,12 +118,12 @@ export function renderOracleHTML(data, qr) {
 
       ${yiJiHTML}
 
-      <!-- 信息带：冲煞 / 财神 / 真太阳时辰 -->
-      <div style="position:absolute;left:120px;right:120px;top:1062px;text-align:center;">
+      <!-- 信息带：冲煞 / 财神 / 真太阳时辰（紧凑单行排布，避免与右下二维码重叠） -->
+      <div style="position:absolute;left:120px;right:120px;top:1022px;text-align:center;">
         ${infoLine ? `<div style="color:${p.inkDim};font-size:24px;font-weight:600;font-family:${FONT_SANS};letter-spacing:2px;">${escapeForHTML(infoLine)}</div>` : ''}
-        ${facts.length ? `<div style="margin-top:14px;color:${p.inkFaint};font-size:19px;font-family:${FONT_SANS};">${escapeForHTML(facts.join('　'))}</div>` : ''}
+        ${facts.length ? `<div style="margin-top:8px;color:${p.inkFaint};font-size:19px;font-family:${FONT_SANS};">${escapeForHTML(facts.join('　'))}</div>` : ''}
         ${trueHourLine ? `
-          <div style="margin-top:16px;display:inline-flex;align-items:center;gap:8px;color:${p.gold};font-size:20px;font-family:${FONT_SANS};">
+          <div style="margin-top:8px;display:inline-flex;align-items:center;gap:8px;color:${p.gold};font-size:20px;font-family:${FONT_SANS};max-width:840px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
             ${wxIconSVG(wx, p.gold, 20)}
             <span>此刻真太阳时 · ${escapeForHTML(trueHourLine)}</span>
           </div>` : ''}

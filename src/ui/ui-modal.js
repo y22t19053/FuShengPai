@@ -316,7 +316,7 @@ export function showHistoryDetail(index) {
 }
 
 // ===== 观测报告中心（完整时间线 + 周期报告 + 回看“当时的我”） =====
-const PERIOD_LABELS = { weekly: '本周', monthly: '本月', seasonal: '本季', yearly: '今年' };
+const PERIOD_LABELS = { weekly: '本周', monthly: '本月', seasonal: '本季', halfyear: '近半年', yearly: '今年' };
 
 function formatTimestamp(ts) {
   const d = new Date(ts);
@@ -336,6 +336,12 @@ function periodStartMs(periodType, now = new Date()) {
     }
     case 'monthly': return new Date(y, now.getMonth(), 1).getTime();
     case 'seasonal': return new Date(y, Math.floor(now.getMonth() / 3) * 3, 1).getTime();
+    case 'halfyear': {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 182);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime();
+    }
     case 'yearly': return new Date(y, 0, 1).getTime();
     default: return 0;
   }
@@ -480,9 +486,11 @@ function renderTimelineList(timeline) {
 }
 
 // 月度张力曲线（纯 DOM 柱状，无图表库；「记录的曲线，不是命运的判决」）
-function renderMonthlyTensionBlock(timeline) {
-  const series = buildMonthlyTension(timeline, 12);
+// months: 12（一年）或 24（两年），buildMonthlyTension 上限已支持 24
+function renderMonthlyTensionBlock(timeline, months = 12) {
+  const series = buildMonthlyTension(timeline, months);
   const note = monthlyTensionNote(series);
+  const barW = months >= 24 ? '55%' : '70%'; // 24 根柱时适当收窄，保持可读
   const bars = series.map(s => {
     const h = s.avg === null ? 3 : Math.max(4, Math.round((s.avg / 10) * 56));
     const color = s.avg === null ? 'rgba(255,255,255,0.08)'
@@ -490,21 +498,28 @@ function renderMonthlyTensionBlock(timeline) {
     const count = s.count ? `·${s.count}次` : '';
     return `
       <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;">
-        <div style="font-size:0.55rem;color:var(--dim);">${s.avg === null ? '' : s.avg.toFixed(1)}</div>
-        <div style="width:70%;height:${h}px;border-radius:3px;background:${color};opacity:0.9;" title="${s.label}${count}"></div>
-        <div style="font-size:0.55rem;color:var(--dim);">${escapeForHTML(s.label)}</div>
+        <div style="font-size:0.5rem;color:var(--dim);white-space:nowrap;">${s.avg === null ? '' : s.avg.toFixed(1)}</div>
+        <div style="width:${barW};height:${h}px;border-radius:3px;background:${color};opacity:0.9;" title="${s.label}${count}"></div>
+        <div style="font-size:0.5rem;color:var(--dim);white-space:nowrap;">${escapeForHTML(s.label)}</div>
       </div>`;
   }).join('');
 
   return `
-    <div style="background:rgba(111,174,156,0.06);border-radius:var(--r-hand-md);padding:10px;margin-top:10px;">
-      <strong style="font-size:0.9rem;">📈 月度张力 <span style="font-size:0.6rem;color:var(--dim);font-weight:normal;">（过去 12 个月 · 张力 0–10）</span></strong>
+    <div style="background:rgba(111,174,156,0.06);border-radius:var(--r-hand-md);padding:10px;">
+      <strong style="font-size:0.9rem;">📈 月度张力 <span style="font-size:0.6rem;color:var(--dim);font-weight:normal;">（过去 ${months} 个月 · 张力 0–10）</span></strong>
       <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:4px;height:88px;margin-top:10px;padding:0 2px;">
         ${bars}
       </div>
       <div style="font-size:0.72rem;color:var(--dim);line-height:1.7;margin-top:8px;">${escapeForHTML(note)}</div>
       <div style="font-size:0.62rem;color:var(--dim);opacity:0.7;margin-top:4px;">记录的曲线，不是命运的判决。它只说明：那些日子，你在拉扯里待过、也走过来了。</div>
     </div>`;
+}
+
+// 渲染月度张力到独立容器（供“近 12 月 / 近 24 月”切换按钮复用）
+export function renderMonthlyTensionInto(timeline, months = 12) {
+  const area = document.getElementById('monthlyTensionArea');
+  if (!area) return;
+  setHTML(area, renderMonthlyTensionBlock(timeline, months));
 }
 
 // 报告中心弹窗：周期报告 + 完整时间线
@@ -523,10 +538,17 @@ export function showReportsModal() {
       <button data-action="periodReport" data-period="weekly" class="outline small">本周</button>
       <button data-action="periodReport" data-period="monthly" class="outline small">本月</button>
       <button data-action="periodReport" data-period="seasonal" class="outline small">本季</button>
+      <button data-action="periodReport" data-period="halfyear" class="outline small">近半年</button>
       <button data-action="periodReport" data-period="yearly" class="outline small">今年</button>
     </div>
     <div id="periodReportArea" style="margin-top:10px;"></div>
-    ${renderMonthlyTensionBlock(timeline)}
+    <div style="margin-top:10px;">
+      <div class="btn-row" style="flex-wrap:wrap;justify-content:center;gap:6px;margin-bottom:8px;">
+        <button data-action="tensionRange" data-months="12" class="outline small">近 12 月</button>
+        <button data-action="tensionRange" data-months="24" class="outline small">近 24 月</button>
+      </div>
+      <div id="monthlyTensionArea"></div>
+    </div>
     <hr style="border:none;border-top:1px dashed rgba(255,255,255,0.15);margin:12px 0;">
     <h4 style="color:var(--accent);font-size:0.95rem;margin-bottom:8px;">🕐 完整时间线 <span style="font-size:0.65rem;color:var(--dim);font-weight:normal;">（点击“回看”可看当时的完整解读）</span></h4>
     ${renderTimelineList(timeline)}
@@ -538,6 +560,7 @@ export function showReportsModal() {
   setHTML(content, html);
   modal.removeAttribute('hidden');
   renderPeriodReportInto('monthly');
+  renderMonthlyTensionInto(timeline, 12);
 }
 
 // ===== 榴莲报告 =====

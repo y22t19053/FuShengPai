@@ -46,7 +46,9 @@ export function renderDailyHTML(data, qr) {
   const moodTitle = (oracle && oracle.mood && oracle.mood.title) || weather;
   // 与页内横幅完全一致：title=hook.title（今日课题），line=hook.line（情绪金句）
   const topicTitle = data.title || moodTitle;
-  const signLine = (data.line || data.quote || '').replace(/^“|”$/g, '');
+  let signLine = (data.line || data.quote || '').replace(/^“|”$/g, '');
+  // 金句限 42 字：底部与右下二维码之间的横向空间有限，超长截断保证单行/双行内不重叠
+  if (signLine.length > 42) signLine = signLine.slice(0, 42) + '…';
   const note = pickBySeed(dateText, FOOTER_NOTES);
 
   const brand = `${mmdd(dateText)} · ${weekday(dateText)}`;
@@ -84,21 +86,22 @@ export function renderDailyHTML(data, qr) {
   const yiJiHTML = column('宜', p.goldDeep, yiText, true) + column('忌', p.red, jiText, false);
 
   // 今日课题（hook.title）+ 情绪金句（hook.line）：与页内横幅同一来源，观感统一
+  // 纵向重新排布：课题 1146 → 金句 1190（两行内）→ footer/QR 1267 起，互不重叠；金句右边界止于 720px，避开右下二维码列
   const quoteHTML = `
-    <div style="position:absolute;left:0;right:0;top:1186px;text-align:center;">
+    <div style="position:absolute;left:0;right:0;top:1146px;text-align:center;">
       <div style="display:inline-flex;align-items:center;gap:10px;color:${p.goldDeep};font-size:24px;font-weight:600;font-family:${FONT_SANS};letter-spacing:2px;">
         <div style="width:6px;height:28px;background:${p.mood};border-radius:3px;flex-shrink:0;"></div>
         ${wxIconSVG(wx, p.gold, 26)}
         <span>${escapeForHTML(topicTitle)}</span>
       </div>
     </div>
-    <div style="position:absolute;left:150px;right:150px;top:1240px;text-align:center;color:${p.ink};font-size:30px;font-weight:500;font-family:${FONT_SANS};line-height:1.6;">「${escapeForHTML(signLine || '观牌知势，不语已明。')}」</div>`;
+    <div style="position:absolute;left:150px;right:360px;top:1190px;text-align:center;color:${p.ink};font-size:26px;font-weight:500;font-family:${FONT_SANS};line-height:1.5;overflow-wrap:break-word;">「${escapeForHTML(signLine || '观牌知势，不语已明。')}」</div>`;
 
-  // 底部：落款（左）+ 印章 + 二维码引导（右）
+  // 底部：落款（左）+ 印章 + 二维码引导（右）；bottom:34 与右下二维码同底对齐，为金句腾出纵向空间
   const footerHTML = `
-    <div style="position:absolute;left:${M}px;bottom:${M}px;">
+    <div style="position:absolute;left:${M}px;bottom:34px;">
       ${dividerSVG(0, 480, 0, { stroke: p.line })}
-      <div style="display:flex;align-items:center;gap:16px;margin-top:28px;">
+      <div style="display:flex;align-items:center;gap:16px;margin-top:20px;">
         <div style="width:46px;height:46px;position:relative;text-align:center;color:${p.red};font-size:16px;font-weight:700;font-family:${FONT_SANS};line-height:1.24;flex-shrink:0;">
           ${sealBoxSVG(46, p.red)}
           <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);">浮<br>生</div>
@@ -109,7 +112,7 @@ export function renderDailyHTML(data, qr) {
         </div>
       </div>
     </div>
-    <div style="position:absolute;right:${M}px;bottom:${M - 14}px;">
+    <div style="position:absolute;right:${M}px;bottom:34px;">
       ${qrBoxHTML(qr, { size: 128, bg: p.qrLight, border: p.line, ink: p.goldDeep, inkFaint: p.inkFaint, font: FONT_SANS })}
     </div>`;
 
