@@ -31,7 +31,45 @@ function markInstalled() {
   document.dispatchEvent(new CustomEvent('fsp-pwa-installed'));
 }
 
+// ===== 自动刷新：SW 检测到新版本并激活时自动 reload（防浏览器缓存旧版） =====
+// vite-plugin-pwa 为 autoUpdate 模式：新 SW 后台安装 → skipWaiting 激活 →
+// controller 变化。这里监听 controllerchange，检测到新版本自动刷新拿最新产物。
+// 首次访问（加载时无 controller）的首次控制不算更新，避免多余刷新。
+let refreshing = false;
+const hadController =
+  typeof navigator !== 'undefined' &&
+  'serviceWorker' in navigator &&
+  !!navigator.serviceWorker.controller;
+
+function setupAutoRefresh() {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || refreshing) return; // 首次控制 / 已刷新过 → 跳过
+    refreshing = true;
+    showUpdateToast();
+    setTimeout(() => window.location.reload(), 600);
+  });
+}
+
+/** 轻量提示（pwa.js 自包含，不依赖 ui.js 的 toast） */
+function showUpdateToast() {
+  const el = document.createElement('div');
+  el.style.cssText = [
+    'position:fixed', 'left:50%', 'top:16px', 'transform:translateX(-50%)',
+    'z-index:1300', 'background:linear-gradient(135deg,#f6f0e2,#eae2cf)',
+    'border:1px solid #6fae9c80', 'border-radius:16px 22px 14px 20px',
+    'padding:10px 18px', 'color:#3a3425', 'font-size:0.82rem',
+    'box-shadow:0 8px 26px rgba(92,138,122,.2), 4px 5px 0 rgba(77,143,126,0.16)',
+    'pointer-events:none'
+  ].join(';');
+  el.textContent = '✨ 已更新到最新版，正在刷新…';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 5000);
+}
+
 export function initPWA() {
+  setupAutoRefresh();
+
   // 注册 Service Worker（发布构建产物，自动更新）
   try {
     registerSW({ immediate: true });

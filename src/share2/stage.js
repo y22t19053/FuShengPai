@@ -1,10 +1,10 @@
 // ===== src/share2/stage.js · 分享图 DOM 渲染引擎（新一代） =====
-// HTML+CSS 排版 → html-to-image 截图 → 画到 canvas（保存/复制/Electron 链路零改动复用）。
+// HTML+CSS 排版 → dom-to-image-more 截图 → 画到 canvas（保存/复制/Electron 链路零改动复用）。
 // 出图固定 1080×1440（3:4 朋友圈黄金比例），pixelRatio=2 输出 2160×2880 高清 PNG。
 // 工作流（对齐现代开源方案如 ray.so / @vercel/og 的思路）：
 //   1. 模板函数返回完整 HTML 字符串（含 rough.js SVG 手绘装饰）
-//   2. 挂到隐藏舞台节点（fixed 左移出视口，不占布局、不触发滚动）
-//   3. html-to-image 克隆节点 → 内联资源 → SVG foreignObject → canvas → PNG blob
+//   2. 挂到隐藏舞台节点（fixed 视口内 + opacity:0，不占布局、不触发滚动）
+//   3. dom-to-image-more 克隆节点（ensureShown 官方隐藏节点修复）→ SVG foreignObject → PNG blob
 //   4. blob 画回目标 canvas，下游保存/复制/系统分享全部复用
 
 import { toBlob } from 'dom-to-image-more';
@@ -92,17 +92,4 @@ export async function renderShareCardDOM(canvas, data, template = 'divination') 
   } finally {
     node.remove();
   }
-}
-
-/** 可用模板列表（供注册/展示用） */
-export function getDomTemplates() {
-  return Object.keys(TEMPLATE_RENDERERS);
-}
-
-/** 动态注册 DOM 模板：name → renderHTML(data, qr) 返回 HTML 字符串 */
-export function registerDomTemplate(name, renderFn) {
-  if (typeof renderFn === 'function') {
-    TEMPLATE_RENDERERS[name] = renderFn;
-  }
-  return TEMPLATE_RENDERERS;
 }
