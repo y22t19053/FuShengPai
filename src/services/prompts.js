@@ -52,6 +52,12 @@ export function buildSingleCardPrompt(card, opts = {}) {
   try {
     const a = getAlmanac();
     almanacLine = `农历${a.lunarDate} · ${a.ganZhiDay}日 · ${a.jianchu}${a.term ? ' · 今日' + a.term : ''} · 财神在${a.shenSha.cai}`;
+    // —— 扩充：宜/忌 + 纳音（真实历法字段，逐项判空）——
+    const yi2 = (a.dayYi || []).slice(0, 3).join('、');
+    const ji2 = (a.dayJi || []).slice(0, 3).join('、');
+    const navin = [a.dayNaYin, a.yearNaYin].filter(Boolean).join('/');
+    if (yi2 || ji2) almanacLine += ` · 宜${yi2} · 忌${ji2}`;
+    if (navin) almanacLine += ` · 纳音·${navin}`;
   } catch (e) { almanacLine = ''; }
 
   // 牌灵上下文（确定性取句：同一天同牌面 → 同一组文案，与页面/分享图一致）

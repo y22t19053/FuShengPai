@@ -13,6 +13,7 @@ import { getApiSettings, getProfile, getHistory, getStoredPeriodCards, getDrawTi
 import { getSeasonInfo, getHourGreeting, getVisitStreak, getYesterdayCard, cardLabel, applySeasonAccent } from '../season.js';
 import { applyPaletteToRoot } from '../palettes.js';
 import { getAlmanac } from '../calendar.js';
+import { getTrueSolarHour, getLonForCity } from '../utils/solar-time.js';
 import { getClosingLine } from '../philosophy/covenant.js';
 import { playClosingSound } from '../utils/sound.js';
 import { UI_TEXTS, HISTORY_EMPTY, PHYSICAL_GUIDE, STATUS_POOL, REMINDER_POOL, ACTION_POOL } from '../texts/index.js';
@@ -172,9 +173,13 @@ function buildHeroGreeting() {
 function buildHeroHTML() {
   const isMj = getSystem() === 'mahjong';
   let almanacLine = '';
+  let heroClock = '';
   try {
     const a = getAlmanac();
     almanacLine = `农历${a.lunarDate} · ${a.ganZhiDay}日 · ${a.jianchu}${a.term ? ' · 今日' + a.term : ''} · 财神在${a.shenSha.cai}`;
+    // 真太阳时辰小字（缺省东八区，仅作「此刻刻度」，不搞宿命感）
+    const th = getTrueSolarHour(new Date(), getLonForCity(getProfile().currentPlace) || null);
+    if (th && th.ganZhi) heroClock = `此刻 ${th.ganZhi}${th.label}时 · ${th.shengXiao}时 · ${th.wuxing}象`;
   } catch (e) { almanacLine = ''; }
 
   // 昨日回访 + 连续天数（安静的承认，不炫耀）
@@ -197,6 +202,7 @@ function buildHeroHTML() {
         <button id="quickDailyBtn" class="btn-hero btn-hero-cinnabar">${dailyBtn}</button>
       </div>
       ${almanacLine ? `<div class="hero-calendar">📅 ${escapeForHTML(almanacLine)}</div>` : ''}
+      ${heroClock ? `<div class="hero-clock">🕰 ${escapeForHTML(heroClock)}</div>` : ''}
       ${recall}
       <div class="hero-link-row">
         <span class="sys-switch">
@@ -1030,7 +1036,19 @@ export function updateBaziPreview() {
   const hour = tp.length >= 1 ? parseInt(tp[0]) || 12 : 12;
   try {
     const bazi = calcFullBaZi(year, month, day, hour);
-    setHTML(preview, `四柱预览：${escapeForHTML(bazi.fullText)} | 生肖：${escapeForHTML(bazi.yearPillar.shengXiao)}`);
+    // 出生地真太阳时校正提示（跨日子时会让日柱 +1）
+    let trueSolarNote = '';
+    try {
+      const place = document.getElementById('birthPlace')?.value || '';
+      const lon = getLonForCity(place) || null;
+      const clock = new Date(year, month - 1, day, hour, tp[1] ? (parseInt(tp[1]) || 0) : 0);
+      const th = getTrueSolarHour(clock, lon);
+      if (th && th.ganZhi) {
+        const diff = th.isNextDay ? '（真太阳时已跨天，日柱按次日）' : '';
+        trueSolarNote = `<div style="font-size:0.7rem;color:var(--dim);margin-top:4px;">真太阳时 ${escapeForHTML(th.ganZhi)}${escapeForHTML(th.label)}时 ${escapeForHTML(String(th.solar.getHours()).padStart(2, '0'))}:${escapeForHTML(String(th.solar.getMinutes()).padStart(2, '0'))}${diff}</div>`;
+      }
+    } catch (e) { /* 忽略 */ }
+    setHTML(preview, `四柱预览：${escapeForHTML(bazi.fullText)} | 生肖：${escapeForHTML(bazi.yearPillar.shengXiao)}${trueSolarNote}`);
   } catch (e) { setHTML(preview, '日期无效'); }
 }
 

@@ -49,6 +49,9 @@ export const state = {
   periodFortune: '',
   periodAiHistory: [],
   pendingPeriodDeck: null,
+
+  // --- 分享图 ---
+  shareLast: null, // { type, card, typeKey, fortuneType, template } 最近一次生成参数（换模板用）
   
   // --- 时间弧 ---
   currentTimeArc: null, // 手动指定锚点弧，null=自动判定

@@ -39,8 +39,10 @@ export function renderDailyHTML(data, qr) {
   const dateText = data.dateText || '';
   const weather = pickBySeed(dateText, WEATHER[wx] || ['和']);
   const oracle = data.oracle || null;
-  const yi = (oracle && oracle.yi && oracle.yi.length) ? oracle.yi : [pickBySeed(dateText, yiji.yi)];
-  const ji = (oracle && oracle.ji && oracle.ji.length) ? oracle.ji : [pickBySeed(dateText, yiji.ji)];
+  // YI_JI 每组为 3 组变体，按日期确定性选一组；oracle 有宜忌则优先用 oracle 的
+  const yijiSet = Array.isArray(yiji) ? pickBySeed(dateText, yiji) : yiji;
+  const yi = (oracle && oracle.yi && oracle.yi.length) ? oracle.yi : [pickBySeed(dateText, yijiSet.yi)];
+  const ji = (oracle && oracle.ji && oracle.ji.length) ? oracle.ji : [pickBySeed(dateText, yijiSet.ji)];
   const moodTitle = (oracle && oracle.mood && oracle.mood.title) || weather;
   // 与页内横幅完全一致：title=hook.title（今日课题），line=hook.line（情绪金句）
   const topicTitle = data.title || moodTitle;

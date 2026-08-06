@@ -13,11 +13,13 @@ import { QR_TARGET, getPaper } from './style.js';
 import { renderDailyHTML } from './templates/daily.js';
 import { renderArcanaHTML } from './templates/arcana.js';
 import { renderDivinationHTML } from './templates/divination.js';
+import { renderOracleHTML } from './templates/oracle.js';
 
 const TEMPLATE_RENDERERS = {
   daily: renderDailyHTML,
   arcana: renderArcanaHTML,
   divination: renderDivinationHTML,
+  oracle: renderOracleHTML,
 };
 
 const OUT_W = 1080;

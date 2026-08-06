@@ -37,11 +37,20 @@ export function getAlmanac(dateStr) {
   const solar = p ? Solar.fromYmd(p.y, p.mo, p.d) : Solar.fromDate(new Date());
   const l = solar.getLunar();
   const term = l.getJieQi() || null;
+  const ns = safeNineStar(l);
   return {
     date: solar.toYmd(),
     lunarYear: l.getYearInChinese(),
     lunarDate: `${l.getMonthInChinese()}月${l.getDayInChinese()}`,
     ganZhiDay: l.getDayInGanZhi(),
+    // —— 扩充：真实宜忌 / 纳音 / 九星 / 旬空 / 月干支 ——
+    dayYi: l.getDayYi(),
+    dayJi: l.getDayJi(),
+    dayNaYin: l.getDayNaYin(),
+    yearNaYin: l.getYearNaYin(),
+    nineStar: ns, // { name, luck, color, position }（无则 null）
+    xunKong: l.getDayXunKong(), // 旬空（如 '寅卯'）
+    monthGanZhi: l.getMonthInGanZhi(),
     jianchu: l.getZhiXing(),
     chong: {
       zhi: l.getDayChong(),
@@ -58,6 +67,22 @@ export function getAlmanac(dateStr) {
       cai: l.getDayPositionCaiDesc(),
     },
   };
+}
+
+/** 九星对象安全包装（不同版本字段名可能不同） */
+function safeNineStar(l) {
+  try {
+    const ns = l.getDayNineStar();
+    if (!ns) return null;
+    return {
+      name: ns.getNameInXuanKong(),
+      luck: ns.getLuckInXuanKong(),
+      color: ns.getColor(),
+      position: ns.getPositionDesc(),
+    };
+  } catch (e) {
+    return null;
+  }
 }
 
 /**

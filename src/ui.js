@@ -43,6 +43,8 @@ import { MAX_DAILY_OBSERVATIONS, pick } from './constants.js';
 import { UI_TEXTS, STATUS_POOL, REMINDER_POOL, ACTION_POOL } from './texts/index.js';
 import { getDailyMirrorLine, getSceneLines, getWakeUpLine } from './texts/mirror-pools.js';
 import { getAlmanac } from './calendar.js';
+import { getTrueSolarHour, getLonForCity } from './utils/solar-time.js';
+import { pickHourLine } from './texts/hour-pools.js';
 import { calculateDurianIndex } from './durian.js';
 import { runEngine } from './engines/index.js';
 import { generateFingerprint, seedToX0, chaoticGenerator, chaoticShuffle } from './chaos.js';
@@ -556,11 +558,23 @@ function buildDailyOracleBlock(wx, dateStr) {
   const shenSha = a.shenSha || {};
   const termText = a.term ? `今日${a.term} · ` : '';
   const lunarText = a.lunarDate ? `${a.lunarDate} · ${a.ganZhiDay}日 · ` : '';
+  // —— 扩充：纳音 / 九星 / 旬空（真实历法字段，逐项判空以免旧缓存缺字段）——
+  const navin = [a.dayNaYin, a.yearNaYin].filter(Boolean).join('/');
+  const nineStar = (a.nineStar && a.nineStar.name) ? `${a.nineStar.name}(${a.nineStar.color})` : '';
+  const xunKong = a.xunKong ? `旬空·${a.xunKong}` : '';
+  const extraFacts = [navin && `纳音·${navin}`, nineStar && `九星·${nineStar}`, xunKong].filter(Boolean).join('　');
+  // —— 此刻真太阳时辰（按出生地经度换算，缺省东八区）——
+  const profile = getProfile();
+  const lon = getLonForCity(profile.currentPlace) || profile.lon || null;
+  const trueHour = getTrueSolarHour(new Date(), lon);
+  const hourLine = trueHour ? pickHourLine(dateStr || '', trueHour.zhi) : '';
   return `
     <div style="font-size:0.82rem;color:var(--text);line-height:1.9;margin:6px 0 10px;padding:10px 14px;background:rgba(111,174,156,0.05);border-radius:var(--r-hand-in);text-align:left;">
       <div style="color:var(--accent);font-size:0.75rem;margin-bottom:2px;">📅 今日黄历 · ${escapeForHTML(oracle.jianchu.name)}　<span style="opacity:0.7;">${escapeForHTML(termText)}${escapeForHTML(lunarText)}冲${escapeForHTML(oracle.chong.name)}·${escapeForHTML(oracle.chong.animal)}</span></div>
+      ${extraFacts ? `<div style="opacity:0.85;font-size:0.74rem;">${escapeForHTML(extraFacts)}</div>` : ''}
       <div>宜 · ${oracle.yi.map(escapeForHTML).join('、')}${shenSha.cai ? `　<span style="opacity:0.7;">财神在${escapeForHTML(shenSha.cai)}</span>` : ''}</div>
       <div style="color:#d45050;">忌 · ${oracle.ji.map(escapeForHTML).join('、')}</div>
+      ${trueHour && hourLine ? `<div style="font-size:0.74rem;color:var(--dim);margin-top:4px;">🕰 此刻真太阳时 ${escapeForHTML(trueHour.ganZhi)}${escapeForHTML(trueHour.label)}时（${escapeForHTML(String(trueHour.solar.getHours()).padStart(2, '0'))}:${escapeForHTML(String(trueHour.solar.getMinutes()).padStart(2, '0'))}）· ${escapeForHTML(hourLine)}</div>` : ''}
     </div>`;
 }
 
@@ -1223,7 +1237,19 @@ export function handleAction(action, dataset, el = null) {
       }
       document.getElementById('fortuneTypeModal')?.setAttribute('hidden', '');
       // 走东方国风日运模板（宣纸 + 朱砂印章），不再落到旧版日运报告卡
-      import('./ui/ui-modal.js').then(m => m.generateShareImage({ type: 'daily', card, typeKey, fortuneType, template: 'daily' }));
+      const shareArgs = { type: 'daily', card, typeKey, fortuneType, template: 'daily' };
+      state.shareLast = shareArgs;
+      import('./ui/ui-modal.js').then(m => m.generateShareImage(shareArgs));
+      break;
+    }
+    case 'toggleShareTemplate': {
+      // 日运分享图：daily（日运海报）⇄ oracle（今日黄历海报）来回切换
+      const last = state.shareLast;
+      if (!last || last.type !== 'daily') { toast('没有可切换的分享图', 2200, 'warning'); break; }
+      const nextTemplate = last.template === 'oracle' ? 'daily' : 'oracle';
+      const next = { ...last, template: nextTemplate };
+      state.shareLast = next;
+      import('./ui/ui-modal.js').then(m => m.generateShareImage(next));
       break;
     }
     case 'closeClarify': { const guide = document.getElementById('clarifyGuide'); if (guide) guide.style.display = 'none'; break; }

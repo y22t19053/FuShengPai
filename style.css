@@ -2301,6 +2301,15 @@ body.dragging-card .card-face-small {
   letter-spacing: 0.06em;
 }
 
+/* ---------- 此刻真太阳时辰（黄历条下方小字，仅作刻度不作断言） ---------- */
+.hero-clock {
+  margin-top: 4px;
+  font-size: 0.56rem;
+  color: var(--dim);
+  opacity: 0.6;
+  letter-spacing: 0.04em;
+}
+
 /* ---------- 进门迎客小字：昨日回访 + 连续天数 ---------- */
 .hero-greeting-sub {
   margin-top: 6px;

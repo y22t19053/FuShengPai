@@ -9,6 +9,7 @@ import {
   getTimeline, getTimeCapsule, getStoredPeriodCards
 } from '../storage.js';
 import { UI_TEXTS, ONBOARDING_STEPS } from '../texts/index.js';
+import { buildMonthlyTension, monthlyTensionNote } from '../services/trend.js';
 import { renderTeachingPanel } from './ui-render.js';
 import { escapeForHTML, setHTML } from '../utils/safe.js';
 import { loadQRImage } from '../utils/qr.js';
@@ -478,6 +479,34 @@ function renderTimelineList(timeline) {
   }).join('');
 }
 
+// 月度张力曲线（纯 DOM 柱状，无图表库；「记录的曲线，不是命运的判决」）
+function renderMonthlyTensionBlock(timeline) {
+  const series = buildMonthlyTension(timeline, 12);
+  const note = monthlyTensionNote(series);
+  const bars = series.map(s => {
+    const h = s.avg === null ? 3 : Math.max(4, Math.round((s.avg / 10) * 56));
+    const color = s.avg === null ? 'rgba(255,255,255,0.08)'
+      : s.avg >= 7 ? '#d45050' : s.avg >= 5 ? '#d4a05a' : '#6fae9c';
+    const count = s.count ? `·${s.count}次` : '';
+    return `
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;">
+        <div style="font-size:0.55rem;color:var(--dim);">${s.avg === null ? '' : s.avg.toFixed(1)}</div>
+        <div style="width:70%;height:${h}px;border-radius:3px;background:${color};opacity:0.9;" title="${s.label}${count}"></div>
+        <div style="font-size:0.55rem;color:var(--dim);">${escapeForHTML(s.label)}</div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div style="background:rgba(111,174,156,0.06);border-radius:var(--r-hand-md);padding:10px;margin-top:10px;">
+      <strong style="font-size:0.9rem;">📈 月度张力 <span style="font-size:0.6rem;color:var(--dim);font-weight:normal;">（过去 12 个月 · 张力 0–10）</span></strong>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:4px;height:88px;margin-top:10px;padding:0 2px;">
+        ${bars}
+      </div>
+      <div style="font-size:0.72rem;color:var(--dim);line-height:1.7;margin-top:8px;">${escapeForHTML(note)}</div>
+      <div style="font-size:0.62rem;color:var(--dim);opacity:0.7;margin-top:4px;">记录的曲线，不是命运的判决。它只说明：那些日子，你在拉扯里待过、也走过来了。</div>
+    </div>`;
+}
+
 // 报告中心弹窗：周期报告 + 完整时间线
 export function showReportsModal() {
   const modal = document.getElementById('modal');
@@ -497,6 +526,7 @@ export function showReportsModal() {
       <button data-action="periodReport" data-period="yearly" class="outline small">今年</button>
     </div>
     <div id="periodReportArea" style="margin-top:10px;"></div>
+    ${renderMonthlyTensionBlock(timeline)}
     <hr style="border:none;border-top:1px dashed rgba(255,255,255,0.15);margin:12px 0;">
     <h4 style="color:var(--accent);font-size:0.95rem;margin-bottom:8px;">🕐 完整时间线 <span style="font-size:0.65rem;color:var(--dim);font-weight:normal;">（点击“回看”可看当时的完整解读）</span></h4>
     ${renderTimelineList(timeline)}
@@ -637,10 +667,9 @@ export async function generateShareImage(options = {}) {
   const typeKey = options.typeKey || 'overall';
   const fortuneType = options.fortuneType || typeKey || 'overall';
   const text = options.text || document.getElementById('interpretText')?.innerText || '';
-  // tarot 即牌灵档案，映射到 share2 的 arcana 模板
-  const template = options.template === 'tarot' ? 'arcana' : options.template || '';
-
-  const TEMPLATES = ['arcana', 'daily', 'divination'];
+  // tarot 即牌灵档案，映射到 share2 的 arcana 模板；日运默认 daily，可切换 oracle（今日黄历海报）
+  const template = options.template === 'tarot' ? 'arcana' : options.template || (type === 'daily' ? 'daily' : '');
+  const TEMPLATES = ['arcana', 'daily', 'divination', 'oracle'];
   if (!TEMPLATES.includes(template)) { toast('未知分享模板', 2200, 'warning'); return; }
 
   canvas.width = 1080;
