@@ -31,8 +31,6 @@
     "@fontsource/noto-serif-sc": "^5.3.0",
     "dom-to-image-more": "^3.10.2",
     "lunar-javascript": "^1.7.7",
-    "qrcode": "^1.5.4",
-    "roughjs": "^4.6.6",
     "uqr": "^0.1.3"
   }
 }

@@ -2,7 +2,7 @@
 // 替代旧 canvas 版 poker.js：纯 HTML/CSS 画卡面，由 html-to-image 一起栅格化。
 // 卡面：暖纸白底 + rough 手绘边框 + 左上角标（rank+suit）+ 右下倒置角标 + 中心符号。
 
-import { roughBoxSVG } from '../rough-svg.js';
+import { frameBoxSVG } from '../frame-svg.js';
 
 const SUIT_GLYPH = { '♠': '♠', '♥': '♥', '♦': '♦', '♣': '♣' };
 const COURT_GLYPH = { 'J': '⚔', 'Q': '♛', 'K': '♚' };
@@ -95,7 +95,7 @@ export function pokerCardHTML(card = {}, o = {}) {
 
   return `
     <div style="position:relative;width:${size}px;height:${h}px;background:${paper};border-radius:14px;box-shadow:0 ${Math.round(size * 0.02)}px ${Math.round(size * 0.07)}px ${shadow};">
-      ${roughBoxSVG(3, 3, size - 6, h - 6, { r: 12, stroke: border, strokeWidth: 1.8, roughness: 1.1 })}
+      ${frameBoxSVG(3, 3, size - 6, h - 6, { r: 12, stroke: border, strokeWidth: 1.8 })}
       ${corner(false)}
       ${corner(true)}
       ${center}

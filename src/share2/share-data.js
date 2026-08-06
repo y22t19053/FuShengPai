@@ -1,7 +1,7 @@
-// ===== src/share/share-data.js · 分享数据层（解耦页面状态与分享模板） =====
+// ===== src/share2/share-data.js · 分享数据层（由 src/share/ 合并迁入，指纹逻辑内联） =====
+// 解耦页面状态与分享模板：页面状态 → 纯数据 → 模板渲染。
 import { state } from '../state.js';
 import { getWuxing, getShengKe, getCardColor, getCardValue, GONG_ORDER, GONG_NAMES } from '../data.js';
-import { buildShareFingerprint } from './fingerprint.js';
 import {
   getFriendCircleHook,
   getFortuneTags,
@@ -10,6 +10,23 @@ import {
   getPaiGeQuote,
 } from '../texts/social.js';
 import { buildDailyOracle } from '../texts/daily-oracle.js';
+
+// ---------- 命运指纹（原 src/share/fingerprint.js，内联） ----------
+
+/** 基于牌面、时间、随机熵生成唯一指纹（与 chaos.js 的 generateFingerprint 区分） */
+function buildShareFingerprint(seedArray = [], entropy = '') {
+  const base = [...seedArray.map(c => `${c.rank || c.type}${c.suit || ''}`), entropy, Date.now().toString()].join('|');
+  let hash = 0;
+  for (let i = 0; i < base.length; i++) {
+    const char = base.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  const hex = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0');
+  return `FS-${hex.slice(0, 8)}`;
+}
+
+// ---------- 分享数据 ----------
 
 // 本地日期（YYYY-MM-DD，补零）：日运/牌灵的「今日」按用户本地时区算
 function localDateStr() {

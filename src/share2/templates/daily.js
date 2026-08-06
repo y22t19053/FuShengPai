@@ -3,7 +3,7 @@
 // 以 1080×1440 固定画布绝对定位铺陈；rough SVG 手绘边框/分隔/印章/五行图标。
 
 import { getPaper, FONT_SANS, FOOTER_NOTES, pickBySeed, YI_JI, WEATHER, TAG_BY_WX, paperBackground } from '../style.js';
-import { roughBoxSVG, wxIconSVG, sealBoxSVG, dividerSVG } from '../rough-svg.js';
+import { frameBoxSVG, wxIconSVG, sealBoxSVG, dividerSVG } from '../frame-svg.js';
 import { pokerCardHTML, qrBoxHTML } from './cards.js';
 import { escapeForHTML } from '../../utils/safe.js';
 
@@ -36,11 +36,11 @@ export function renderDailyHTML(data, qr) {
   const card = data.cardMain || data.card || { rank: '?', suit: '', wx: '土', color: 'black' };
   const wx = card.wx || data.element || '土';
   const yiji = YI_JI[wx] || YI_JI['土'];
-  const weather = WEATHER[wx] || '和';
   const dateText = data.dateText || '';
+  const weather = pickBySeed(dateText, WEATHER[wx] || ['和']);
   const oracle = data.oracle || null;
-  const yi = (oracle && oracle.yi && oracle.yi.length) ? oracle.yi : [yiji.yi];
-  const ji = (oracle && oracle.ji && oracle.ji.length) ? oracle.ji : [yiji.ji];
+  const yi = (oracle && oracle.yi && oracle.yi.length) ? oracle.yi : [pickBySeed(dateText, yiji.yi)];
+  const ji = (oracle && oracle.ji && oracle.ji.length) ? oracle.ji : [pickBySeed(dateText, yiji.ji)];
   const moodTitle = (oracle && oracle.mood && oracle.mood.title) || weather;
   // 与页内横幅完全一致：title=hook.title（今日课题），line=hook.line（情绪金句）
   const topicTitle = data.title || moodTitle;
@@ -66,7 +66,7 @@ export function renderDailyHTML(data, qr) {
   const pillH = 52;
   const pillHTML = `
     <div style="position:absolute;left:50%;top:902px;transform:translateX(-50%);width:${pillW}px;height:${pillH}px;">
-      ${roughBoxSVG(0, 0, pillW, pillH, { r: 26, stroke: p.structure, strokeWidth: 2, roughness: 1.2, fill: p.pillBg })}
+      ${frameBoxSVG(0, 0, pillW, pillH, { r: 26, stroke: p.structure, strokeWidth: 2, fill: p.pillBg })}
       <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;color:${p.goldDeep};font-size:26px;font-weight:700;font-family:${FONT_SANS};">${escapeForHTML(wx)}</div>
     </div>`;
 
@@ -75,7 +75,7 @@ export function renderDailyHTML(data, qr) {
   const jiText = escapeForHTML(ji.join('、'));
   const column = (title, color, text, left) => `
     <div style="position:absolute;${left ? 'left' : 'right'}:${M}px;top:984px;width:408px;height:152px;">
-      ${roughBoxSVG(0, 0, 408, 152, { r: 18, stroke: left ? p.structure : p.red, strokeWidth: 1.8, roughness: 1.2, fill: left ? p.pillBg : p.pillRed })}
+      ${frameBoxSVG(0, 0, 408, 152, { r: 18, stroke: left ? p.structure : p.red, strokeWidth: 1.8, fill: left ? p.pillBg : p.pillRed })}
       <div style="position:absolute;left:26px;top:20px;color:${color};font-size:30px;font-weight:800;font-family:${FONT_SANS};letter-spacing:6px;">${title}</div>
       <div style="position:absolute;left:26px;top:76px;right:20px;color:${p.ink};font-size:26px;font-weight:600;font-family:${FONT_SANS};line-height:1.4;">${text}</div>
     </div>`;
@@ -113,7 +113,7 @@ export function renderDailyHTML(data, qr) {
 
   return `
     <div style="width:${W}px;height:${H}px;position:relative;overflow:hidden;font-family:${FONT_SANS};${paperBackground(p)}">
-      ${roughBoxSVG(26, 26, W - 52, H - 52, { r: 30, stroke: p.border, strokeWidth: 2.4, roughness: 1.1 })}
+      ${frameBoxSVG(26, 26, W - 52, H - 52, { r: 30, stroke: p.border, strokeWidth: 2.4 })}
 
       <!-- 品牌栏 -->
       <div style="position:absolute;left:${M}px;top:52px;color:${p.inkDim};font-size:22px;font-weight:600;font-family:${FONT_SANS};">浮生牌 · <span style="color:${p.goldDeep};">观牌知势</span></div>

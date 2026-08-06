@@ -39,28 +39,114 @@ function getModal() {
 
 // ---------- 牌面渲染 ----------
 
-/** 单张牌面（纸感牌面 + 手绘字色）：万=雾蓝 / 条=鼠尾草 / 筒=陶土红 / 风=陶土红(北=骨灰) / 箭=陶土红·鼠尾草·骨白 */
-const CHAR_COLOR = {
-  'wan':   '#8fb0c3',
+/** 花色色板：万/筒/风/中=朱砂，条/发=鼠尾草绿；白板=雾蓝空框 */
+const SUIT_COLOR = {
+  'wan':   '#c96f52',
   'tiao':  '#5c8a7a',
   'tong':  '#c96f52',
   'feng':  '#c96f52',
   'jian1': '#c96f52',
   'jian2': '#5c8a7a',
-  'jian3': '#c9b3a6',
+};
+const WHITE_BOARD = '#8fb0c3';
+
+/** 筒子点数布局（传统骰点：6=3+3，7=3+1+3，8=3+2+3，9=3+3+3） */
+const DOT_LAYOUT = {
+  1: [[50, 50]],
+  2: [[38, 38], [62, 62]],
+  3: [[38, 36], [50, 50], [62, 64]],
+  4: [[38, 38], [62, 38], [38, 62], [62, 62]],
+  5: [[38, 38], [62, 38], [50, 50], [38, 62], [62, 62]],
+  6: [[38, 28], [62, 28], [38, 50], [62, 50], [38, 72], [62, 72]],
+  7: [[38, 30], [62, 30], [50, 50], [38, 50], [62, 50], [38, 70], [62, 70]],
+  8: [[38, 28], [62, 28], [50, 42], [50, 58], [38, 50], [62, 50], [38, 72], [62, 72]],
+  9: [[38, 28], [50, 28], [62, 28], [38, 50], [50, 50], [62, 50], [38, 72], [50, 72], [62, 72]],
 };
 
+/** 条子竹棍布局（三列码棍：4=2+2，5=2+1+2，6=3+3，7=2+2+3，8=3+2+3，9=3+3+3） */
+const STICK_LAYOUT = {
+  2: [[36, 38], [64, 62]],
+  3: [[36, 36], [50, 50], [64, 64]],
+  4: [[36, 38], [64, 38], [36, 62], [64, 62]],
+  5: [[36, 36], [64, 36], [36, 64], [64, 64], [50, 50]],
+  6: [[36, 36], [64, 36], [36, 50], [64, 50], [36, 64], [64, 64]],
+  7: [[36, 36], [64, 36], [36, 50], [64, 50], [36, 64], [64, 64], [50, 50]],
+  8: [[36, 36], [64, 36], [36, 50], [64, 50], [36, 64], [64, 64], [50, 36], [50, 64]],
+  9: [[36, 36], [64, 36], [36, 50], [64, 50], [36, 64], [64, 64], [50, 36], [50, 50], [50, 64]],
+};
+
+/** 一枚筒子（朱砂钱币圈，白心高光） */
+const dotSVG = (cx, cy) =>
+  `<circle cx="${cx}" cy="${cy}" r="8" fill="#c96f52"/><circle cx="${cx}" cy="${cy}" r="5.4" fill="#fdfaf1" opacity="0.92"/>`;
+
+/** 一条竹棍（鼠尾草绿竹 + 三节雾蓝结） */
+function bambooStickSVG(cx, cy) {
+  return `
+    <rect x="${cx - 4.5}" y="${cy - 19}" width="9" height="38" rx="4.5" fill="#5c8a7a"/>
+    <circle cx="${cx}" cy="${cy - 8}" r="2.6" fill="#7ba0b8"/>
+    <circle cx="${cx}" cy="${cy + 4}" r="2.6" fill="#7ba0b8"/>
+    <circle cx="${cx}" cy="${cy + 12}" r="2" fill="#7ba0b8"/>`;
+}
+
+/** 幺鸡：简笔鸟（身体+头+喙+尾+腿） */
+function jiBirdSVG() {
+  return `
+    <ellipse cx="47" cy="60" rx="13" ry="11" fill="#5c8a7a"/>
+    <circle cx="58" cy="44" r="8" fill="#5c8a7a"/>
+    <path d="M65 43 L73 41 L65 48 Z" fill="#c96f52"/>
+    <circle cx="60" cy="42" r="1.8" fill="#fdfaf1"/>
+    <path d="M34 56 q-8 4 -14 2 M34 62 q-7 6 -12 10" stroke="#5c8a7a" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+    <path d="M42 70 l-3 10 M52 70 l-2 10" stroke="#c96f52" stroke-width="2.4" stroke-linecap="round"/>
+    <circle cx="45" cy="33" r="2" fill="#7ba0b8"/>`;
+}
+
+/**
+ * 单张牌面（真实牌型：筒=钱币圈、条=竹棍/幺鸡、万/字=汉字、白板=空框）
+ * 全 SVG/CSS 绘制，dom-to-image 截图零依赖；尺寸按 1:1.4 缩放。
+ */
 function tileFaceHTML(tile, size = 54) {
   const name = tileName(tile);
-  const isHonor = tile.suit === 'feng' || tile.suit === 'jian';
-  const colorKey = tile.suit === 'jian' ? `jian${tile.num}` : tile.suit;
-  const charColor = CHAR_COLOR[colorKey] || 'var(--text)';
-  const big = isHonor ? name : String(tile.num);
-  const small = !isHonor ? (tile.suit === 'tiao' && tile.num === 1 ? '条' : tile.suit === 'wan' ? '万' : '筒') : '';
+  const color = SUIT_COLOR[tile.suit === 'jian' ? `jian${tile.num}` : tile.suit] || 'var(--text)';
+  const style = `width:${size}px;height:${Math.round(size * 1.4)}px;`;
+
+  // 筒子：钱币圈点数
+  if (tile.suit === 'tong') {
+    const dots = (DOT_LAYOUT[tile.num] || DOT_LAYOUT[1]).map(([cx, cy]) => dotSVG(cx, cy)).join('');
+    return `
+      <div class="mj-tile-face" style="${style}">
+        <svg viewBox="0 0 100 140" style="width:100%;height:100%;" aria-hidden="true">${dots}</svg>
+      </div>`;
+  }
+
+  // 条子：竹棍点数（幺鸡=简笔鸟）
+  if (tile.suit === 'tiao') {
+    const body = tile.num === 1
+      ? jiBirdSVG()
+      : (STICK_LAYOUT[tile.num] || []).map(([cx, cy]) => bambooStickSVG(cx, cy)).join('');
+    return `
+      <div class="mj-tile-face" style="${style}">
+        <svg viewBox="0 0 100 140" style="width:100%;height:100%;" aria-hidden="true">${body}</svg>
+      </div>`;
+  }
+
+  // 白板：雾蓝空框
+  if (tile.suit === 'jian' && tile.num === 3) {
+    return `
+      <div class="mj-tile-face" style="${style}">
+        <svg viewBox="0 0 100 140" style="width:100%;height:100%;" aria-hidden="true">
+          <rect x="31" y="26" width="38" height="88" rx="9" fill="none" stroke="${WHITE_BOARD}" stroke-width="4.5"/>
+          <rect x="39" y="34" width="22" height="72" rx="6" fill="none" stroke="${WHITE_BOARD}" stroke-width="2.4" opacity="0.65"/>
+        </svg>
+      </div>`;
+  }
+
+  // 万子 / 字牌：汉字牌面（万字：大数字 + 小「万」；字牌：单字居中）
+  const big = name;
+  const small = tile.suit === 'wan' ? '万' : '';
   return `
-    <div class="mj-tile-face" style="width:${size}px;height:${size * 1.4}px;font-size:${Math.round(size * 0.5)}px;color:${charColor};">
-      <span class="mj-tile-num">${escapeForHTML(big)}</span>
-      ${small ? `<span class="mj-tile-suit">${escapeForHTML(small)}</span>` : ''}
+    <div class="mj-tile-face" style="${style}">
+      <span class="mj-tile-num" style="font-size:${Math.round(size * 0.46)}px;color:${color};">${escapeForHTML(big)}</span>
+      ${small ? `<span class="mj-tile-suit" style="color:${color};font-size:${Math.round(size * 0.16)}px;">${escapeForHTML(small)}</span>` : ''}
     </div>`;
 }
 

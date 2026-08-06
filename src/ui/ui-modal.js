@@ -15,9 +15,9 @@ import { loadQRImage } from '../utils/qr.js';
 import { copyTextWithFeedback } from '../utils/clipboard.js';
 import { resolveApiModel } from '../utils/api-config.js';
 
-// ===== 新增 Share 架构导入 =====
-import { buildShareData, buildSingleCardShareData } from '../share/share-data.js';
-import { renderShareCard } from '../share/renderer.js';
+// ===== Share 架构导入（share2 新一代渲染引擎） =====
+import { buildShareData, buildSingleCardShareData } from '../share2/share-data.js';
+import { renderShareCardDOM } from '../share2/stage.js';
 
 export let toastTimer = null;
 
@@ -637,9 +637,10 @@ export async function generateShareImage(options = {}) {
   const typeKey = options.typeKey || 'overall';
   const fortuneType = options.fortuneType || typeKey || 'overall';
   const text = options.text || document.getElementById('interpretText')?.innerText || '';
-  const template = options.template || '';
+  // tarot 即牌灵档案，映射到 share2 的 arcana 模板
+  const template = options.template === 'tarot' ? 'arcana' : options.template || '';
 
-  const TEMPLATES = ['tarot', 'daily', 'divination'];
+  const TEMPLATES = ['arcana', 'daily', 'divination'];
   if (!TEMPLATES.includes(template)) { toast('未知分享模板', 2200, 'warning'); return; }
 
   canvas.width = 1080;
@@ -663,8 +664,8 @@ export async function generateShareImage(options = {}) {
     shareData = buildShareData(text);
   }
 
-  await renderShareCard(canvas, shareData, template);
-  // tarot/daily/divination 自带完整底部（含二维码与落款）
+  await renderShareCardDOM(canvas, shareData, template);
+  // arcana/daily/divination 自带完整底部（含二维码与落款）
   container.removeAttribute('hidden');
   toast('✨ ' + typeLabel + '分享图已生成', 2200, 'success');
 }

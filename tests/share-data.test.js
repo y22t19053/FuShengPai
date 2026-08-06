@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSingleCardShareData } from '../src/share/share-data.js';
+import { buildSingleCardShareData } from '../src/share2/share-data.js';
 
 describe('share data contract', () => {
   it('为新模板提供 cardMain 与元素信息', () => {

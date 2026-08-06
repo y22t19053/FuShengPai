@@ -2,7 +2,7 @@
 // 主题「它想对你说」：品牌栏 → 大字标题 → 中央牌 → 五行/关键词 → 签语 → 落款。
 
 import { getPaper, FONT_SANS, FOOTER_NOTES, pickBySeed, TAG_BY_WX, paperBackground } from '../style.js';
-import { roughBoxSVG, wxIconSVG, sealBoxSVG, dividerSVG } from '../rough-svg.js';
+import { frameBoxSVG, wxIconSVG, sealBoxSVG, dividerSVG } from '../frame-svg.js';
 import { pokerCardHTML, qrBoxHTML } from './cards.js';
 import { escapeForHTML } from '../../utils/safe.js';
 
@@ -38,7 +38,7 @@ export function renderArcanaHTML(data, qr) {
   // 五行 pill（描边用当日结构色撞色）
   const pillHTML = `
     <div style="position:absolute;left:50%;top:872px;transform:translateX(-50%);width:96px;height:52px;">
-      ${roughBoxSVG(0, 0, 96, 52, { r: 26, stroke: p.structure, strokeWidth: 2, roughness: 1.2, fill: p.pillBg })}
+      ${frameBoxSVG(0, 0, 96, 52, { r: 26, stroke: p.structure, strokeWidth: 2, fill: p.pillBg })}
       <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;color:${p.goldDeep};font-size:26px;font-weight:700;font-family:${FONT_SANS};">${escapeForHTML(wx)}</div>
     </div>`;
 
@@ -49,7 +49,7 @@ export function renderArcanaHTML(data, qr) {
   const chipsStart = (W - chipsTotal) / 2;
   const chipsHTML = keywords.map((k, i) => `
     <div style="position:absolute;left:${chipsStart + i * (chipW + chipGap)}px;top:952px;width:${chipW}px;height:46px;">
-      ${roughBoxSVG(0, 0, chipW, 46, { r: 14, stroke: p.structure, strokeWidth: 1.6, roughness: 1.3, fill: 'transparent' })}
+      ${frameBoxSVG(0, 0, chipW, 46, { r: 14, stroke: p.structure, strokeWidth: 1.6, fill: 'transparent' })}
       <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;color:${p.inkDim};font-size:21px;font-weight:600;font-family:${FONT_SANS};">${escapeForHTML(k)}</div>
     </div>`).join('');
 
@@ -85,7 +85,7 @@ export function renderArcanaHTML(data, qr) {
 
   return `
     <div style="width:${W}px;height:${H}px;position:relative;overflow:hidden;font-family:${FONT_SANS};${paperBackground(p)}">
-      ${roughBoxSVG(26, 26, W - 52, H - 52, { r: 30, stroke: p.border, strokeWidth: 2.4, roughness: 1.1 })}
+      ${frameBoxSVG(26, 26, W - 52, H - 52, { r: 30, stroke: p.border, strokeWidth: 2.4 })}
 
       <!-- 品牌栏 -->
       <div style="position:absolute;left:${M}px;top:52px;color:${p.inkDim};font-size:22px;font-weight:600;font-family:${FONT_SANS};">浮生牌 · <span style="color:${p.gold};">牌灵档案</span></div>
