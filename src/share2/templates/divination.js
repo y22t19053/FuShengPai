@@ -73,7 +73,7 @@ export function renderDivinationHTML(data, qr) {
       </div>
     ` : ''}`;
 
-  // 关键词 chips（无 yong 时显示在下方更居中）
+  // 关键词 chips（手绘圆角 · 描边当日结构色）
   const chipW = 132;
   const chipGap = 20;
   const kw = keywords.length ? keywords : [signTag, wx + '行', '观牌', '知势'];
@@ -81,7 +81,7 @@ export function renderDivinationHTML(data, qr) {
   const chipsStart = (W - chipsTotal) / 2;
   const chipsHTML = kw.map((k, i) => `
     <div style="position:absolute;left:${chipsStart + i * (chipW + chipGap)}px;top:796px;width:${chipW}px;height:46px;">
-      ${roughBoxSVG(0, 0, chipW, 46, { r: 14, stroke: p.line, strokeWidth: 1.4, roughness: 1.3, fill: 'transparent' })}
+      ${roughBoxSVG(0, 0, chipW, 46, { r: 14, stroke: p.structure, strokeWidth: 1.6, roughness: 1.3, fill: 'transparent' })}
       <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;color:${p.inkDim};font-size:21px;font-weight:600;font-family:${FONT_SANS};">${escapeForHTML(k)}</div>
     </div>`).join('');
 
@@ -89,6 +89,7 @@ export function renderDivinationHTML(data, qr) {
   const bodyHTML = `
     <div style="position:absolute;left:140px;right:140px;top:880px;">
       <div style="display:flex;align-items:center;justify-content:center;gap:10px;color:${p.gold};font-size:22px;font-weight:600;font-family:${FONT_SANS};letter-spacing:3px;">
+        <div style="width:6px;height:24px;background:${p.mood};border-radius:3px;flex-shrink:0;"></div>
         ${wxIconSVG(wx, p.gold, 22)}
         <span>解读 · ${escapeForHTML(signTag)}</span>
       </div>

@@ -67,6 +67,33 @@ function showUpdateToast() {
   setTimeout(() => el.remove(), 5000);
 }
 
+// ===== 硬刷新：清 PWA 缓存 + 注销 SW + 强制重载 =====
+// 针对「浏览器缓存根深蒂固、autoUpdate 仍拉不到最新版」的终极手段。
+// 与硬重置不同：**不碰 localStorage/sessionStorage/cookie**（浮生牌数据只存本机，
+// 清除即永久丢失）——只清 Cache Storage（缓存元凶）与 SW，再从网络拉最新产物。
+export async function hardRefresh() {
+  // 1. 清除 Cache Storage（真正的缓存元凶，localStorage 是用户数据不动）
+  if (typeof caches !== 'undefined') {
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    } catch (e) {
+      console.warn('[pwa] 清理缓存失败', e);
+    }
+  }
+  // 2. 注销所有 Service Worker（下次加载重新注册最新版）
+  if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    } catch (e) {
+      console.warn('[pwa] 注销 SW 失败', e);
+    }
+  }
+  // 3. 强制重载（现代浏览器忽略 reload(true) 的 forceGet，但缓存已清即可拿到最新）
+  window.location.reload();
+}
+
 export function initPWA() {
   setupAutoRefresh();
 
@@ -76,6 +103,12 @@ export function initPWA() {
   } catch (e) {
     console.warn('[pwa] registerSW 失败', e);
   }
+
+  // 主动检查更新：不等浏览器 24h 周期，打开页面即检查一次
+  // （autoUpdate 模式发现新版即 skipWaiting 接管 → controllerchange → 自动刷新）
+  try {
+    navigator.serviceWorker.ready.then((reg) => { reg.update().catch(() => {}); }).catch(() => {});
+  } catch (e) { /* 非安全上下文无 SW，忽略 */ }
 
   if (isStandalone()) { pwaInstalled = true; return; }
 

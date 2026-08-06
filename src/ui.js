@@ -50,7 +50,7 @@ import { interceptQuestion, checkDependency, getSealStatus } from './philosophy/
 import { applyCovenant } from './philosophy/covenant.js';
 import { escapeForHTML, setHTML } from './utils/safe.js';
 import { playCardSound, playJokerSound, playPlaceSound } from './utils/sound.js';
-import { initPWA, isPWAInstalled, requestPWAInstall } from './pwa.js';
+import { initPWA, isPWAInstalled, requestPWAInstall, hardRefresh } from './pwa.js';
 import { resolveApiModel } from './utils/api-config.js';
 import { syncQuestionFromInput, createPeriodShareAction } from './utils/flow-helpers.js';
 import { copyTextWithFeedback } from './utils/clipboard.js';
@@ -1052,6 +1052,11 @@ export function handleAction(action, dataset, el = null) {
       else if (r === 'guide') { /* iOS 引导弹层已显示 */ }
       else if (r === 'prompt') { /* 系统安装弹窗已显示 */ }
       else if (r === 'banner') { /* 横幅已显示 */ }
+      break;
+    }
+    case 'hardRefresh': {
+      toast('🧹 正在清理缓存并重新加载…', 2500);
+      setTimeout(() => { hardRefresh(); }, 700);
       break;
     }
     case 'resetAll': resetAll(); break;

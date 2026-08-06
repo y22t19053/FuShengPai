@@ -35,21 +35,21 @@ export function renderArcanaHTML(data, qr) {
     font: FONT_SANS,
   });
 
-  // 五行 pill
+  // 五行 pill（描边用当日结构色撞色）
   const pillHTML = `
     <div style="position:absolute;left:50%;top:872px;transform:translateX(-50%);width:96px;height:52px;">
-      ${roughBoxSVG(0, 0, 96, 52, { r: 26, stroke: p.gold, strokeWidth: 2, roughness: 1.2, fill: p.pillBg })}
+      ${roughBoxSVG(0, 0, 96, 52, { r: 26, stroke: p.structure, strokeWidth: 2, roughness: 1.2, fill: p.pillBg })}
       <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;color:${p.goldDeep};font-size:26px;font-weight:700;font-family:${FONT_SANS};">${escapeForHTML(wx)}</div>
     </div>`;
 
-  // 关键词 chips（手绘圆角）
+  // 关键词 chips（手绘圆角 · 描边当日结构色）
   const chipW = 132;
   const chipGap = 20;
   const chipsTotal = keywords.length * chipW + (keywords.length - 1) * chipGap;
   const chipsStart = (W - chipsTotal) / 2;
   const chipsHTML = keywords.map((k, i) => `
     <div style="position:absolute;left:${chipsStart + i * (chipW + chipGap)}px;top:952px;width:${chipW}px;height:46px;">
-      ${roughBoxSVG(0, 0, chipW, 46, { r: 14, stroke: p.line, strokeWidth: 1.4, roughness: 1.3, fill: 'transparent' })}
+      ${roughBoxSVG(0, 0, chipW, 46, { r: 14, stroke: p.structure, strokeWidth: 1.6, roughness: 1.3, fill: 'transparent' })}
       <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;color:${p.inkDim};font-size:21px;font-weight:600;font-family:${FONT_SANS};">${escapeForHTML(k)}</div>
     </div>`).join('');
 
@@ -57,7 +57,8 @@ export function renderArcanaHTML(data, qr) {
   const quoteHTML = `
     <div style="position:absolute;left:0;right:0;top:1046px;text-align:center;">
       <div style="display:inline-flex;align-items:center;gap:10px;color:${p.gold};font-size:23px;font-weight:600;font-family:${FONT_SANS};letter-spacing:2px;">
-        ${wxIconSVG(wx, p.gold, 24)}
+        <div style="width:6px;height:24px;background:${p.mood};border-radius:3px;flex-shrink:0;"></div>
+        ${wxIconSVG(wx, p.mood, 24)}
         <span>${escapeForHTML(signTag)}</span>
       </div>
     </div>

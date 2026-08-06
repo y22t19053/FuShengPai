@@ -61,21 +61,21 @@ export function renderDailyHTML(data, qr) {
     font: FONT_SANS,
   });
 
-  // 五行 pill（手绘圆角标签）
+  // 五行 pill（手绘圆角标签 · 描边用当日结构色撞色）
   const pillW = 96;
   const pillH = 52;
   const pillHTML = `
     <div style="position:absolute;left:50%;top:902px;transform:translateX(-50%);width:${pillW}px;height:${pillH}px;">
-      ${roughBoxSVG(0, 0, pillW, pillH, { r: 26, stroke: p.gold, strokeWidth: 2, roughness: 1.2, fill: p.pillBg })}
+      ${roughBoxSVG(0, 0, pillW, pillH, { r: 26, stroke: p.structure, strokeWidth: 2, roughness: 1.2, fill: p.pillBg })}
       <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;color:${p.goldDeep};font-size:26px;font-weight:700;font-family:${FONT_SANS};">${escapeForHTML(wx)}</div>
     </div>`;
 
-  // 宜/忌双栏
+  // 宜/忌双栏（宜=当日结构色，忌=当日红系 → 撞色对比）
   const yiText = escapeForHTML(yi.join('、'));
   const jiText = escapeForHTML(ji.join('、'));
   const column = (title, color, text, left) => `
     <div style="position:absolute;${left ? 'left' : 'right'}:${M}px;top:984px;width:408px;height:152px;">
-      ${roughBoxSVG(0, 0, 408, 152, { r: 18, stroke: left ? p.gold : p.red, strokeWidth: 1.8, roughness: 1.2, fill: left ? p.pillBg : p.pillRed })}
+      ${roughBoxSVG(0, 0, 408, 152, { r: 18, stroke: left ? p.structure : p.red, strokeWidth: 1.8, roughness: 1.2, fill: left ? p.pillBg : p.pillRed })}
       <div style="position:absolute;left:26px;top:20px;color:${color};font-size:30px;font-weight:800;font-family:${FONT_SANS};letter-spacing:6px;">${title}</div>
       <div style="position:absolute;left:26px;top:76px;right:20px;color:${p.ink};font-size:26px;font-weight:600;font-family:${FONT_SANS};line-height:1.4;">${text}</div>
     </div>`;
@@ -85,6 +85,7 @@ export function renderDailyHTML(data, qr) {
   const quoteHTML = `
     <div style="position:absolute;left:0;right:0;top:1186px;text-align:center;">
       <div style="display:inline-flex;align-items:center;gap:10px;color:${p.goldDeep};font-size:24px;font-weight:600;font-family:${FONT_SANS};letter-spacing:2px;">
+        <div style="width:6px;height:28px;background:${p.mood};border-radius:3px;flex-shrink:0;"></div>
         ${wxIconSVG(wx, p.gold, 26)}
         <span>${escapeForHTML(topicTitle)}</span>
       </div>
