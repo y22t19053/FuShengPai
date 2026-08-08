@@ -87,7 +87,7 @@ export function buildShareData(resultText = '') {
     topic: getSocialTopic(tiCard, 'overall', dateStr),
     fingerprint: buildShareFingerprint(state.deck || [], state.uid ? String(state.uid) : ''),
     timestamp: Date.now(),
-    dateText: new Date().toISOString().slice(0, 10),
+    dateText: dateStr, // 本地时区日期（UTC 的 toISOString 会在晚 8 点后差一天）
     lineInfo,
     gridSummary,
     body: resultText || state.pendingFullReport || '',

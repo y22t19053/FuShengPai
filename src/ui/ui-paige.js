@@ -2,14 +2,14 @@
 import { state } from '../state.js';
 import { createDeck, shuffle } from '../engine.js';
 import { getCardColor, getWuxing } from '../data.js';
-import { getPaiGeQuestion, PAIGE_HASHTAGS } from '../texts/social.js';
+import { getPaiGeQuestion } from '../texts/social.js';
+import { runEngine } from '../engines/index.js';
 import { toast } from './ui-modal.js';
 import { escapeForHTML, setHTML } from '../utils/safe.js';
 import { playCardSound } from '../utils/sound.js';
 
 const STORAGE_KEY = 'fsp_paige';
 const HISTORY_KEY = 'fsp_history';
-const UNLOCK_THRESHOLD = 3;
 
 export function getStoredPaiGe() {
   try {
@@ -160,15 +160,22 @@ export function confirmPaiGePick(card) {
   openPaiGe();
 }
 
-// ---------- 详情界面（牌灵 = 课题，不再混入人格） ----------
+// ---------- 详情界面（牌灵 = 人格 + 课题 + 今日课题 + 名言，完整解读） ----------
 function showPaiGeDetail(modal, content, status) {
   const stored = status.stored;
   const card = stored.card;
-  const question = getPaiGeQuestion(card);
+  // 走统一契约 paige 引擎：与首页横幅同源数据（人格/课题/今日课题/名言）
+  const paige = runEngine('paige', { card });
+  const persona = paige?.persona || null;
+  const question = paige?.question || null;
+  const hook = paige?.hook || { title: '', line: '', tags: [] };
+  const quote = paige?.quote || { text: '', author: '' };
+  const wx = paige?.wx || getWuxing(card);
   const rank = card.isJoker ? 'JOKER' : card.rank;
   const suit = card.isJoker ? '' : card.suit;
   const color = getCardColor(card);
-  const colorText = color === 'red' ? '#e74c3c' : color === 'gold' ? '#f1c40f' : '#ecf0f1';
+  // 修复：牌面卡白底上，黑牌用暖墨色、红牌用陶土红、大小王用深金（原 #ecf0f1 白字在浅底上看不见）
+  const colorText = color === 'red' ? '#c96f52' : color === 'gold' ? '#b8860b' : '#3a3425';
 
   let actionHTML = '';
   if (status.unlocked) {
@@ -177,12 +184,38 @@ function showPaiGeDetail(modal, content, status) {
     actionHTML = `<span style="font-size:0.7rem;color:var(--dim);">⚜️ 本命守护 · 可随时重新抽取</span>`;
   }
 
+  // 人格区块
+  const personaBlock = persona ? `
+    <div style="text-align:left;font-size:0.85rem;line-height:1.8;margin:10px 0;padding:12px 14px;background:rgba(111,174,156,0.06);border-radius:var(--r-hand-in);">
+      <div style="color:var(--accent);font-size:0.8rem;margin-bottom:4px;">🧭 你的牌灵 · 人格</div>
+      <div style="font-weight:600;color:var(--text);">${escapeForHTML(persona.title || '')}</div>
+      <div style="color:var(--dim);white-space:pre-line;">${escapeForHTML(persona.core || '')}</div>
+    </div>
+  ` : '';
+
+  // 今日课题（随日期轮换的课题句，与首页横幅一致）
+  const hookBlock = (hook.title || hook.line) ? `
+    <div style="text-align:left;font-size:0.8rem;line-height:1.8;margin:10px 0;padding:12px 14px;background:rgba(201,111,82,0.05);border-radius:var(--r-hand-in);">
+      <div style="color:#c96f52;font-size:0.8rem;margin-bottom:4px;">🃏 今日课题</div>
+      <div style="color:var(--text);font-weight:600;">${escapeForHTML(hook.title || '')}</div>
+      <div style="color:var(--dim);">${escapeForHTML(hook.line || '')}</div>
+    </div>
+  ` : '';
+
+  // 名言区块
+  const quoteBlock = (quote.text || quote.author) ? `
+    <div style="text-align:left;font-size:0.85rem;line-height:1.8;margin:10px 0;padding:12px 14px;border-left:3px solid var(--accent);background:rgba(111,174,156,0.04);border-radius:var(--r-hand-in);">
+      <div style="color:var(--dim);font-style:italic;">“${escapeForHTML(quote.text || '')}”</div>
+      ${quote.author ? `<div style="color:var(--accent);font-size:0.75rem;margin-top:4px;text-align:right;">—— ${escapeForHTML(quote.author)}</div>` : ''}
+    </div>
+  ` : '';
+
   const html = `
     <div style="text-align:center;">
-      <div style="font-size:0.7rem;color:var(--dim);margin-bottom:4px;">你的牌灵 · 人生课题</div>
+      <div style="font-size:0.7rem;color:var(--dim);margin-bottom:4px;">你的牌灵 · 长期陪伴你的象征</div>
       <div style="
         width:110px;height:155px;
-        background:rgba(255,255,255,0.7);
+        background:var(--panel);
         border:2px solid var(--border);
         border-radius:var(--r-hand-sm);
         margin:12px auto;
@@ -197,12 +230,21 @@ function showPaiGeDetail(modal, content, status) {
         <span style="font-size:0.7rem;color:var(--accent);">${escapeForHTML(question?.title || '')}</span>
       </div>
 
+      <div style="display:flex;gap:6px;justify-content:center;margin:8px 0;flex-wrap:wrap;">
+        <span style="font-size:0.7rem;background:rgba(var(--accent-rgb),0.12);border:1px solid rgba(var(--accent-rgb),0.3);border-radius:var(--r-hand-btn);padding:3px 10px;color:var(--accent);">${escapeForHTML(wx)}</span>
+        ${question?.depth ? `<span style="font-size:0.7rem;background:rgba(var(--accent-rgb),0.12);border:1px solid rgba(var(--accent-rgb),0.3);border-radius:var(--r-hand-btn);padding:3px 10px;color:var(--accent);">${escapeForHTML(question.depth)} · ${escapeForHTML(question.tag || '')}</span>` : ''}
+      </div>
+
       <div style="font-size:1.2rem;font-weight:bold;color:var(--text);margin:8px 0;">${escapeForHTML(question?.title || '')}</div>
       <div style="font-size:0.9rem;color:var(--dim);line-height:1.8;padding:0 12px;white-space:pre-wrap;">“${escapeForHTML(question?.question || '')}”</div>
 
-      <div style="display:flex;gap:4px;justify-content:center;margin:10px 0;">
+      <div style="display:flex;gap:4px;justify-content:center;margin:10px 0;flex-wrap:wrap;">
         ${(question?.keywords || []).map(kw => `<span style="font-size:0.7rem;background:rgba(var(--accent-rgb),0.15);border:1px solid rgba(var(--accent-rgb),0.3);border-radius:var(--r-hand-btn);padding:4px 10px;color:var(--accent);">${escapeForHTML(kw)}</span>`).join('')}
       </div>
+
+      ${personaBlock}
+      ${hookBlock}
+      ${quoteBlock}
 
       <p class="num" style="font-size:0.65rem;color:var(--dim);">抽于 ${new Date(stored.drawnAt).toLocaleString()}</p>
 
@@ -220,9 +262,9 @@ function showPaiGeDetail(modal, content, status) {
     // 先收起详情弹窗，避免分享面板与弹窗叠加遮挡
     const modalEl = document.getElementById('modal');
     if (modalEl) modalEl.setAttribute('hidden', '');
-    import('./ui-modal.js').then(mod => mod.generateShareImage({ 
-      type: 'paige', 
-      card, 
+    import('./ui-modal.js').then(mod => mod.generateShareImage({
+      type: 'paige',
+      card,
       template: 'tarot' // 牌灵专属：五行青典（本名五星，无拉丁符号）
     }));
   });
