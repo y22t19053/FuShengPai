@@ -34,7 +34,7 @@ export function tileKey(tile) {
 
 // ---------- 一、牌墙 ----------
 
-/** 砌牌：136 张，每型 4 张（东南西北按 1-4，中发白按 1-3） */
+/** 砌牌：136 张，每型 4 张（东南西北按 1-4，中发白按 1-3），砌完即洗（crypto 真随机） */
 export function buildWall() {
   const wall = [];
   let id = 0;
@@ -49,12 +49,12 @@ export function buildWall() {
   for (let num = 1; num <= 3; num++) {
     for (let k = 0; k < 4; k++) wall.push({ id: id++, suit: 'jian', num });
   }
-  return wall;
+  return shuffle(wall);
 }
 
-/** 摸牌：洗牌后从牌墙顶部弹 n 张（复用 deck 洗牌逻辑），返回 { drawn, wall } */
+/** 摸牌：从牌墙顶部弹 n 张（牌墙由 buildWall 洗好，不再重复洗牌），返回 { drawn, wall } */
 export function drawFromWall(wall, n = 3) {
-  const copy = shuffle(wall.slice());
+  const copy = Array.isArray(wall) ? wall.slice() : [];
   return { drawn: copy.slice(0, n), wall: copy.slice(n) };
 }
 

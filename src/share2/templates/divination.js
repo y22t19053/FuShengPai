@@ -14,7 +14,8 @@ const M = 96;
 function clampText(text, max = 150) {
   if (!text) return '';
   const t = String(text).trim();
-  return t.length > max ? t.slice(0, max) + '……' : t;
+  const chars = Array.from(t);
+  return chars.length > max ? chars.slice(0, max).join('') + '……' : t;
 }
 
 /**

@@ -41,6 +41,7 @@ export const state = {
   pendingFullReport: '',
   pendingModules: null,
   summary: null, // 三句摘要缓存（同局稳定）
+  fortuneType: 'overall', // 日运细选类别（overall/wealth/love/noble/career/health/study）
   
   // --- 周期抽牌 ---
   periodType: null,

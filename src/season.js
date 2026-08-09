@@ -32,16 +32,9 @@ const SOLAR_TERMS = [
   { m: 12, d: 22, name: '冬至', ask: '宜归根' },
 ];
 
-// 四季 accent（--accent / --accent-rgb 覆盖值；秋 = 默认鼠尾草绿，与 :root 自洽）
-// 铁律：手绘绘本风——莫兰迪低饱和，暖纸底 + 鼠尾草薄荷绿主色 + 陶土红点缀，忌高饱和撞色。
-export const SEASON_ACCENTS = {
-  '春': { accent: '#8fc0ad', rgb: '143,192,173' }, // 春芽鼠尾草（春醒）
-  '夏': { accent: '#7aa8b8', rgb: '122,168,184' }, // 雾蓝（夏凉）
-  '秋': { accent: '#6fae9c', rgb: '111,174,156' }, // 鼠尾草（默认主色）
-  '冬': { accent: '#5c8a7a', rgb: '92,138,122' }, // 深鼠尾草（冬敛）
-};
-
-/** 季节（2-4 春 / 5-7 夏 / 8-10 秋 / 11-1 冬） */
+/** 季节（2-4 春 / 5-7 夏 / 8-10 秋 / 11-1 冬）
+ *  注意：配色唯一运行时来源是 palettes.js（每日确定性调色板），
+ *  季节不再单独写 --accent —— 避免 season/palette 双写竞态。 */
 export function seasonOf(d = new Date()) {
   const m = d.getMonth() + 1;
   if (m >= 2 && m <= 4) return '春';
@@ -60,19 +53,9 @@ export function getJieqiToday(d = new Date()) {
   return null;
 }
 
-/** 旬信息：{ season, accent, rgb, jieqi } */
+/** 旬信息：{ season, jieqi }（节气副题文案用；配色由 palettes.js 统一） */
 export function getSeasonInfo(d = new Date()) {
-  const season = seasonOf(d);
-  const { accent, rgb } = SEASON_ACCENTS[season];
-  return { season, accent, rgb, jieqi: getJieqiToday(d) };
-}
-
-/** 应用季节 accent 到 :root（--accent / --accent-rgb 由 CSS 变量化后全站跟随） */
-export function applySeasonAccent(d = new Date()) {
-  const { accent, rgb } = getSeasonInfo(d);
-  const root = document.documentElement;
-  root.style.setProperty('--accent', accent);
-  root.style.setProperty('--accent-rgb', rgb);
+  return { season: seasonOf(d), jieqi: getJieqiToday(d) };
 }
 
 // ---------- 进门迎客：时段一句 + 常客承认 + 昨日之牌回访 ----------

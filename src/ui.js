@@ -7,7 +7,7 @@ import { injectAnimations } from './ui/ui-anim.js';
 import {
   renderStep1, renderStep2, renderFullReport, renderResultPreview, renderHistoryPanel,
   initSettingsPanel, initProfilePanel, updateApiStatus, refreshAll,
-  bindScrollButtons, renderPeriodCards
+  bindScrollButtons, renderPeriodCards, renderCategoryArea, renderConsultArea
 } from './ui/ui-render.js';
 import {
   toast, showOnboarding, showDurianReport, showReportsModal,
@@ -48,6 +48,8 @@ import { pickHourLine } from './texts/hour-pools.js';
 import { calculateDurianIndex } from './durian.js';
 import { runEngine } from './engines/index.js';
 import { generateFingerprint, seedToX0, chaoticGenerator, chaoticShuffle } from './chaos.js';
+import { pickRandom, secureRandom } from './utils/rng.js';
+import { rawSet } from './storage.js';
 import { interceptQuestion, checkDependency, getSealStatus } from './philosophy/ethics.js';
 import { applyCovenant } from './philosophy/covenant.js';
 import { escapeForHTML, setHTML } from './utils/safe.js';
@@ -65,7 +67,7 @@ import { generateFullPeriodLocal } from './services/periods.js';
 
 function safeSetPeriodCards(cards) {
   try {
-    localStorage.setItem('fsp_period_cards', JSON.stringify(cards));
+    rawSet('fsp_period_cards', JSON.stringify(cards));
   } catch (e) {
     console.warn('周期卡存储迁移失败', e);
   }
@@ -174,6 +176,7 @@ export function startQuestion() {
   if (q) {
     const intercept = interceptQuestion(q);
     if (intercept.blocked) { toast(intercept.message, 4000); return; }
+    if (intercept.message) toast(intercept.message, 4200); // 软性引导：提示但继续
   }
   state.question = q;
   proceedStartQuestion();
@@ -346,7 +349,12 @@ export function lazyStart() {
 
 async function proceedLazyStart() {
   const input = document.getElementById('questionInput');
-  syncQuestionFromInput(input, state);
+  const q = syncQuestionFromInput(input, state);
+  if (q) {
+    const intercept = interceptQuestion(q);
+    if (intercept.blocked) { toast(intercept.message, 4000); return; }
+    if (intercept.message) toast(intercept.message, 4200); // 软性引导：提示但继续
+  }
   state.manualMode = false;
   state.currentTimeArc = null;
   state.summary = null; // 新局新摘要
@@ -358,7 +366,7 @@ async function proceedLazyStart() {
   let remainingDeck = remaining;
   remainingDeck.push({ isJoker: true, type: '大王', _uid: state.uid++ }, { isJoker: true, type: '小王', _uid: state.uid++ });
   remainingDeck = chaosShuffleDeck(remainingDeck); // 插回大小王后再洗一次
-  const line = ALL_LINES[Math.floor(Math.random() * ALL_LINES.length)];
+  const line = pickRandom(ALL_LINES);
   state.line = [...line];
   const key = line.join(','); const tl = TIME_LABELS[key] || {};
   state.lineOrder = {}; state.lineOrder[line[0]] = '起因'; state.lineOrder[line[1]] = '经过'; state.lineOrder[line[2]] = '结果';
@@ -520,7 +528,7 @@ export function openPeriodDeck(periodType, fortuneType = 'overall') {
   }
 
   document.getElementById('periodRandomBtn')?.addEventListener('click', () => {
-    flipAndConfirm(Math.floor(Math.random() * shuffled.length));
+    flipAndConfirm(Math.floor(secureRandom() * shuffled.length));
   });
 
   document.getElementById('periodManualEntry')?.addEventListener('click', () => {
@@ -1077,7 +1085,7 @@ export function handleAction(action, dataset, el = null) {
     case 'toggleConsultMode':
       state.consultMode = !state.consultMode;
       if (!state.consultMode) state.consultName = '';
-      renderStep1();
+      renderConsultArea();
       toast(state.consultMode ? '🧑 已开启求测人模式：问题与解读都围绕求测人展开' : '已切回为自己占卜');
       break;
     case 'confirmQuestion': startQuestion(); break;
@@ -1093,15 +1101,15 @@ export function handleAction(action, dataset, el = null) {
     case 'selectCategory':
       state.category = state.category === dataset.category ? '' : dataset.category;
       state.subCategory = '';
-      renderStep1();
+      renderCategoryArea();
       break;
     case 'selectSubCategory':
       state.subCategory = dataset.sub;
-      renderStep1();
+      renderCategoryArea();
       break;
     case 'clearSubCategory':
       state.subCategory = '';
-      renderStep1();
+      renderCategoryArea();
       break;
     case 'setTimeArc': setTimeArc(dataset.arc); break;
     case 'setTimeArcAuto': setTimeArcAuto(); break;

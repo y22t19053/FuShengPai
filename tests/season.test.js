@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  getHourGreeting, getJieqiToday, seasonOf, getSeasonInfo, SEASON_ACCENTS,
+  getHourGreeting, getJieqiToday, seasonOf, getSeasonInfo,
 } from '../src/season.js';
 
 describe('getHourGreeting 时段迎客语', () => {
@@ -34,27 +34,14 @@ describe('season 季节与节气', () => {
     expect(getJieqiToday(new Date(2026, 7, 6))).toBeNull();
   });
 
-  it('四季 accent 全部手绘莫兰迪系（春芽鼠尾草/雾蓝/鼠尾草/深鼠尾草），无旧薄荷蒂芙尼/鎏金/草莓粉', () => {
-    const accents = Object.values(SEASON_ACCENTS).map((v) => v.accent);
-    expect(accents).toEqual(['#8fc0ad', '#7aa8b8', '#6fae9c', '#5c8a7a']);
-    // 不再出现旧薄荷蒂芙尼系与旧鎏金/苔色/洗青/蓝墨/草莓粉系
-    expect(accents).not.toContain('#0abab5');
-    expect(accents).not.toContain('#14c7c0');
-    expect(accents).not.toContain('#0e9a96');
-    expect(accents).not.toContain('#46d0a5');
-    expect(accents).not.toContain('#c9a96e');
-    expect(accents).not.toContain('#b9a56a');
-    expect(accents).not.toContain('#d4b36a');
-    expect(accents).not.toContain('#6b7a55');
-    expect(accents).not.toContain('#5f7684');
-    expect(accents).not.toContain('#ff7eb0');
-    expect(accents).not.toContain('#e85a9a');
+  it('颜色源已收敛：season 模块不再导出 SEASON_ACCENTS（唯一调色板源在 palettes.js）', async () => {
+    const m = await import('../src/season.js');
+    expect(m.SEASON_ACCENTS).toBeUndefined();
   });
 
-  it('getSeasonInfo 返回四季一致的 accent/rgb 对', () => {
+  it('getSeasonInfo 只返回季节与节气（颜色收敛到 palettes.js）', () => {
     const info = getSeasonInfo(new Date(2026, 6, 15));
     expect(info.season).toBe('夏');
-    expect(info.accent).toBe('#7aa8b8');
-    expect(info.rgb).toBe('122,168,184');
+    expect(info.jieqi).toBeNull();
   });
 });

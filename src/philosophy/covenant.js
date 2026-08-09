@@ -41,12 +41,16 @@ export const COVENANT = {
   ]
 };
 
-// 送客句的变化池：同一句不说三遍（上次用过的下次避开）
+// 送客句的变化池：按日期确定性取（同一天同句、次日换新），仍避开上次句
 let lastClosingIndex = -1;
 export function getClosingLine() {
   const pool = COVENANT.closingPool || [];
   if (!pool.length) return '';
-  let idx = Math.floor(Math.random() * pool.length);
+  const d = new Date();
+  const dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  let h = 0x811c9dc5;
+  for (const ch of dateStr) { h ^= ch.charCodeAt(0); h = (h * 0x01000193) >>> 0; }
+  let idx = h % pool.length;
   if (pool.length > 1 && idx === lastClosingIndex) idx = (idx + 1) % pool.length;
   lastClosingIndex = idx;
   return pool[idx];
@@ -57,7 +61,8 @@ export function applyCovenant(text) {
   
   if (COVENANT.forbidAbsolutes) {
     for (const [from, to] of Object.entries(COVENANT.replacements)) {
-      result = result.replace(new RegExp(from, 'g'), to);
+      // 整词替换：前置是"不"时跳过（"不一定"若被替换成"不可能"会反转语义）
+      result = result.replace(new RegExp('(?<!不)' + from, 'g'), to);
     }
   }
   

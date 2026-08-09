@@ -11,18 +11,19 @@ import { escapeForHTML, setHTML } from './utils/safe.js';
 import {
   playWashSound, playMoPaiSound, playKaiPaiSound, playJokerSound, playClosingSound,
 } from './utils/sound.js';
+import { rawGet, rawSet } from './storage.js';
 
 const SYS_KEY = 'fsp_system';
 const MJ_DAILY_KEY = 'fsp_mj_daily';
 
 /** 占卜体系：'poker' | 'mahjong'（用户自选，丝滑切换） */
 export function getSystem() {
-  try { return localStorage.getItem(SYS_KEY) === 'mahjong' ? 'mahjong' : 'poker'; }
+  try { return rawGet(SYS_KEY) === 'mahjong' ? 'mahjong' : 'poker'; }
   catch { return 'poker'; }
 }
 
 export function setSystem(sys) {
-  try { localStorage.setItem(SYS_KEY, sys); } catch { /* ignore */ }
+  try { rawSet(SYS_KEY, sys); } catch { /* ignore */ }
 }
 
 function todayKey() {
@@ -39,16 +40,23 @@ function getModal() {
 
 // ---------- 牌面渲染 ----------
 
-/** 花色色板：万/筒/风/中=朱砂，条/发=鼠尾草绿；白板=雾蓝空框 */
-const SUIT_COLOR = {
-  'wan':   '#c96f52',
-  'tiao':  '#5c8a7a',
-  'tong':  '#c96f52',
-  'feng':  '#c96f52',
-  'jian1': '#c96f52',
-  'jian2': '#5c8a7a',
-};
-const WHITE_BOARD = '#8fb0c3';
+/** 花色色板：万/筒/风/中=朱砂(--cinnabar)，条/发=鼠尾草绿(--gold-mute)；白板=雾蓝(--candy-blue)
+ *  读 CSS 变量（palettes.js 每日覆盖），不再硬编码复制主题色 */
+let _cssVars = null;
+function cssColor(name, fallback) {
+  if (!_cssVars) {
+    try { _cssVars = getComputedStyle(document.documentElement); } catch (_) { _cssVars = {}; }
+  }
+  const v = _cssVars.getPropertyValue ? _cssVars.getPropertyValue(name).trim() : '';
+  return v || fallback;
+}
+function suitColor(suit) {
+  const ink = cssColor('--cinnabar', '#c96f52');
+  const green = cssColor('--gold-mute', '#5c8a7a');
+  const map = { wan: ink, tiao: green, tong: ink, feng: ink, jian1: ink, jian2: green };
+  return map[suit] || 'var(--text)';
+}
+function whiteBoard() { return cssColor('--candy-blue', '#8fb0c3'); }
 
 /** 筒子点数布局（传统骰点：6=3+3，7=3+1+3，8=3+2+3，9=3+3+3） */
 const DOT_LAYOUT = {
@@ -76,28 +84,28 @@ const STICK_LAYOUT = {
 };
 
 /** 一枚筒子（朱砂钱币圈，白心高光） */
-const dotSVG = (cx, cy) =>
-  `<circle cx="${cx}" cy="${cy}" r="8" fill="#c96f52"/><circle cx="${cx}" cy="${cy}" r="5.4" fill="#fdfaf1" opacity="0.92"/>`;
+const dotSVG = (cx, cy, ink) =>
+  `<circle cx="${cx}" cy="${cy}" r="8" fill="${ink}"/><circle cx="${cx}" cy="${cy}" r="5.4" fill="#fdfaf1" opacity="0.92"/>`;
 
 /** 一条竹棍（鼠尾草绿竹 + 三节雾蓝结） */
-function bambooStickSVG(cx, cy) {
+function bambooStickSVG(cx, cy, green, knot) {
   return `
-    <rect x="${cx - 4.5}" y="${cy - 19}" width="9" height="38" rx="4.5" fill="#5c8a7a"/>
-    <circle cx="${cx}" cy="${cy - 8}" r="2.6" fill="#7ba0b8"/>
-    <circle cx="${cx}" cy="${cy + 4}" r="2.6" fill="#7ba0b8"/>
-    <circle cx="${cx}" cy="${cy + 12}" r="2" fill="#7ba0b8"/>`;
+    <rect x="${cx - 4.5}" y="${cy - 19}" width="9" height="38" rx="4.5" fill="${green}"/>
+    <circle cx="${cx}" cy="${cy - 8}" r="2.6" fill="${knot}"/>
+    <circle cx="${cx}" cy="${cy + 4}" r="2.6" fill="${knot}"/>
+    <circle cx="${cx}" cy="${cy + 12}" r="2" fill="${knot}"/>`;
 }
 
 /** 幺鸡：简笔鸟（身体+头+喙+尾+腿） */
-function jiBirdSVG() {
+function jiBirdSVG(green, ink, knot) {
   return `
-    <ellipse cx="47" cy="60" rx="13" ry="11" fill="#5c8a7a"/>
-    <circle cx="58" cy="44" r="8" fill="#5c8a7a"/>
-    <path d="M65 43 L73 41 L65 48 Z" fill="#c96f52"/>
+    <ellipse cx="47" cy="60" rx="13" ry="11" fill="${green}"/>
+    <circle cx="58" cy="44" r="8" fill="${green}"/>
+    <path d="M65 43 L73 41 L65 48 Z" fill="${ink}"/>
     <circle cx="60" cy="42" r="1.8" fill="#fdfaf1"/>
-    <path d="M34 56 q-8 4 -14 2 M34 62 q-7 6 -12 10" stroke="#5c8a7a" stroke-width="2.6" stroke-linecap="round" fill="none"/>
-    <path d="M42 70 l-3 10 M52 70 l-2 10" stroke="#c96f52" stroke-width="2.4" stroke-linecap="round"/>
-    <circle cx="45" cy="33" r="2" fill="#7ba0b8"/>`;
+    <path d="M34 56 q-8 4 -14 2 M34 62 q-7 6 -12 10" stroke="${green}" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+    <path d="M42 70 l-3 10 M52 70 l-2 10" stroke="${ink}" stroke-width="2.4" stroke-linecap="round"/>
+    <circle cx="45" cy="33" r="2" fill="${knot}"/>`;
 }
 
 /**
@@ -106,12 +114,15 @@ function jiBirdSVG() {
  */
 function tileFaceHTML(tile, size = 54) {
   const name = tileName(tile);
-  const color = SUIT_COLOR[tile.suit === 'jian' ? `jian${tile.num}` : tile.suit] || 'var(--text)';
+  const color = suitColor(tile.suit === 'jian' ? `jian${tile.num}` : tile.suit);
   const style = `width:${size}px;height:${Math.round(size * 1.4)}px;`;
+  const ink = cssColor('--cinnabar', '#c96f52');
+  const green = cssColor('--gold-mute', '#5c8a7a');
+  const knot = cssColor('--candy-blue', '#7ba0b8');
 
   // 筒子：钱币圈点数
   if (tile.suit === 'tong') {
-    const dots = (DOT_LAYOUT[tile.num] || DOT_LAYOUT[1]).map(([cx, cy]) => dotSVG(cx, cy)).join('');
+    const dots = (DOT_LAYOUT[tile.num] || DOT_LAYOUT[1]).map(([cx, cy]) => dotSVG(cx, cy, ink)).join('');
     return `
       <div class="mj-tile-face" style="${style}">
         <svg viewBox="0 0 100 140" style="width:100%;height:100%;" aria-hidden="true">${dots}</svg>
@@ -121,8 +132,8 @@ function tileFaceHTML(tile, size = 54) {
   // 条子：竹棍点数（幺鸡=简笔鸟）
   if (tile.suit === 'tiao') {
     const body = tile.num === 1
-      ? jiBirdSVG()
-      : (STICK_LAYOUT[tile.num] || []).map(([cx, cy]) => bambooStickSVG(cx, cy)).join('');
+      ? jiBirdSVG(green, ink, knot)
+      : (STICK_LAYOUT[tile.num] || []).map(([cx, cy]) => bambooStickSVG(cx, cy, green, knot)).join('');
     return `
       <div class="mj-tile-face" style="${style}">
         <svg viewBox="0 0 100 140" style="width:100%;height:100%;" aria-hidden="true">${body}</svg>
@@ -131,11 +142,12 @@ function tileFaceHTML(tile, size = 54) {
 
   // 白板：雾蓝空框
   if (tile.suit === 'jian' && tile.num === 3) {
+    const wb = whiteBoard();
     return `
       <div class="mj-tile-face" style="${style}">
         <svg viewBox="0 0 100 140" style="width:100%;height:100%;" aria-hidden="true">
-          <rect x="31" y="26" width="38" height="88" rx="9" fill="none" stroke="${WHITE_BOARD}" stroke-width="4.5"/>
-          <rect x="39" y="34" width="22" height="72" rx="6" fill="none" stroke="${WHITE_BOARD}" stroke-width="2.4" opacity="0.65"/>
+          <rect x="31" y="26" width="38" height="88" rx="9" fill="none" stroke="${wb}" stroke-width="4.5"/>
+          <rect x="39" y="34" width="22" height="72" rx="6" fill="none" stroke="${wb}" stroke-width="2.4" opacity="0.65"/>
         </svg>
       </div>`;
   }
@@ -166,18 +178,25 @@ function bindTapToFlip(el, { locked, onFire, hint }) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     el.classList.add('mj-holding');
     if (hint) hint.textContent = '想好了，就翻。';
+    // 捕获指针：手指滑出牌背时 pointerup 仍落在牌上，保证"点牌即开"在触屏不丢失
+    try { el.setPointerCapture(e.pointerId); } catch (_) { /* 部分环境不支持，忽略 */ }
     if (navigator.vibrate) navigator.vibrate(20);
   };
   const onUp = (e) => {
     if (locked()) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     el.classList.remove('mj-holding');
+    try { if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId); } catch (_) { /* 忽略 */ }
     playMoPaiSound(); // 摸牌一声轻竹
     onFire();
   };
+  const onCancel = () => {
+    el.classList.remove('mj-holding');
+    try { if (el.hasPointerCapture) el.releasePointerCapture(0); } catch (_) { /* 忽略 */ }
+  };
   el.addEventListener('pointerdown', onDown);
   el.addEventListener('pointerup', onUp);
-  el.addEventListener('pointercancel', () => el.classList.remove('mj-holding'));
+  el.addEventListener('pointercancel', onCancel);
 }
 
 // ---------- 读牌：五段判词（说书人） ----------
@@ -302,7 +321,7 @@ export function openMahjongDaily() {
   // 今日已摸过 → 直接出示，不再重摸（每日只问一次）
   let stored = null;
   try {
-    const raw = localStorage.getItem(MJ_DAILY_KEY);
+    const raw = rawGet(MJ_DAILY_KEY);
     const parsed = raw ? JSON.parse(raw) : null;
     if (parsed && parsed.date === todayKey()) stored = parsed;
   } catch { /* ignore */ }
@@ -354,7 +373,7 @@ export function openMahjongDaily() {
       back.outerHTML = `<div style="animation:dealIn 0.4s var(--ease);">${tileFaceHTML(tile, 64)}</div>`;
       const r = composeDailyReading(tile);
       try {
-        localStorage.setItem(MJ_DAILY_KEY, JSON.stringify({ date: todayKey(), tile, drawnAt: Date.now() }));
+        rawSet(MJ_DAILY_KEY, JSON.stringify({ date: todayKey(), tile, drawnAt: Date.now() }));
       } catch { /* ignore */ }
       setTimeout(() => {
         setHTML(content, dailyReadingHTML(r, false));

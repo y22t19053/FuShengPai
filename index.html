@@ -11,8 +11,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="浮生牌">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%83%8F%3C/text%3E%3C/svg%3E">
-  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="./style.css">
   <style>
     /* AI 高级参数折叠 */
     .ai-adv-toggle {
@@ -180,7 +180,7 @@
     </div>
 
     <!-- 日运类型选择弹窗 -->
-    <div id="fortuneTypeModal" hidden style="position:fixed;inset:0;background:rgba(140,70,105,0.4);display:flex;align-items:center;justify-content:center;z-index:999;">
+    <div id="fortuneTypeModal" hidden style="position:fixed;inset:0;background:rgba(var(--accent-rgb), 0.32);display:flex;align-items:center;justify-content:center;z-index:999;">
       <div style="background:var(--bg, #f6f0e2);border:1px solid var(--border, #6fae9c80);border-radius:12px;padding:20px;min-width:240px;text-align:center;">
         <h3 style="color:var(--accent, #6fae9c);margin-bottom:12px;">☯ 选择日运类型</h3>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
@@ -215,6 +215,6 @@
     <div>🔒 数据只存本机 · 换设备请点顶部「备份」</div>
     <div>牌灵，是你潜意识在扑克牌上的投影 · 观牌知势，不语已明</div>
   </footer>
-  <script type="module" src="/src/ui.js"></script>
+  <script type="module" src="./src/ui.js"></script>
 </body>
 </html>

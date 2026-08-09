@@ -1,6 +1,7 @@
 // ===== src/services/profile.js · 求测人档案与八字（纯数据层） =====
 import { calcFullBaZi } from '../engine.js';
 import { getProfile } from '../storage.js';
+import { getLonForCity } from '../utils/solar-time.js';
 
 /**
  * 由已保存的求测人档案计算完整四柱八字。
@@ -21,7 +22,8 @@ export function getBaziFromProfile() {
       const tp = profile.birthTime.split(':');
       if (tp.length >= 1) hour = parseInt(tp[0]) || 12;
     }
-    const longitude = profile.birthLongitude || 120;
+    // 档案未保存经度时按出生地城市推算，再兜底东八区标准经线 120
+    const longitude = profile.birthLongitude || getLonForCity(profile.birthPlace) || 120;
     return calcFullBaZi(year, month, day, hour, longitude);
   } catch (e) { return null; }
 }

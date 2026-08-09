@@ -27,14 +27,16 @@ const OUT_H = 1440;
 const RATIO = 2;
 
 let qrCache = '';
-let qrBuilt = false;
+let qrCacheKey = '';
 
-/** 二维码内联 SVG（同步缓存：uqr 无网络/无 img 时序，天然防花边框/空白） */
+/** 二维码内联 SVG（同步缓存：uqr 无网络/无 img 时序，天然防花边框/空白）
+ *  缓存键 = 当日色板的 goldDeep（每日轮换），配色变了自动重建 */
 function getQRSVG() {
-  if (!qrBuilt) {
-    const p = getPaper().dark;
-    qrCache = qrSVGHTML(QR_TARGET, { size: 160, dark: p.goldDeep, light: '#FFFFFF' });
-    qrBuilt = true;
+  const p = getPaper().dark;
+  const key = p.goldDeep;
+  if (!qrCache || qrCacheKey !== key) {
+    qrCache = qrSVGHTML(QR_TARGET, { size: 160, dark: key, light: '#FFFFFF' });
+    qrCacheKey = key;
   }
   return qrCache;
 }

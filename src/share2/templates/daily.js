@@ -48,7 +48,8 @@ export function renderDailyHTML(data, qr) {
   const topicTitle = data.title || moodTitle;
   let signLine = (data.line || data.quote || '').replace(/^“|”$/g, '');
   // 金句限 42 字：底部与右下二维码之间的横向空间有限，超长截断保证单行/双行内不重叠
-  if (signLine.length > 42) signLine = signLine.slice(0, 42) + '…';
+  const signChars = Array.from(signLine);
+  if (signChars.length > 42) signLine = signChars.slice(0, 42).join('') + '…';
   const note = pickBySeed(dateText, FOOTER_NOTES);
 
   const brand = `${mmdd(dateText)} · ${weekday(dateText)}`;

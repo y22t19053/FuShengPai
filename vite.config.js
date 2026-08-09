@@ -54,11 +54,38 @@ export default defineConfig({
         ]
       },
       workbox: {
-        // 不再加载网络字体：奶油主题统一系统圆润无衬线（PingFang/微软雅黑），
-        // PWA 离线零字体依赖，首屏更快、包体更小
-        globPatterns: ['**/*.{js,css,html,svg,png,webp}'],
-        navigateFallback: 'index.html',
-        cleanupOutdatedCaches: true
+        // —— 缓存策略：禁用预缓存，全面「网络优先 + 强制校验」——
+        // 原因：GitHub Pages 对静态资源带 600s HTTP 强缓存，且旧版 SW 的
+        // precache（CacheFirst）会持续命中旧产物，两层叠加导致「打开网站还是旧版」。
+        // 解决：globPatterns 置空 = 不预缓存任何构建产物（消灭 CacheFirst 命中旧版），
+        // 所有页面与资源走 NetworkFirst（网络优先，断网才回退缓存），
+        // fetch 时带 cache:'no-cache' 强制每次 revalidate，绕过 HTTP 强缓存。
+        // 代价：离线能力从「全量离线」降为「访问过的页面/资源可离线」，换来每次都最新。
+        globPatterns: [],
+        navigateFallback: null,
+        cleanupOutdatedCaches: true,
+        runtimeCaching: [
+          {
+            // 页面导航：网络优先，4 秒超时回退缓存
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'fsp-pages',
+              networkTimeoutSeconds: 4,
+              fetchOptions: { cache: 'no-cache' }
+            }
+          },
+          {
+            // 静态资源（js/css/图片/字体）：网络优先，断网回退缓存
+            urlPattern: /\.(?:js|css|svg|png|webp|jpg|jpeg|gif|ico|woff2?)(?:\?.*)?$/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'fsp-assets',
+              networkTimeoutSeconds: 4,
+              fetchOptions: { cache: 'no-cache' }
+            }
+          }
+        ]
       }
     })
   ],

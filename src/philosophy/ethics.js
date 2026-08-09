@@ -1,5 +1,6 @@
 // ===== src/philosophy/ethics.js · 伦理引导（软性拦截） =====
 import { COVENANT } from './covenant.js';
+import { rawGet, rawSet, rawRemove } from '../storage.js';
 
 export function interceptQuestion(question) {
   const q = question.toLowerCase();
@@ -16,8 +17,8 @@ export function interceptQuestion(question) {
     }
   }
 
-  // 医疗相关 → 引导就医
-  const medicalKeywords = ['癌症', '肿瘤', '手术', '诊断', '病情', '治疗', '药'];
+  // 医疗相关 → 引导就医（"药"用语境词组，避免"中医药大学"这类误伤）
+  const medicalKeywords = ['癌症', '肿瘤', '手术', '诊断', '病情', '治疗', '吃药', '用药', '药方', '药效', '药量', '开药', '买药', '停药', '副作用'];
   for (const keyword of medicalKeywords) {
     if (q.includes(keyword)) {
       return {
@@ -91,7 +92,7 @@ export function checkDependency(history) {
 
 // ===== 封卦（用户主动发起） =====
 export function getSealStatus() {
-  const sealData = localStorage.getItem('fs_seal_status');
+  const sealData = rawGet('fs_seal_status');
   if (!sealData) return null;
   try {
     const data = JSON.parse(sealData);
@@ -109,7 +110,7 @@ export function getSealStatus() {
 
 export function applySeal(reason, days = 3) {
   const until = Date.now() + days * 24 * 60 * 60 * 1000;
-  localStorage.setItem('fs_seal_status', JSON.stringify({
+  rawSet('fs_seal_status', JSON.stringify({
     reason,
     until,
     appliedAt: Date.now()
@@ -117,5 +118,5 @@ export function applySeal(reason, days = 3) {
 }
 
 export function removeSeal() {
-  localStorage.removeItem('fs_seal_status');
+  rawRemove('fs_seal_status');
 }

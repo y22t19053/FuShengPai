@@ -77,10 +77,10 @@ export function generateMetaphor(context) {
   return parts.slice(0, 2).join(' ');
 }
 
-/** 随机取一条（九宫体用局比喻保留随机，单牌判词走确定性） */
+/** 确定性取一条：同一天同一判定 → 同一句（与单牌判词同一种子体系，消除随机源分裂） */
 function pick(arr) {
   if (!arr || arr.length === 0) return '';
-  return arr[Math.floor(Math.random() * arr.length)];
+  return pickStable(todayDate() + '|' + arr[0], arr);
 }
 
 // ===== 单张周期牌的比喻（轻量版·支持日运细选类别） =====

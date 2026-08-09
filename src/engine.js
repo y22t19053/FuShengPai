@@ -1,5 +1,6 @@
 // ===== src/engine.js · 核心算法与工具（修复大小王数值） =====
 import { GONG_WUXING, getWuxing } from './data.js';
+import { shuffleRandom } from './utils/rng.js';
 
 // ---- 干支基础 ----
 const TIAN_GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
@@ -129,12 +130,7 @@ export function createDeck(includeJokers = true) {
 }
 
 export function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
+  return shuffleRandom(arr);
 }
 
 export function drawTiYong(deck) {

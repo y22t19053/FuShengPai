@@ -56,23 +56,17 @@ export function normalizeHexColor(color) {
   return trimmed;
 }
 
-// ---------- 加载二维码图片 ----------
+// ---------- 加载二维码图片（uqr 实现：与分享图同源，零外部依赖） ----------
 export async function loadQRImage(content, size = 100, colors = {}) {
   try {
-    // 动态加载 qrcode 库（已在 package.json 中）
-    const QRCode = (await import('qrcode')).default;
-    // 生成 data URL（colors 可传 {dark, light} 做淡色印章效果）
-    const dataUrl = await QRCode.toDataURL(content, {
-      width: size,
-      height: size,
-      margin: 1,
-      errorCorrectionLevel: 'M',
-      color: {
-        dark: normalizeHexColor(colors.dark) || '#000000',
-        light: normalizeHexColor(colors.light) || '#ffffff'
-      }
+    // 与分享图同源的 uqr 内联 SVG → data URL（qrcode 依赖已移除，不再落 QR 占位）
+    const svg = qrSVGHTML(String(content || ''), {
+      size,
+      dark: normalizeHexColor(colors.dark) || '#000000',
+      light: normalizeHexColor(colors.light) || '#ffffff',
+      ecc: 'M'
     });
-    // 创建 Image 对象
+    const dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
     const img = new Image();
     await new Promise((resolve, reject) => {
       img.onload = resolve;
@@ -82,14 +76,13 @@ export async function loadQRImage(content, size = 100, colors = {}) {
     return img;
   } catch (e) {
     console.warn('二维码生成失败:', e);
-    // 降级：手动绘制一个简单图案（示例）
+    // 降级：灰色 QR 占位块（不抛错，保住弹窗）
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, size, size);
-    // 画一个简单的方块图，表示二维码不可用
     ctx.fillStyle = '#000';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';

@@ -66,8 +66,9 @@ export async function requestReading({
     }
 
     if (provider === 'gemini') {
-      const url2 = buildGeminiUrl(endpoint, provider, body.model, apiKey);
+      const url2 = buildGeminiUrl(endpoint, provider, body.model);
       const body2 = {
+        systemInstruction: { parts: [{ text: buildSystemPrompt(style) }] },
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: body.temperature,
@@ -77,7 +78,7 @@ export async function requestReading({
       };
       const resp = await fetchWithRetry(url2, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify(body2)
       });
       return handleGeminiResponse(resp);
@@ -130,9 +131,10 @@ export async function requestFollowUp({
     }
 
     if (providerName === 'gemini') {
-      const url2 = buildGeminiUrl(ep, providerName, body.model, apiKey);
+      const url2 = buildGeminiUrl(ep, providerName, body.model);
       const text = history.map(m => (m.role === 'user' ? '用户：' : 'AI：') + m.content).join('\n\n');
       const body2 = {
+        systemInstruction: { parts: [{ text: buildSystemPrompt('guide') }] },
         contents: [{ parts: [{ text }] }],
         generationConfig: {
           temperature: body.temperature,
@@ -142,7 +144,7 @@ export async function requestFollowUp({
       };
       const resp = await fetchWithRetry(url2, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify(body2)
       });
       return handleGeminiResponse(resp);
@@ -191,14 +193,14 @@ export async function testApiConnection({
     }
 
     if (providerName === 'gemini') {
-      const url2 = buildGeminiUrl(ep, providerName, testModel, apiKey);
+      const url2 = buildGeminiUrl(ep, providerName, testModel);
       const body2 = {
         contents: [{ parts: [{ text: '你好' }] }],
         generationConfig: { maxOutputTokens: 8 }
       };
       const resp = await fetchWithRetry(url2, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify(body2)
       });
       if (!resp.ok) {
@@ -224,23 +226,24 @@ export async function testApiConnection({
 }
 
 // ---------- 构建 URL ----------
-export function buildGeminiUrl(endpoint, provider, model, apiKey) {
+export function buildGeminiUrl(endpoint, provider, model) {
   const base = (endpoint || '').replace(/\/$/, '');
   if (provider === 'gemini' && base) {
-    return `${base}/models/${encodeURIComponent(model || 'gemini-2.0-flash')}:generateContent?key=${encodeURIComponent(apiKey || '')}`;
+    return `${base}/models/${encodeURIComponent(model || 'gemini-2.0-flash')}:generateContent`;
   }
-  return `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model || 'gemini-2.0-flash')}:generateContent?key=${encodeURIComponent(apiKey || '')}`;
+  return `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model || 'gemini-2.0-flash')}:generateContent`;
 }
 
 function buildUrl(endpoint, provider) {
   if (!endpoint) throw new Error('API 地址不能为空');
   let ep = endpoint;
   if (provider === 'claude') {
-    // Claude 使用不同的端点结构
-    if (!ep.includes('/v1/messages')) {
-      ep = ep + (ep.endsWith('/') ? '' : '/') + 'v1/messages';
-    }
-    return ep;
+    // Claude 使用不同的端点结构（默认 https://api.anthropic.com/v1）
+    // 先剥掉可能自带的 /v1，再统一拼 /v1/messages，避免拼出 /v1/v1/messages
+    if (ep.endsWith('/v1/messages')) return ep;
+    if (ep.endsWith('/v1')) ep = ep.slice(0, -3);
+    if (ep.endsWith('/')) ep = ep.slice(0, -1);
+    return ep + '/v1/messages';
   }
   // OpenAI 兼容方式
   if (ep.endsWith('/v1')) return ep + '/chat/completions';

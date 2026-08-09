@@ -129,7 +129,23 @@
   padding: 0;
 }
 
-html,
+html {
+  background: var(--bg);
+  color: var(--text);
+  /* 数字（张力指数/日期）与中文统一走圆润无衬线，避免衬线尖角破坏糖果感 */
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.7;
+  min-height: 100%;
+  /* 唯一滚动容器：页面整体在此滚动（html/body 双层滚动会导致滚不到底部、底部按钮不可点） */
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  touch-action: manipulation;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
@@ -138,7 +154,8 @@ body {
   font-size: 16px;
   line-height: 1.7;
   min-height: 100%;
-  overflow-x: hidden;
+  /* clip 只裁切、不创建滚动容器；hidden 会把 overflow-y 隐式提升为 auto 造成双层滚动 */
+  overflow-x: clip;
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;

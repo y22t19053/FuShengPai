@@ -9,8 +9,8 @@ import {
   DAILY_FORTUNE_TYPES, getDailyFortuneType
 } from '../data.js';
 import { createDeck, shuffle, calcFullBaZi, calcDiff, getDiffLevel, getDiffValue } from '../engine.js';
-import { getApiSettings, getProfile, getHistory, getStoredPeriodCards, getDrawTimestamps } from '../storage.js';
-import { getSeasonInfo, getHourGreeting, getVisitStreak, getYesterdayCard, cardLabel, applySeasonAccent } from '../season.js';
+import { getApiSettings, getProfile, getHistory, getStoredPeriodCards, getDrawTimestamps, rawGet } from '../storage.js';
+import { getSeasonInfo, getHourGreeting, getVisitStreak, getYesterdayCard, cardLabel } from '../season.js';
 import { applyPaletteToRoot } from '../palettes.js';
 import { getAlmanac } from '../calendar.js';
 import { getTrueSolarHour, getLonForCity } from '../utils/solar-time.js';
@@ -26,8 +26,8 @@ import { escapeForHTML, setHTML } from '../utils/safe.js';
 import { syncQuestionFromInput } from '../utils/flow-helpers.js';
 import { getSystem, setSystem } from '../mahjong-ui.js';
 
-// 旬：进店即换菜单——季节 accent 打底，再被「十组动态配色」覆盖（同日稳定、跨日轮换）
-applySeasonAccent();
+// 配色单一运行时来源：palettes.js 每日确定性调色板写入 :root（季节 accent 已停用，
+// 避免 season.js 与 palettes.js 双写 --accent 竞态；节气副题文案仍走 getSeasonInfo）
 applyPaletteToRoot();
 
 // ===== 新手教程 =====
@@ -264,6 +264,26 @@ export function refreshHero() {
   bindHeroActions();
 }
 
+// 分类按钮区（模块级：renderStep1 与局部更新 renderCategoryArea 共用）
+function renderCatBtns(curCat, curSub) {
+  let html = '<div class="category-grid">';
+  CATEGORIES.forEach(c => {
+    html += `<button data-action="selectCategory" data-category="${escapeForHTML(c.name)}" class="${curCat === c.name ? 'selected' : ''}">${escapeForHTML(c.name)}</button>`;
+  });
+  html += '</div>';
+  if (curCat) {
+    const catConfig = CATEGORIES.find(c => c.name === curCat);
+    if (catConfig && catConfig.sub && catConfig.sub.length > 0) {
+      html += `<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:6px;">`;
+      catConfig.sub.forEach(sub => {
+        html += `<button data-action="selectSubCategory" data-sub="${escapeForHTML(sub)}" class="small ${curSub === sub ? 'primary' : 'outline'}">${escapeForHTML(sub)}</button>`;
+      });
+      html += `<button data-action="clearSubCategory" class="small outline">清除</button></div>`;
+    }
+  }
+  return html;
+}
+
 // ===== 首页：窄Hero + 深度占卜台 =====
 export function renderStep1() {
   const core = document.getElementById('coreArea');
@@ -272,24 +292,7 @@ export function renderStep1() {
   const panels = document.getElementById('dynamicPanels');
   if (panels) panels.classList.add('step-home');
 
-  const renderCatBtns = (curCat, curSub) => {
-    let html = '<div class="category-grid">';
-    CATEGORIES.forEach(c => {
-      html += `<button data-action="selectCategory" data-category="${escapeForHTML(c.name)}" class="${curCat === c.name ? 'selected' : ''}">${escapeForHTML(c.name)}</button>`;
-    });
-    html += '</div>';
-    if (curCat) {
-      const catConfig = CATEGORIES.find(c => c.name === curCat);
-      if (catConfig && catConfig.sub && catConfig.sub.length > 0) {
-        html += `<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:6px;">`;
-        catConfig.sub.forEach(sub => {
-          html += `<button data-action="selectSubCategory" data-sub="${escapeForHTML(sub)}" class="small ${curSub === sub ? 'primary' : 'outline'}">${escapeForHTML(sub)}</button>`;
-        });
-        html += `<button data-action="clearSubCategory" class="small outline">清除</button></div>`;
-      }
-    }
-    return html;
-  };
+  // 见模块级 renderCatBtns（提取出来供局部更新复用）
 
   const storedPeriods = getStoredPeriodCards();
 
@@ -306,12 +309,16 @@ export function renderStep1() {
     <details id="toolSection" class="tool-section">
       <summary class="tool-summary">🪷 进阶玩法</summary>
       <div style="padding: 0 2px;">
-        <div style="display:flex;justify-content:center;gap:6px;margin-bottom:8px;">
-          <button data-action="toggleConsultMode" class="small ${state.consultMode ? 'primary' : 'outline'}" style="font-size:0.7rem;">${state.consultMode ? '🧑 帮别人问 · 已开启' : '🧑 帮别人问'}</button>
+        <div id="consultArea">
+          <div style="display:flex;justify-content:center;gap:6px;margin-bottom:8px;">
+            <button data-action="toggleConsultMode" class="small ${state.consultMode ? 'primary' : 'outline'}" style="font-size:0.7rem;">${state.consultMode ? '🧑 帮别人问 · 已开启' : '🧑 帮别人问'}</button>
+          </div>
+          ${state.consultMode ? `<input type="text" id="consultNameInput" placeholder="求测人称呼（可选，如：朋友小王）" autocomplete="off" value="${escapeForHTML(state.consultName)}" style="position:relative;z-index:2;pointer-events:auto;margin-bottom:6px;border:1px solid rgba(var(--accent-rgb),0.33);">` : ''}
         </div>
-        ${state.consultMode ? `<input type="text" id="consultNameInput" placeholder="求测人称呼（可选，如：朋友小王）" autocomplete="off" value="${escapeForHTML(state.consultName)}" style="position:relative;z-index:2;pointer-events:auto;margin-bottom:6px;border:1px solid rgba(var(--accent-rgb),0.33);">` : ''}
         <input type="text" id="questionInput" placeholder="${escapeForHTML(state.consultMode ? '求测人想问什么？' : UI_TEXTS.placeholderQuestion)}" autocomplete="off" value="${escapeForHTML(state.question)}" style="position:relative;z-index:2;pointer-events:auto;">
-        ${renderCatBtns(state.category, state.subCategory)}
+        <div id="categoryArea">
+          ${renderCatBtns(state.category, state.subCategory)}
+        </div>
         <div class="btn-row">
           <button data-action="confirmQuestion" class="primary">${escapeForHTML(UI_TEXTS.btnStartDraw)}</button>
           <button data-action="lazyStart" class="outline">${escapeForHTML(UI_TEXTS.btnLazy)}</button>
@@ -406,6 +413,33 @@ export function renderStep1() {
   });
 }
 
+// ===== 局部更新（占卜台不再整页重渲：分类选择/咨询模式只更新对应区域） =====
+export function renderCategoryArea() {
+  const area = document.getElementById('categoryArea');
+  if (!area) return;
+  setHTML(area, renderCatBtns(state.category, state.subCategory));
+}
+
+export function renderConsultArea() {
+  const area = document.getElementById('consultArea');
+  if (!area) return;
+  const html = `
+    <div style="display:flex;justify-content:center;gap:6px;margin-bottom:8px;">
+      <button data-action="toggleConsultMode" class="small ${state.consultMode ? 'primary' : 'outline'}" style="font-size:0.7rem;">${state.consultMode ? '🧑 帮别人问 · 已开启' : '🧑 帮别人问'}</button>
+    </div>
+    ${state.consultMode ? `<input type="text" id="consultNameInput" placeholder="求测人称呼（可选，如：朋友小王）" autocomplete="off" value="${escapeForHTML(state.consultName)}" style="position:relative;z-index:2;pointer-events:auto;margin-bottom:6px;border:1px solid rgba(var(--accent-rgb),0.33);">` : ''}
+  `;
+  setHTML(area, html);
+  // 输入框占位符随咨询模式切换
+  const qi = document.getElementById('questionInput');
+  if (qi) qi.placeholder = state.consultMode ? '求测人想问什么？' : UI_TEXTS.placeholderQuestion;
+  const cni = document.getElementById('consultNameInput');
+  if (cni) {
+    cni.addEventListener('input', () => { state.consultName = cni.value; });
+    cni.addEventListener('change', () => { state.consultName = cni.value; });
+  }
+}
+
 // ===== 牌灵 + 今日日运 双横幅（对等展示：已抽直接可见，未抽给轻引导） =====
 // theme: 'tarot'（牌灵·暖墨苔色） / 'daily'（日运·宣纸朱砂）——两套美学各自独立
 function bannerShell({ theme = 'tarot', label, sub, cardCls, cardText, goldBorder, title, line, tags, shareId, viewHTML }) {
@@ -456,7 +490,7 @@ export function renderTodayFortuneStrip() {
   let paigeBanner = '';
   let paigeCard = null;
   try {
-    const raw = localStorage.getItem('fsp_paige');
+    const raw = rawGet('fsp_paige');
     const paigeData = raw ? JSON.parse(raw) : null;
     if (paigeData && paigeData.card) {
       paigeCard = paigeData.card;
@@ -578,7 +612,7 @@ export function renderPeriodCards() {
   // 1. 牌灵卡（独立存储 key 'fsp_paige'）
   let paigeHTML = '';
   try {
-    const raw = localStorage.getItem('fsp_paige');
+    const raw = rawGet('fsp_paige');
     if (raw) {
       const paigeData = JSON.parse(raw);
       if (paigeData && paigeData.card) {
@@ -769,11 +803,49 @@ export function renderFullReport(text, modules = null, summary = null) {
       <button data-action="shareCode" class="outline small">分享码</button>
       <button data-action="quickDraw" class="small">再抽一次</button>
     </div>
+    <!-- AI 深度解读（主流程恢复：本地解读在前，想深聊再开 AI） -->
+    <div id="aiPanel" style="margin-top:14px;">
+      <div id="aiResultContainer" style="display:none;margin-bottom:8px;">
+        <div id="aiResultContent" style="font-size:0.85rem;line-height:1.8;padding:10px 12px;background:rgba(var(--accent-rgb),0.06);border-radius:var(--r-hand-in);white-space:pre-wrap;"></div>
+        <div id="chatHistoryBlock" style="margin-top:8px;max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+      <div id="followUpArea" style="display:none;margin-bottom:8px;">
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="followUpInput" placeholder="接着问一句…" autocomplete="off" style="flex:1;min-width:0;pointer-events:auto;position:relative;z-index:2;">
+          <button data-action="sendFollowUp" class="small primary">追问</button>
+        </div>
+      </div>
+      <div class="btn-row" style="justify-content:center;">
+        <button id="aiReadBtn" class="outline small">✨ AI 深度解读</button>
+        <button id="copyPromptBtn" class="outline small">📋 复制提示词</button>
+      </div>
+      <div style="text-align:center;font-size:0.62rem;color:var(--ink-faint);margin-top:6px;">AI 解读需自行配置 API Key · 数据只存本机</div>
+    </div>
   `;
   setHTML(result, html);
   renderDurianDisplay();
+  bindAIPanel();
   // 送客一声（尺八，收尾鞠躬）
   try { playClosingSound(); } catch (e) { /* 静默 */ }
+}
+
+// ===== AI 面板交互（主流程深度解读；动态 import 避免 ui.js <-> ui-render.js 循环依赖） =====
+function bindAIPanel() {
+  document.getElementById('aiReadBtn')?.addEventListener('click', () => {
+    import('../ui.js').then(m => m.triggerAI()).catch(() => {});
+  });
+  document.getElementById('copyPromptBtn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    try {
+      const { buildAIPrompt } = await import('../services/prompts.js');
+      const { copyTextWithFeedback } = await import('../utils/clipboard.js');
+      const prompt = await buildAIPrompt(state);
+      const ok = await copyTextWithFeedback(prompt, btn);
+      toast(ok ? '✅ 提示词已复制（含问题与领域），可粘贴到任何 AI 工具' : '复制失败，请长按手动复制');
+    } catch (err) {
+      toast('提示词生成失败：' + (err.message || '未知错误'), 2500, 'warning');
+    }
+  });
 }
 
 // ===== 牌堆渲染（含 draggable 属性） =====

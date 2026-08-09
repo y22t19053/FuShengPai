@@ -36,9 +36,11 @@ export const WX_COLORS = {
 };
 
 // ===== 辅助函数 =====
+import { pickRandom } from './utils/rng.js';
+
 export function pick(arr) {
   if (!arr || arr.length === 0) return '';
-  return arr[Math.floor(Math.random() * arr.length)];
+  return pickRandom(arr);
 }
 
 // ===== 差值强度（绝对值分级）=====
@@ -54,6 +56,16 @@ export function getIntensityLevel(diff) {
 export function getPhraseSet(phrasesObj, phraseType, intent) {
   const sets = phrasesObj[phraseType];
   if (!sets) return [];
-  if (intent && sets[intent] && Math.random() < 0.6) return sets[intent];
+  // 确定性选池：同一天同意图 → 同一种句池（不再 Math.random 每次不同）
+  if (intent && sets[intent]) {
+    let h = 0x811c9dc5;
+    const seed = phraseType + '|' + intent + '|' + todaySeedStr();
+    for (const ch of seed) { h ^= ch.charCodeAt(0); h = (h * 0x01000193) >>> 0; }
+    if (h % 100 < 60) return sets[intent];
+  }
   return sets.default || [];
+}
+function todaySeedStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }

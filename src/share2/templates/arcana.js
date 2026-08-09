@@ -22,7 +22,8 @@ export function renderArcanaHTML(data, qr) {
   const keywords = (data.keywords && data.keywords.length ? data.keywords : ['观牌', '知势']).slice(0, 4);
   let line = (data.line || data.quote || '它想对你说').replace(/^“|”$/g, '');
   // 签语限 42 字：与右下二维码同高的横向空间有限，超长截断保证两行内不重叠
-  if (line.length > 42) line = line.slice(0, 42) + '…';
+  const lineChars = Array.from(line);
+  if (lineChars.length > 42) line = lineChars.slice(0, 42).join('') + '…';
   const signTag = TAG_BY_WX[wx] || '今日一句';
   const note = pickBySeed(dateText, FOOTER_NOTES);
 

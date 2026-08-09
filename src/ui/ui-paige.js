@@ -3,37 +3,39 @@ import { state } from '../state.js';
 import { createDeck, shuffle } from '../engine.js';
 import { getCardColor, getWuxing } from '../data.js';
 import { getPaiGeQuestion } from '../texts/social.js';
+import { secureRandom } from '../utils/rng.js';
 import { runEngine } from '../engines/index.js';
 import { toast } from './ui-modal.js';
 import { escapeForHTML, setHTML } from '../utils/safe.js';
 import { playCardSound } from '../utils/sound.js';
+import { rawGet, rawSet, rawRemove } from '../storage.js';
 
 const STORAGE_KEY = 'fsp_paige';
 const HISTORY_KEY = 'fsp_history';
 
 export function getStoredPaiGe() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = rawGet(STORAGE_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
 }
 
 export function savePaiGe(card) {
   const data = { card, drawnAt: Date.now() };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  rawSet(STORAGE_KEY, JSON.stringify(data));
   // 保存后通知首页刷新牌灵卡
   import('./ui-render.js').then(m => m.renderPeriodCards()).catch(() => {});
   return data;
 }
 
 export function clearPaiGe() {
-  localStorage.removeItem(STORAGE_KEY);
+  rawRemove(STORAGE_KEY);
   import('./ui-render.js').then(m => m.renderPeriodCards()).catch(() => {});
 }
 
 export function getRealReadingCount() {
   try {
-    const history = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+    const history = JSON.parse(rawGet(HISTORY_KEY)) || [];
     return Array.isArray(history) ? history.length : 0;
   } catch { return 0; }
 }
@@ -146,7 +148,7 @@ function showPaiGeDraw(modal, content) {
   }
 
   document.getElementById('paigeRandomBtn')?.addEventListener('click', () => {
-    const idx = Math.floor(Math.random() * deck.length);
+    const idx = Math.floor(secureRandom() * deck.length);
     toast('✨ 天命已定，牌灵显现', 2400, 'success');
     flipPaiGeCard(idx, deck[idx]);
   });

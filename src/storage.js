@@ -64,6 +64,23 @@ function safeRemove(key) {
   }
 }
 
+// ---------- 原始存取透传（偏好类小数据统一走此层：带不可用降级，不 JSON 解析） ----------
+export function rawGet(key) {
+  try { return useLocalStorage ? localStorage.getItem(key) : (memoryStore.get(key) ?? null); }
+  catch (e) { return null; }
+}
+export function rawSet(key, value) {
+  try {
+    if (useLocalStorage) localStorage.setItem(key, value);
+    else memoryStore.set(key, value);
+    return true;
+  } catch (e) { console.warn('存储失败，数据未持久化:', e); return false; }
+}
+export function rawRemove(key) {
+  try { if (useLocalStorage) localStorage.removeItem(key); else memoryStore.delete(key); }
+  catch (e) { console.warn('删除存储失败:', e); }
+}
+
 // ---------- 历史记录 ----------
 /** periodKey 归一化：旧格式 '2026-8-6' → '2026-08-06'（与新 periodKeyFn 补零口径一致，兼容旧数据） */
 function normalizePeriodKey(key) {
