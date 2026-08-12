@@ -14,7 +14,16 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    assetsInlineLimit: 0
+    assetsInlineLimit: 0,
+    rollupOptions: {
+      output: {
+        // 拆大依赖为独立 chunk：主包更小、首屏更快，第三方库独立缓存（更新频率低，缓存友好）
+        manualChunks: {
+          lunar: ['lunar-javascript'],          // 真实黄历（约 300KB，仅首页黄历条/日运使用）
+          'share-dom': ['dom-to-image-more']     // 分享图 DOM→图片渲染（仅生成分享图时使用）
+        }
+      }
+    }
   },
   plugins: [
     VitePWA({

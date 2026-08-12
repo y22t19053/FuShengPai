@@ -134,17 +134,23 @@ function showPaiGeDraw(modal, content) {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       el.classList.add('card-holding');
       if (hint) hint.textContent = '想好了，就翻。';
+      // 捕获指针：手指滑出牌背时 pointerup 仍落在牌上，保证「点牌即开」在触屏不丢失
+      try { el.setPointerCapture(e.pointerId); } catch (_) { /* 部分环境不支持，忽略 */ }
       if (navigator.vibrate) navigator.vibrate(20);
     };
     const onUp = (e) => {
       if (paigeLocked) return;
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       el.classList.remove('card-holding');
+      try { if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId); } catch (_) { /* 忽略 */ }
       flipPaiGeCard(idx, deck[idx]);
+    };
+    const onCancel = () => {
+      el.classList.remove('card-holding');
     };
     el.addEventListener('pointerdown', onDown);
     el.addEventListener('pointerup', onUp);
-    el.addEventListener('pointercancel', () => el.classList.remove('card-holding'));
+    el.addEventListener('pointercancel', onCancel);
   }
 
   document.getElementById('paigeRandomBtn')?.addEventListener('click', () => {
