@@ -864,6 +864,10 @@ export function confirmTiYong() {
   if (deckEl) { deckEl.classList.add('shuffling'); setTimeout(() => deckEl.classList.remove('shuffling'), 700); }
   toast(UI_TEXTS.toastJokersInjected);
   refreshAll();
+  // 移动端：九宫格刚展开位于页面底部（此前在可视区之下，看不到宫位就没法放牌），自动滚入视口
+  if (gridArea && window.matchMedia('(pointer: coarse)').matches) {
+    setTimeout(() => gridArea.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  }
 }
 
 export function resetGrid() {
@@ -1319,6 +1323,16 @@ function bindAllEvents() {
           toast('已选中一张牌，点击上方目标位置或九宫格放置', 2000, 'info');
         }
         refreshAll();
+        // 移动端：选中后把放置目标（九宫格/体用栏）滚入视口，省去来回拉页面的往返操作
+        if (window.matchMedia('(pointer: coarse)').matches) {
+          const gridEl = document.getElementById('gridArea');
+          if (gridEl && gridEl.style.display !== 'none') {
+            gridEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } else {
+            const bar = document.getElementById('tiyongBar');
+            if (bar) bar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
       }
       return;
     }

@@ -383,6 +383,15 @@ export function renderStep1() {
       questionInput.style.zIndex = '3';
       persistQuestion();
     });
+    // 移动端输入完直接按键盘「前往/完成」即抽牌，不用再找按钮（按钮常被键盘遮挡）
+    questionInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        persistQuestion();
+        const btn = document.querySelector('[data-action="confirmQuestion"]');
+        if (btn) btn.click();
+      }
+    });
   }, 0);
 
   renderPeriodCards();
@@ -764,6 +773,11 @@ export function renderResultPreview(cards = [], opts = {}) {
   setHTML(result, html);
   const btn = document.getElementById('revealReadBtn');
   if (btn && typeof opts.onRead === 'function') btn.addEventListener('click', opts.onRead);
+  // 抽完牌把结果区滚入视口（移动端结果常在视口下方，抽完看不见牌要手动拉很久）
+  setTimeout(() => {
+    const el = document.getElementById('resultArea');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 80);
 }
 
 // ===== 完整解读结果（30 秒可读完：三句摘要在前，完整解读折叠） =====
@@ -772,15 +786,16 @@ export function renderFullReport(text, modules = null, summary = null) {
   const result = document.getElementById('resultArea');
   if (!result) return;
 
-  // 三句摘要 = 情绪卡（粉/黄系当日 --mood），边框/底色/建议行都随情绪色
+  // 三句摘要 = 情绪卡：当日 --mood 只作左边框点缀（小处），底用中性纸色保证可读性；
+  // 「一句建议」用主题鼠尾草绿（旧版 --mood 是粉/黄系，亮黄字+米黄底几乎不可读）
   const summaryHTML = `
-    <div style="background:var(--mood-soft);border-left:3px solid var(--mood);padding:12px 16px;border-radius:var(--r-hand-in);margin-bottom:12px;">
+    <div style="background:var(--panel);border-left:3px solid var(--mood);padding:12px 16px;border-radius:var(--r-hand-in);margin-bottom:12px;box-shadow:var(--cut-sm);">
       <div style="font-size:0.7rem;color:var(--dim);">此刻的你</div>
-      <div style="font-size:1.05rem;font-weight:bold;margin:4px 0;line-height:1.6;">${escapeForHTML(summary.status)}</div>
+      <div style="font-size:1.05rem;font-weight:bold;margin:4px 0;line-height:1.6;color:var(--text);">${escapeForHTML(summary.status)}</div>
       <div style="font-size:0.7rem;color:var(--dim);margin-top:8px;">一个提醒</div>
-      <div style="font-size:0.9rem;line-height:1.6;">${escapeForHTML(summary.reminder)}</div>
+      <div style="font-size:0.9rem;line-height:1.6;color:var(--text);">${escapeForHTML(summary.reminder)}</div>
       <div style="font-size:0.7rem;color:var(--dim);margin-top:8px;">一句建议</div>
-      <div style="font-size:0.9rem;line-height:1.6;color:var(--mood);">${escapeForHTML(summary.action)}</div>
+      <div style="font-size:0.9rem;line-height:1.6;color:var(--gold-mute);font-weight:600;">${escapeForHTML(summary.action)}</div>
     </div>
   `;
 

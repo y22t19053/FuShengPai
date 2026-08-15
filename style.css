@@ -1363,6 +1363,14 @@ select {
   box-shadow: inset 0 2px 3px rgba(var(--gold-mute-rgb), 0.08);
 }
 
+/* 输入框必须允许文本选择：上方触摸目标块对 input 也禁用了 user-select，
+   会导致移动端无法放置光标、无法选中/复制粘贴文本（输入体验极差） */
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 input:focus,
 textarea:focus,
 select:focus {
@@ -1862,6 +1870,22 @@ input[type='time']::-webkit-calendar-picker-indicator {
   }
 }
 
+/* 揭牌/读牌卡片弹出（renderResultPreview / 周期详情小牌引用，此前关键帧缺失导致无动画） */
+@keyframes revealPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @keyframes shuffling {
   0%,
   100% {
@@ -1992,6 +2016,16 @@ input[type='time']::-webkit-calendar-picker-indicator {
   /* 触摸端主按钮：更大的点击热区 */
   .btn-hero {
     min-height: 54px;
+  }
+}
+
+/* 触摸端/窄屏输入框：字体必须 ≥16px，否则 iOS Safari 聚焦时自动缩放页面（zoom in），
+   用户输入完还得手动缩放回去，非常难用。数字小输入框一并统一。 */
+@media (pointer: coarse), (max-width: 768px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
   }
 }
 
