@@ -3,7 +3,7 @@ import { state } from '../state.js';
 import {
   GONG_NAMES, ALL_LINES, TIME_LABELS, getCardId
 } from '../data.js';
-import { toast } from './ui-modal.js';
+import { toast } from './toast.js';
 import { refreshAll } from './ui-render.js';
 
 // ---------- 内部工具 ----------

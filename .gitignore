@@ -4,4 +4,6 @@ dist
 .DS_Store
 release
 dev-dist
+_backup
+_history
 

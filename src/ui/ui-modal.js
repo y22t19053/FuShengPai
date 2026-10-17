@@ -10,7 +10,9 @@ import {
 } from '../storage.js';
 import { UI_TEXTS, ONBOARDING_STEPS } from '../texts/index.js';
 import { buildMonthlyTension, monthlyTensionNote } from '../services/trend.js';
-import { renderTeachingPanel } from './ui-render.js';
+import { renderTeachingPanel, renderHistoryPanel, initSettingsPanel, initProfilePanel } from './ui-render.js';
+import { toast } from './toast.js';
+import { buildAIPrompt } from '../services/prompts.js';
 import { escapeForHTML, setHTML } from '../utils/safe.js';
 import { loadQRImage } from '../utils/qr.js';
 import { copyTextWithFeedback } from '../utils/clipboard.js';
@@ -20,37 +22,11 @@ import { resolveApiModel } from '../utils/api-config.js';
 import { buildShareData, buildSingleCardShareData } from '../share2/share-data.js';
 import { renderShareCardDOM } from '../share2/stage.js';
 
-export let toastTimer = null;
-
 // ===== 唯一文件名生成（毫秒级时间戳，终身不重名） =====
 export function getUniqueFilename(prefix = '浮生牌') {
   const now = new Date();
   const ts = now.toISOString().replace(/[:.]/g, '-');
   return `${prefix}_${ts}.png`;
-}
-
-export function toast(msg, duration = 2000, type = 'info') {
-  const el = document.getElementById('toast');
-  if (!el) return;
-  // 清空并重建（保证纯文本安全 + 进度条子元素）
-  el.innerHTML = '';
-  const text = document.createElement('span');
-  text.className = 'toast-msg';
-  text.textContent = msg;
-  const bar = document.createElement('div');
-  bar.className = 'toast-bar';
-  el.appendChild(text);
-  el.appendChild(bar);
-  el.classList.remove('toast-success', 'toast-warning', 'toast-info');
-  el.classList.add(type === 'success' ? 'toast-success' : type === 'warning' ? 'toast-warning' : 'toast-info');
-  el.style.setProperty('--toast-dur', duration + 'ms');
-  el.removeAttribute('hidden');
-  el.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    el.classList.remove('show');
-    setTimeout(() => el.setAttribute('hidden', ''), 400);
-  }, duration);
 }
 
 export function togglePanel(panelId) {
@@ -61,9 +37,9 @@ export function togglePanel(panelId) {
   if (isHidden) {
     panel.removeAttribute('hidden');
     if (panelId === 'teaching') renderTeachingPanel();
-    if (panelId === 'history') import('./ui-render.js').then(m => m.renderHistoryPanel());
-    if (panelId === 'settings') import('./ui-render.js').then(m => m.initSettingsPanel());
-    if (panelId === 'profile') import('./ui-render.js').then(m => m.initProfilePanel());
+    if (panelId === 'history') renderHistoryPanel();
+    if (panelId === 'settings') initSettingsPanel();
+    if (panelId === 'profile') initProfilePanel();
     // 面板较长（如教程）：滚动到面板顶部，避免与页尾内容视觉重叠
     setTimeout(() => {
       panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -140,7 +116,6 @@ export function showAIGuideModal() {
   });
   document.getElementById('copyPromptBtn2')?.addEventListener('click', async (e) => {
     const btn = e.currentTarget;
-    const { buildAIPrompt } = await import('../services/prompts.js');
     const prompt = await buildAIPrompt(state);
     const ok = await copyTextWithFeedback(prompt, btn);
     toast(ok ? '✅ 提示词已复制（含问题与领域），可粘贴到任何 AI 工具' : '复制失败，请长按手动复制');

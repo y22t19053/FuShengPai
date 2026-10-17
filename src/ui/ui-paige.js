@@ -5,7 +5,9 @@ import { getCardColor, getWuxing } from '../data.js';
 import { getPaiGeQuestion } from '../texts/social.js';
 import { secureRandom } from '../utils/rng.js';
 import { runEngine } from '../engines/index.js';
-import { toast } from './ui-modal.js';
+import { renderPeriodCards } from './ui-render.js';
+import { toast } from './toast.js';
+import { uiActions } from './actions.js';
 import { escapeForHTML, setHTML } from '../utils/safe.js';
 import { playCardSound } from '../utils/sound.js';
 import { rawGet, rawSet, rawRemove } from '../storage.js';
@@ -24,13 +26,13 @@ export function savePaiGe(card) {
   const data = { card, drawnAt: Date.now() };
   rawSet(STORAGE_KEY, JSON.stringify(data));
   // 保存后通知首页刷新牌灵卡
-  import('./ui-render.js').then(m => m.renderPeriodCards()).catch(() => {});
+  try { renderPeriodCards(); } catch (e) { /* 首页未就绪时忽略 */ }
   return data;
 }
 
 export function clearPaiGe() {
   rawRemove(STORAGE_KEY);
-  import('./ui-render.js').then(m => m.renderPeriodCards()).catch(() => {});
+  try { renderPeriodCards(); } catch (e) { /* 首页未就绪时忽略 */ }
 }
 
 export function getRealReadingCount() {
@@ -270,11 +272,11 @@ function showPaiGeDetail(modal, content, status) {
     // 先收起详情弹窗，避免分享面板与弹窗叠加遮挡
     const modalEl = document.getElementById('modal');
     if (modalEl) modalEl.setAttribute('hidden', '');
-    import('./ui-modal.js').then(mod => mod.generateShareImage({
+    uiActions.generateShareImage?.({
       type: 'paige',
       card,
       template: 'tarot' // 牌灵专属：五行青典（本名五星，无拉丁符号）
-    }));
+    });
   });
 
   document.getElementById('paigeRedrawBtn')?.addEventListener('click', () => {

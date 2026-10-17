@@ -28,6 +28,18 @@ function createWindow() {
   // 加载构建产物（先 npm run build）
   win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
 
+  // 主窗口只允许留在本地 file://；外链一律交给系统浏览器
+  win.webContents.on('will-navigate', (event, url) => {
+    try {
+      const target = new URL(url);
+      if (target.protocol === 'file:') return;
+      event.preventDefault();
+      if (target.protocol === 'http:' || target.protocol === 'https:') shell.openExternal(url);
+    } catch {
+      event.preventDefault();
+    }
+  });
+
   // 所有外部链接交给系统浏览器，不在壳内打开
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http')) shell.openExternal(url);
@@ -40,16 +52,20 @@ function createWindow() {
 ipcMain.handle('app:get-version', () => app.getVersion());
 
 // 分享图保存：弹原生「另存为」对话框，写 PNG 文件
+const MAX_SHARE_BASE64 = 40 * 1024 * 1024; // 约 30 MB PNG，防止渲染进程传超大字符串
 ipcMain.handle('dialog:save-share', async (event, base64, filename) => {
   try {
+    if (typeof base64 !== 'string' || !base64 || base64.length > MAX_SHARE_BASE64) return false;
     const win = BrowserWindow.fromWebContents(event.sender);
+    const suggested = path.basename(String(filename || '浮生牌分享.png'))
+      .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_') || '浮生牌分享.png';
     const res = await dialog.showSaveDialog(win, {
       title: '保存分享图',
-      defaultPath: filename || '浮生牌分享.png',
+      defaultPath: suggested,
       filters: [{ name: '图片', extensions: ['png'] }]
     });
     if (res.canceled || !res.filePath) return false;
-    const buf = Buffer.from(base64 || '', 'base64');
+    const buf = Buffer.from(base64, 'base64');
     if (!buf.length) return false;
     await fs.writeFile(res.filePath, buf);
     return true;
@@ -57,15 +73,6 @@ ipcMain.handle('dialog:save-share', async (event, base64, filename) => {
     console.error('保存分享图失败:', e);
     return false;
   }
-});
-
-// 在系统文件管理器中显示文件
-ipcMain.handle('shell:show-item', async (_e, filePath) => {
-  if (filePath && typeof filePath === 'string') {
-    shell.showItemInFolder(filePath);
-    return true;
-  }
-  return false;
 });
 
 app.whenReady().then(() => {

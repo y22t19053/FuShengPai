@@ -20,11 +20,14 @@ import { UI_TEXTS, HISTORY_EMPTY, PHYSICAL_GUIDE, STATUS_POOL, REMINDER_POOL, AC
 import { pick } from '../constants.js';
 import { calculateDurianIndex, getDurianColor } from '../durian.js';
 import { runEngine } from '../engines/index.js';
-import { toast } from './ui-modal.js';
+import { toast } from './toast.js';
+import { uiActions } from './actions.js';
 import { isCardPlaced } from './ui-drag.js';
 import { escapeForHTML, setHTML } from '../utils/safe.js';
 import { syncQuestionFromInput } from '../utils/flow-helpers.js';
-import { getSystem, setSystem } from '../mahjong-ui.js';
+import { getSystem, setSystem, openMahjongDaily, openMahjongDraw } from '../mahjong-ui.js';
+import { buildAIPrompt } from '../services/prompts.js';
+import { copyTextWithFeedback } from '../utils/clipboard.js';
 
 // 配色单一运行时来源：palettes.js 每日确定性调色板写入 :root（季节 accent 已停用，
 // 避免 season.js 与 palettes.js 双写 --accent 竞态；节气副题文案仍走 getSeasonInfo）
@@ -217,9 +220,9 @@ function bindHeroActions() {
   // 今日运势/今日手气：扑克=综合日运，麻将=每日一张手气
   document.getElementById('quickDailyBtn')?.addEventListener('click', () => {
     if (getSystem() === 'mahjong') {
-      import('../mahjong-ui.js').then(m => m.openMahjongDaily());
+      openMahjongDaily();
     } else {
-      import('../ui.js').then(m => m.openPeriodDeck('daily'));
+      uiActions.openPeriodDeck?.('daily');
     }
   });
 
@@ -236,9 +239,9 @@ function bindHeroActions() {
       btn.classList.remove('shuffling');
       btn.textContent = orig;
       if (getSystem() === 'mahjong') {
-        import('../mahjong-ui.js').then(m => m.openMahjongDraw());
+        openMahjongDraw();
       } else {
-        import('../ui.js').then(m => m.lazyStart());
+        uiActions.lazyStart?.();
       }
     }, 420);
   });
@@ -594,16 +597,16 @@ export function renderTodayFortuneStrip() {
     import('./ui-paige.js').then(m => m.openPaiGe());
   });
   el.querySelector('#drawDailyBannerBtn')?.addEventListener('click', () => {
-    import('./ui-modal.js').then(m => m.showDailyFortunePicker());
+    uiActions.showDailyFortunePicker?.();
   });
   el.querySelector('#paigeBannerShareBtn')?.addEventListener('click', () => {
     if (paigeCard) {
-      import('./ui-modal.js').then(m => m.generateShareImage({ type: 'paige', card: paigeCard, template: 'tarot' }));
+      uiActions.generateShareImage?.({ type: 'paige', card: paigeCard, template: 'tarot' });
     }
   });
   el.querySelector('#dailyBannerShareBtn')?.addEventListener('click', () => {
     if (dailyCard) {
-      import('./ui-modal.js').then(m => m.generateShareImage({ type: 'daily', card: dailyCard, typeKey: dailyTypeKey, fortuneType: dailyTypeKey, template: 'daily' }));
+      uiActions.generateShareImage?.({ type: 'daily', card: dailyCard, typeKey: dailyTypeKey, fortuneType: dailyTypeKey, template: 'daily' });
     }
   });
 }
@@ -844,16 +847,14 @@ export function renderFullReport(text, modules = null, summary = null) {
   try { playClosingSound(); } catch (e) { /* 静默 */ }
 }
 
-// ===== AI 面板交互（主流程深度解读；动态 import 避免 ui.js <-> ui-render.js 循环依赖） =====
+// ===== AI 面板交互（主流程深度解读；动作经 uiActions 注册，避免循环依赖） =====
 function bindAIPanel() {
   document.getElementById('aiReadBtn')?.addEventListener('click', () => {
-    import('../ui.js').then(m => m.triggerAI()).catch(() => {});
+    uiActions.triggerAI?.();
   });
   document.getElementById('copyPromptBtn')?.addEventListener('click', async (e) => {
     const btn = e.currentTarget;
     try {
-      const { buildAIPrompt } = await import('../services/prompts.js');
-      const { copyTextWithFeedback } = await import('../utils/clipboard.js');
       const prompt = await buildAIPrompt(state);
       const ok = await copyTextWithFeedback(prompt, btn);
       toast(ok ? '✅ 提示词已复制（含问题与领域），可粘贴到任何 AI 工具' : '复制失败，请长按手动复制');

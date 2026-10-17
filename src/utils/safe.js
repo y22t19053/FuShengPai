@@ -7,8 +7,9 @@ export function escapeForHTML(text) {
   return div.innerHTML;
 }
 
-// 核心安全防护：用 <template> 解析，再转移节点
-// 这样内联 <img onerror=...>、<script> 不会被执行
+// 注意：这不是消毒函数。<script> 不会执行，但 <img onerror> 等事件属性
+// 在节点插入 DOM 后仍会触发。只允许传入已转义/可信的 HTML；
+// 用户内容或 AI 输出必须先经 escapeForHTML 处理。
 export function setHTML(element, html) {
   if (!element) return;
   const template = document.createElement('template');

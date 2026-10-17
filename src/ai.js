@@ -105,9 +105,7 @@ export async function requestFollowUp({
   if (!apiKey) throw new Error('未配置 API Key');
 
   const providerName = provider || 'deepseek';
-  let ep = endpoint || '';
-  if (ep.endsWith('/v1')) ep = ep.slice(0, -3);
-  if (ep.endsWith('/')) ep = ep.slice(0, -1);
+  const ep = normalizeEndpoint(endpoint);
 
   const url = buildUrl(ep, providerName);
   const baseTokens = maxTokens || DEFAULT_MAX_TOKENS;
@@ -169,9 +167,7 @@ export async function testApiConnection({
 }) {
   try {
     const providerName = provider || 'deepseek';
-    let ep = endpoint || '';
-    if (ep.endsWith('/v1')) ep = ep.slice(0, -3);
-    if (ep.endsWith('/')) ep = ep.slice(0, -1);
+    const ep = normalizeEndpoint(endpoint);
 
     const testModel = model || 'gpt-3.5-turbo';
     const url = buildUrl(ep, providerName);
@@ -226,29 +222,32 @@ export async function testApiConnection({
 }
 
 // ---------- 构建 URL ----------
+// 统一归一化：去空格、去末尾斜杠、去掉结尾的 /v1，
+// 避免用户粘贴 "https://api.deepseek.com/v1/" 时拼出 /v1/v1/chat/completions
+export function normalizeEndpoint(endpoint) {
+  let ep = String(endpoint || '').trim().replace(/\/+$/, '');
+  if (ep.endsWith('/v1')) ep = ep.slice(0, -3);
+  return ep;
+}
+
 export function buildGeminiUrl(endpoint, provider, model) {
-  const base = (endpoint || '').replace(/\/$/, '');
+  const base = String(endpoint || '').trim().replace(/\/+$/, '');
   if (provider === 'gemini' && base) {
     return `${base}/models/${encodeURIComponent(model || 'gemini-2.0-flash')}:generateContent`;
   }
   return `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model || 'gemini-2.0-flash')}:generateContent`;
 }
 
-function buildUrl(endpoint, provider) {
-  if (!endpoint) throw new Error('API 地址不能为空');
-  let ep = endpoint;
+export function buildUrl(endpoint, provider) {
+  const ep = normalizeEndpoint(endpoint);
+  if (!ep) throw new Error('API 地址不能为空');
   if (provider === 'claude') {
     // Claude 使用不同的端点结构（默认 https://api.anthropic.com/v1）
-    // 先剥掉可能自带的 /v1，再统一拼 /v1/messages，避免拼出 /v1/v1/messages
     if (ep.endsWith('/v1/messages')) return ep;
-    if (ep.endsWith('/v1')) ep = ep.slice(0, -3);
-    if (ep.endsWith('/')) ep = ep.slice(0, -1);
     return ep + '/v1/messages';
   }
   // OpenAI 兼容方式
-  if (ep.endsWith('/v1')) return ep + '/chat/completions';
   if (ep.endsWith('/chat/completions')) return ep;
-  if (ep.endsWith('/')) return ep + 'v1/chat/completions';
   return ep + '/v1/chat/completions';
 }
 

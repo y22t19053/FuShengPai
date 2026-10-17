@@ -10,12 +10,14 @@ import {
   bindScrollButtons, renderPeriodCards, renderCategoryArea, renderConsultArea
 } from './ui/ui-render.js';
 import {
-  toast, showOnboarding, showDurianReport, showReportsModal,
+  showOnboarding, showDurianReport, showReportsModal,
   renderPeriodReportInto, replayTimelineEntry,
   togglePanel, showHistoryDetail, generateShareCode,
   importShareCode, generateShareImage, saveShareImage, copyShareImage, showAIGuideModal,
-  showDataMigrationModal, showDailyFortunePicker, renderMonthlyTensionInto
+  showDataMigrationModal, showDailyFortunePicker, showRewardModal, renderMonthlyTensionInto
 } from './ui/ui-modal.js';
+import { toast } from './ui/toast.js';
+import { registerUIActions } from './ui/actions.js';
 import {
   initDrag, setLine, findCardById, isCardPlaced,
   placeCardOnTiYong, placeCardOnGong, sealDeck
@@ -1210,11 +1212,11 @@ export function handleAction(action, dataset, el = null) {
       break;
     case 'openRepo': window.open('https://github.com/y22t19053/FuShengPai', '_blank'); break;
     case 'showReward': {
-      import('./ui/ui-modal.js').then(m => m.showRewardModal());
+      showRewardModal();
       break;
     }
     case 'showDataMigration': {
-      import('./ui/ui-modal.js').then(m => m.showDataMigrationModal());
+      showDataMigrationModal();
       break;
     }
     case 'openPaiGe': {
@@ -1260,7 +1262,7 @@ export function handleAction(action, dataset, el = null) {
       // 走东方国风日运模板（宣纸 + 朱砂印章），不再落到旧版日运报告卡
       const shareArgs = { type: 'daily', card, typeKey, fortuneType, template: 'daily' };
       state.shareLast = shareArgs;
-      import('./ui/ui-modal.js').then(m => m.generateShareImage(shareArgs));
+      generateShareImage(shareArgs);
       break;
     }
     case 'toggleShareTemplate': {
@@ -1270,7 +1272,7 @@ export function handleAction(action, dataset, el = null) {
       const nextTemplate = last.template === 'oracle' ? 'daily' : 'oracle';
       const next = { ...last, template: nextTemplate };
       state.shareLast = next;
-      import('./ui/ui-modal.js').then(m => m.generateShareImage(next));
+      generateShareImage(next);
       break;
     }
     case 'closeClarify': { const guide = document.getElementById('clarifyGuide'); if (guide) guide.style.display = 'none'; break; }
@@ -1441,6 +1443,8 @@ function init() {
     if (ep && !ep.value) ep.value = API_PROVIDERS.deepseek.endpoint;
     if (!hasCompletedOnboarding()) showOnboarding();
     injectAnimations();
+    // 注册跨模块动作，ui-render 不再动态 import ui.js
+    registerUIActions({ openPeriodDeck, lazyStart, triggerAI, showDailyFortunePicker, generateShareImage });
     bindAllEvents();
     initPWA();
     document.addEventListener('fsp-pwa-installed', () => {

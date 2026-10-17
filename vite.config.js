@@ -1,9 +1,32 @@
 // ===== vite.config.js =====
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { readFileSync } from 'node:fs';
+
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+
+// 内容安全策略：只允许同源脚本；样式允许内联（现有大量 style=）；
+// 连接允许 https/http（用户可填任意 AI 端点）；图片/媒体允许 data:、blob: 供分享图使用。
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' file:",
+  "style-src 'self' 'unsafe-inline' file:",
+  "img-src 'self' data: blob: file:",
+  "font-src 'self' data: file:",
+  "connect-src 'self' https: http: file:",
+  "media-src 'self' data: blob: file:",
+  "worker-src 'self' blob: file:",
+  "manifest-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'none'"
+].join('; ');
 
 export default defineConfig({
   base: './',
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version)
+  },
   server: {
     host: true,
     port: 5173,
@@ -26,6 +49,18 @@ export default defineConfig({
     }
   },
   plugins: [
+    {
+      // 只在构建产物里注入 CSP，避免影响 vite dev 的 HMR 内联脚本
+      name: 'fsp-inject-csp',
+      apply: 'build',
+      transformIndexHtml() {
+        return [{
+          tag: 'meta',
+          attrs: { 'http-equiv': 'Content-Security-Policy', content: CSP },
+          injectTo: 'head-prepend'
+        }];
+      }
+    },
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icons/fsp-icon.svg'],
@@ -99,7 +134,8 @@ export default defineConfig({
     })
   ],
   test: {
-    include: ['**/*.test.js'],
+    include: ['tests/**/*.test.js'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/_history/**', '**/release/**'],
     environment: 'node'
   }
 });

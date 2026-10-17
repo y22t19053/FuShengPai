@@ -9,7 +9,5 @@ contextBridge.exposeInMainWorld('fspDesktop', {
   // 获取应用版本号（来自 package.json）
   getVersion: () => ipcRenderer.invoke('app:get-version'),
   // 分享图走原生「另存为」对话框（参数：base64 PNG、建议文件名）
-  saveShareFile: (base64, filename) => ipcRenderer.invoke('dialog:save-share', base64, filename),
-  // 打开系统文件管理器（可选，未来备份目录用）
-  showItemInFolder: (filePath) => ipcRenderer.invoke('shell:show-item', filePath)
+  saveShareFile: (base64, filename) => ipcRenderer.invoke('dialog:save-share', base64, filename)
 });

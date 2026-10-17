@@ -79,11 +79,14 @@ describe('牌型判定 detectPattern', () => {
   });
 
   it('概率粗验：杂牌占绝对多数（~93%）', () => {
-    const wall = buildWall();
+    let wall = buildWall();
     let zapai = 0;
     const N = 3000;
     for (let i = 0; i < N; i++) {
-      const { drawn } = drawFromWall(wall, 3);
+      // 每次消耗牌墙，避免 3000 次都摸到同一手牌（原测试的随机波动来源）
+      if (wall.length < 3) wall = buildWall();
+      const { drawn, wall: rest } = drawFromWall(wall, 3);
+      wall = rest;
       if (detectPattern(drawn) === 'zapai') zapai++;
     }
     expect(zapai / N).toBeGreaterThan(0.85); // 93% ± 容差

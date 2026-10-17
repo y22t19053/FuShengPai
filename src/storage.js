@@ -288,7 +288,7 @@ export function getPaige() {
 }
 
 // ---------- 导出 / 导入（UIGF 风格统一格式：info 元数据 + records 记录数组） ----------
-const APP_VERSION = '1.0.0';
+const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0';
 
 function buildInfo() {
   const d = new Date();
@@ -325,15 +325,22 @@ function historyToRecords(history) {
     .filter(Boolean);
 }
 
-export function exportAllDataJson() {
+export function exportAllDataJson({ includeSecrets = false } = {}) {
   const history = getHistory();
+  // 安全：默认不导出 API Key / 自定义请求头，避免备份文件被转发后泄露密钥
+  const settings = getApiSettings();
+  const exportSettings = settings && typeof settings === 'object' ? { ...settings } : null;
+  if (exportSettings && !includeSecrets) {
+    delete exportSettings.apiKey;
+    delete exportSettings.headers;
+  }
   const data = {
     info: buildInfo(),
     version: 2,
     records: historyToRecords(history),
     history,
     profile: getProfile(),
-    settings: getApiSettings(),
+    settings: exportSettings,
     timeline: getTimeline(),
     timeCapsule: getTimeCapsule(),
     drawTimestamps: getDrawTimestamps(),
@@ -417,9 +424,9 @@ export function importAllData(jsonStr) {
   }
 }
 
-// 导出全部数据（触发下载）
-export function exportAllData() {
-  const json = exportAllDataJson();
+// 导出全部数据（触发下载；默认脱敏，不含 API Key / 自定义请求头）
+export function exportAllData(options = {}) {
+  const json = exportAllDataJson(options);
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
