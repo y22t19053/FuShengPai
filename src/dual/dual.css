@@ -53,7 +53,13 @@ button { font-family: inherit; cursor: pointer; }
   font-size: 0.72rem; font-weight: 700; letter-spacing: 1px;
   border: 1px solid rgba(77, 143, 126, 0.25);
 }
-.hero { padding: 64px 0 34px; }
+.hero { padding: 56px 0 20px; display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 34px; align-items: center; }
+.hero-right img { width: 100%; max-width: 360px; display: block; margin-left: auto; border-radius: 14px; box-shadow: 0 18px 44px rgba(58,52,37,0.18); border: 1px solid var(--line); }
+@media (max-width: 900px) { .hero { grid-template-columns: 1fr; } .hero-right { display: none; } }
+.steps-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 22px; color: var(--faint); font-size: 0.8rem; }
+.steps-bar span { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,0.35); }
+.steps-bar span.on { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); font-weight: 700; }
+.steps-bar i { font-style: normal; color: var(--faint); }
 .hero h1 {
   margin: 18px 0 14px; font-size: clamp(2rem, 5vw, 3.4rem);
   line-height: 1.18; letter-spacing: 1px; font-weight: 900;
