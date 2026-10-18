@@ -1,10 +1,11 @@
 // ===== src/dual/main.js · 对读模式：占卜师发牌局 → 客户自己抽 → 凭证复现 → 对读回执 =====
 import { qrSVGHTML } from '../utils/qr.js';
 import {
-  TIERS, makeRoom, decodeRoom, drawTwoCards, makeVoucher, encodeVoucher,
+  TIERS, DECKS, makeRoom, decodeRoom, drawTwoCards, makeVoucher, encodeVoucher,
   decodeVoucher, cardsFromVoucher, buildReading, visibleForTier,
   buildReceiptText, cardName, todayStr,
 } from './room.js';
+import { drawTarot } from './tarot.js';
 import { CONFIG } from './config.js';
 import { downloadReceipt } from './receipt-download.js';
 import { renderReceiptHTML } from './receipt-html.js';
@@ -103,6 +104,23 @@ function tierContentHTML(reading, tier) {
   return html.join('');
 }
 
+function tarotCardHTML(card, showPos = true) {
+  return `<div style="text-align:center">
+    <div class="tarot-card">
+      ${showPos ? `<div class="tc-pos">${card.positionLabel || ''}</div>` : ''}
+      <div class="tc-name">${card.name}</div>
+      <div class="tc-orient ${card.orientation === -1 ? 'rev' : ''}">${card.orientationLabel || ''}</div>
+    </div>
+  </div>`;
+}
+
+function tarotReadingHTML(reading, tier) {
+  return `<div style="margin-top:14px;font-size:0.86rem;line-height:1.9;color:var(--dim)">
+    ${reading.cards.map((c) => `<div>${tier === 'A' ? '' : `<b style="color:var(--ink)">${c.positionLabel}：</b>`}${c.name} · ${c.orientationLabel}</div>`).join('')}
+    <div class="hint" style="margin-top:8px">塔罗牌面只做记录，不提供解读；怎么解由占卜师说。</div>
+  </div>`;
+}
+
 function stepsBar(active) {
   const items = ['发给客户', '她自己抽', '你复现', '出回执'];
   return `<div class="steps-bar">${items.map((t, i) => `<span class="${i === active ? 'on' : ''}">${i + 1}. ${t}</span>`).join('<i>→</i>')}</div>`;
@@ -128,8 +146,8 @@ function renderHost() {
     <section class="hero">
       <div class="hero-left">
         <span class="badge">给在线接单的占卜师</span>
-        <h1>牌是她抽的，<br />不是你说的。</h1>
-        <p class="lead">占卜师发一条链接，客户在自己手机上抽两张牌，抽完把凭证发给你。你输入凭证，看到同一场牌局，再给解读。回执可以存下来，牌面、时间、你的话都在上面。</p>
+        <h1>牌是她抽的，<br />不是你给的。</h1>
+        <p class="lead">塔罗、扑克都行。客户在自己手机上抽牌，抽完把凭证发给你。你输入凭证，看到同一场牌局，再给解读。回执可以存下来，牌面、时间、你的话都在上面。</p>
         <div class="cta-row">
           <a class="btn primary" href="#builder">建一个牌局</a>
           <a class="btn ghost" href="?receipt=demo" target="_blank" rel="noopener">先看一张回执</a>
@@ -158,6 +176,12 @@ function renderHost() {
           <label class="field"><span>你的名字</span><input id="hostName" placeholder="客户看到的名字" value="阿岚" /></label>
           <label class="field"><span>落款（可不填）</span><input id="hostBrand" placeholder="你的账号名/牌室名" value="" /></label>
           <label class="field"><span>联系方式（客户咨询用，可不填）</span><input id="hostContact" placeholder="微信号 / 小红书号" /></label>
+          <label class="field"><span>用什么牌</span>
+            <select id="deck">
+              <option value="poker">扑克牌（浮生牌体系，站点给结构）</option>
+              <option value="tarot">塔罗牌（只记录牌面和正逆位）</option>
+            </select>
+          </label>
           <label class="field"><span>给客户看多少</span>
             <select id="tier">
               <option value="A">只给牌面 + 宜忌（解读全靠你说）</option>
@@ -259,11 +283,15 @@ function renderHost() {
       contact: document.getElementById('hostContact').value.trim(),
       tier: document.getElementById('tier').value,
       area: document.getElementById('area').value,
+      deck: document.getElementById('deck').value,
     });
     saveRoom(room);
     const link = roomLink(room.code);
-    const tierText = room.tier === 'A' ? '牌面和宜忌' : room.tier === 'B' ? '牌面、两个牌的关系和一句提醒' : '完整结构';
-    const invite = `你点这个链接，自己抽两张牌：${link}\n\n抽完页面会给一串凭证，复制发我。牌是你抽的，规则在页面上，我改不了。你看到的是${tierText}，具体怎么解我来跟你说。`;
+    const tierText = room.deck === 'tarot'
+      ? (room.tier === 'A' ? '牌面' : '牌面、位置和正逆位')
+      : (room.tier === 'A' ? '牌面和宜忌' : room.tier === 'B' ? '牌面、两个牌的关系和一句提醒' : '完整结构');
+    const drawText = room.deck === 'tarot' ? '抽三张塔罗（页面会记正逆位）' : '抽两张扑克牌';
+    const invite = `你点这个链接，自己${drawText}：${link}\n\n抽完页面会给一串凭证，复制发我。牌是你抽的，规则在页面上，我改不了。你看到的是${tierText}，具体怎么解我来跟你说。`;
     document.getElementById('roomResult').classList.add('show');
     document.getElementById('roomTier').textContent = `${room.tier} 档`;
     document.getElementById('roomLink').textContent = link;
@@ -286,19 +314,21 @@ function renderHost() {
     if (!voucher) { out.innerHTML = '<p class="muted" style="color:var(--red)">这串不对，让客户重新复制一次。</p>'; return; }
     const room = decodeRoom(voucher.rc);
     if (!room) { out.innerHTML = '<p class="muted" style="color:var(--red)">房间信息不在里面，让客户再发一次。</p>'; return; }
-    const reading = buildReading(room, cardsFromVoucher(voucher));
+    const reading = buildReading(room, cardsFromVoucher(voucher, voucher.d || room.deck));
     room.link = roomLink(voucher.rc);
     let anchorInfo = { mode: 'local', anchored_at: voucher.ts };
+    const cardsHTML = reading.deck === 'tarot'
+      ? `<div class="tarot-row">${reading.cards.map((c) => tarotCardHTML(c)).join('')}</div>${tarotReadingHTML(reading, 'C')}`
+      : `<div class="draw-row">${cardHTML(reading.cards[0], '体')}${cardHTML(reading.cards[1], '用')}</div>${tierContentHTML(reading, 'C')}`;
     out.innerHTML = `
       <div class="voucher-box">
         <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
-          <b>${voucher.fp}</b><span class="muted">${new Date(voucher.ts).toLocaleString('zh-CN')} · ${room.area} · ${room.tier} 档</span>
+          <b>${voucher.fp}</b><span class="muted">${new Date(voucher.ts).toLocaleString('zh-CN')} · ${room.area} · ${DECKS[room.deck]?.name || '扑克牌'} · ${room.tier} 档</span>
         </div>
         ${voucher.q ? `<div style="margin-top:8px;font-size:0.88rem"><b>她问的是：</b>${voucher.q}</div>` : ''}
         <div class="muted" id="anchorState" style="margin-top:6px">时间记录：本地</div>
       </div>
-      <div class="draw-row">${cardHTML(reading.cards[0], '体')}${cardHTML(reading.cards[1], '用')}</div>
-      ${tierContentHTML(reading, 'C')}
+      ${cardsHTML}
       <label class="field" style="margin-top:16px"><span>你给她的解读（会写进回执）</span><textarea id="hostNote" placeholder="说人话，说具体的。"></textarea></label>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn primary" id="btnReceipt">复制回执文字</button>
@@ -345,7 +375,9 @@ function renderHost() {
 
 /* ---------------- 客户视角 ---------------- */
 function renderSitter(room) {
-  const tierText = room.tier === 'A' ? '牌面和宜忌' : room.tier === 'B' ? '牌面、两个牌的关系和一句提醒' : '完整结构';
+  const tierText = room.deck === 'tarot'
+    ? (room.tier === 'A' ? '牌面' : '牌面、位置和正逆位')
+    : (room.tier === 'A' ? '牌面和宜忌' : room.tier === 'B' ? '牌面、两个牌的关系和一句提醒' : '完整结构');
   app.innerHTML = `
   <header class="site-header">
     <div class="logo">${room.host.brand || room.host.name} <em>· 对读</em></div>
@@ -371,14 +403,15 @@ function renderSitter(room) {
 
   document.getElementById('btnDraw').addEventListener('click', () => {
     const question = document.getElementById('question').value.trim();
-    const cards = drawTwoCards();
+    const cards = room.deck === 'tarot' ? drawTarot(3) : drawTwoCards();
     const voucher = makeVoucher(room.code, cards, question);
     const reading = buildReading(room, cards);
     const out = document.getElementById('readingOut');
     document.getElementById('drawArea').style.display = 'none';
     out.innerHTML = `
-      <div class="draw-row">${cardHTML(reading.cards[0], '体')}${cardHTML(reading.cards[1], '用')}</div>
-      ${tierContentHTML(reading, room.tier)}
+      ${reading.deck === 'tarot'
+        ? `<div class="tarot-row">${reading.cards.map((c) => tarotCardHTML(c)).join('')}</div>${tarotReadingHTML(reading, room.tier)}`
+        : `<div class="draw-row">${cardHTML(reading.cards[0], '体')}${cardHTML(reading.cards[1], '用')}</div>${tierContentHTML(reading, room.tier)}`}
       <div class="voucher-box">
         <div style="font-size:0.82rem;color:var(--dim);margin-bottom:6px">把下面这串发给${room.host.name}，对方就能看到这场牌局：</div>
         <div class="code-box" id="voucherCode">${encodeVoucher(voucher)}</div>

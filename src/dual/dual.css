@@ -124,6 +124,16 @@ textarea { resize: vertical; min-height: 78px; }
 .card-face.red { color: #b03a2e; }
 .card-face.black { color: #2f2b22; }
 .draw-row { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; margin: 18px 0; }
+.tarot-row { display: flex; gap: 12px; margin: 18px 0; flex-wrap: nowrap; justify-content: center; }
+.tarot-card {
+  flex: 0 1 150px; min-width: 0; min-height: 178px; border-radius: 12px; background: #fdfaf1;
+  border: 1px solid rgba(58, 52, 37, 0.35); box-shadow: 0 8px 18px rgba(58, 52, 37, 0.14);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 10px;
+}
+.tarot-card .tc-pos { font-size: 0.68rem; color: var(--faint); letter-spacing: 3px; }
+.tarot-card .tc-name { font-size: 0.95rem; font-weight: 800; color: var(--ink); text-align: center; line-height: 1.35; }
+.tarot-card .tc-orient { font-size: 0.68rem; color: var(--accent); border: 1px solid var(--line-strong); border-radius: 999px; padding: 2px 10px; }
+.tarot-card .tc-orient.rev { color: var(--red); }
 .voucher-box { margin-top: 18px; padding: 16px; border-radius: 16px; background: rgba(77, 143, 126, 0.07); border: 1px solid rgba(77, 143, 126, 0.22); }
 .voucher-box .code-box { background: rgba(255, 255, 255, 0.55); }
 .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 14px 0; }
