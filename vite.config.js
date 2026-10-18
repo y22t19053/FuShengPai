@@ -39,6 +39,7 @@ export default defineConfig({
     outDir: 'dist',
     assetsInlineLimit: 0,
     rollupOptions: {
+      input: { main: 'index.html', dual: 'dual.html' },
       output: {
         // 拆大依赖为独立 chunk：主包更小、首屏更快，第三方库独立缓存（更新频率低，缓存友好）
         manualChunks: {
