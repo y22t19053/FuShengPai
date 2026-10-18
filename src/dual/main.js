@@ -5,10 +5,21 @@ import {
   decodeVoucher, cardsFromVoucher, buildReading, visibleForTier,
   buildReceiptText, cardName, todayStr,
 } from './room.js';
+import { CONFIG } from './config.js';
+import { downloadReceipt } from './receipt-download.js';
+import { renderReceiptHTML } from './receipt-html.js';
+import { verifyLicenseCode, saveLicense, getLicense, isPro, planLabel } from './license.js';
+import { anchorVoucher } from './anchor.js';
 
 const app = document.getElementById('dualApp');
 const params = new URLSearchParams(location.search);
 const ROOM_KEY = 'fsp_dual_rooms';
+
+// 调试/自动化钩子（不影响普通用户）：控制台可调卡密验证、读取配置
+if (typeof window !== 'undefined') {
+  window.__fspVerifyLicense = verifyLicenseCode;
+  window.__fspConfig = CONFIG;
+}
 
 /* ---------------- 小工具 ---------------- */
 function toast(msg) {
@@ -190,8 +201,8 @@ function renderHost() {
         <div class="card price-card featured">
           <div class="pill" style="background:var(--accent);color:#fffdf6;border-color:transparent">内测价</div>
           <div class="price">¥99 <small>/年 · 原价 ¥199</small></div>
-          <ul><li>房间不限期保存 + 历史回看</li><li>落款/配色/联系方式的品牌位</li><li>对读回执 + 客户转发海报（下一版）</li><li>前 5 位锁价，随时可退</li></ul>
-          <button class="btn primary" id="btnOpenContact">复制我的联系方式</button>
+          <ul><li>房间不限期保存 + 历史回看</li><li>落款/配色/联系方式的品牌位</li><li>对读回执海报（去浮生牌水印）</li><li>前 5 位锁价，随时可退</li></ul>
+          <button class="btn primary" id="btnBuy">去爱发电买卡密</button>
         </div>
         <div class="card price-card">
           <div class="pill">白标</div>
@@ -199,6 +210,17 @@ function renderHost() {
           <ul><li>换成你的品牌名 / 配色 / 域名</li><li>去掉浮生牌落款</li><li>适合塔罗工作室/博主</li></ul>
           <button class="btn ghost" id="btnWhite">咨询白标</button>
         </div>
+      </div>
+      <div class="panel" style="margin-top:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <h3 style="margin:0">已购买卡密？在这里开通</h3>
+          <span class="pill" id="planBadge">当前：${planLabel()}</span>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+          <input id="licenseIn" placeholder="粘贴 FSP1.xxxxx 卡密" style="flex:1;min-width:220px" />
+          <button class="btn primary" id="btnLicense">验证并开通</button>
+        </div>
+        <p class="hint" style="margin-top:10px">卡密离线校验（Ed25519），不联网、不绑账号；开通后回执海报去掉浮生牌水印。</p>
       </div>
     </section>
 
@@ -266,19 +288,48 @@ function renderHost() {
       <div class="draw-row">${cardHTML(reading.cards[0], '体')}${cardHTML(reading.cards[1], '用')}</div>
       ${tierContentHTML(reading, 'C')}
       <label class="field" style="margin-top:14px"><span>你的解读（会写进对读回执）</span><textarea id="hostNote" placeholder="例：体用相克，这件事不是不能做，而是顺序错了。先把 X 放一放……"></textarea></label>
-      <button class="btn primary" id="btnReceipt">复制对读回执</button>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn primary" id="btnReceipt">复制对读回执</button>
+        <button class="btn ghost" id="btnReceiptPoster">生成回执海报 PNG</button>
+      </div>
+      <div class="muted" id="anchorState" style="margin-top:10px">时间锚定：本地记录</div>
     `;
+    room.link = `${location.origin}${location.pathname}?room=${encodeURIComponent(voucher.rc)}`;
+    let anchorInfo = { mode: 'local', anchored_at: voucher.ts };
+    const anchorState = document.getElementById('anchorState');
+    anchorVoucher(voucher).then((a) => {
+      anchorInfo = a;
+      if (a.mode === 'server') anchorState.textContent = `时间锚定：已公证 ${a.id || ''} · ${new Date(a.anchored_at).toLocaleString('zh-CN')}`;
+      else anchorState.textContent = `时间锚定：本地记录 · ${new Date(a.anchored_at).toLocaleString('zh-CN')}${a.error ? '（未配置公证服务）' : ''}`;
+    });
     document.getElementById('btnReceipt').onclick = () => {
       const note = document.getElementById('hostNote').value.trim();
       copyText(buildReceiptText(room, voucher, reading, note));
     };
+    document.getElementById('btnReceiptPoster').onclick = async () => {
+      const note = document.getElementById('hostNote').value.trim();
+      try {
+        await downloadReceipt({ room, voucher, reading, hostNote: note, anchor: anchorInfo, pro: isPro(), variant: 'host' });
+        toast('回执海报已生成');
+      } catch (e) { toast('生成失败：' + e.message); }
+    };
     toast('牌局已复现');
   });
 
-  document.getElementById('btnOpenContact').onclick = () => {
-    const contact = document.getElementById('hostContact').value.trim();
-    if (!contact) { toast('先在左侧填一下你的联系方式'); document.getElementById('hostContact').focus(); return; }
-    copyText(contact);
+  document.getElementById('btnBuy').onclick = () => {
+    if (CONFIG.buyUrl && !CONFIG.buyUrl.includes('your-name')) window.open(CONFIG.buyUrl, '_blank', 'noopener');
+    else copyText(CONFIG.contact || 'wx: your-wechat');
+    toast('购买后把卡密粘到上方输入框即可开通');
+  };
+  document.getElementById('btnLicense').onclick = async () => {
+    const code = document.getElementById('licenseIn').value.trim();
+    const badge = document.getElementById('planBadge');
+    if (!code) { toast('先粘贴卡密'); return; }
+    const result = await verifyLicenseCode(code);
+    if (!result.ok) { toast(result.error || '卡密无效'); return; }
+    saveLicense(result.license);
+    badge.textContent = `当前：${planLabel()}`;
+    toast(`已开通：${result.license.plan === 'white' ? '白标版' : '占卜师版'}（有效期至 ${result.license.exp}）`);
   };
   document.getElementById('btnWhite').onclick = () => {
     const contact = document.getElementById('hostContact').value.trim();
@@ -334,15 +385,31 @@ function renderSitter(room) {
       <div class="draw-row">${cardHTML(reading.cards[0], '体')}${cardHTML(reading.cards[1], '用')}</div>
       ${tierContentHTML(reading, room.tier)}
       <div class="voucher-box">
-        <div style="font-size:0.76rem;color:var(--dim);margin-bottom:6px">把下面这段凭证发给占卜师（她输入后能看到同一牌局）</div>
+        <div style="font-size:0.76rem;color:var(--dim);margin-bottom:6px">把下面这段凭证发给占卜师（对方输入后能看到同一牌局）</div>
         <div class="code-box" id="voucherCode">${encodeVoucher(voucher)}</div>
         <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
           <button class="btn small primary" id="btnCopyVoucher">复制凭证</button>
+          <button class="btn small ghost" id="btnSavePoster">保存牌面凭证 PNG</button>
           <button class="btn small ghost" id="btnRedraw">重新抽牌</button>
         </div>
         <div class="muted" style="margin-top:10px">牌局指纹：${voucher.fp} · 时间：${new Date(voucher.ts).toLocaleString('zh-CN')}</div>
+        <div class="muted" id="sitterAnchor" style="margin-top:4px">时间锚定：本地记录</div>
       </div>`;
+    let anchorInfo = { mode: 'local', anchored_at: voucher.ts };
+    anchorVoucher(voucher).then((a) => {
+      anchorInfo = a;
+      const el = document.getElementById('sitterAnchor');
+      if (el) el.textContent = a.mode === 'server'
+        ? `时间锚定：已公证 ${a.id || ''} · ${new Date(a.anchored_at).toLocaleString('zh-CN')}`
+        : `时间锚定：本地记录 · ${new Date(a.anchored_at).toLocaleString('zh-CN')}`;
+    });
     document.getElementById('btnCopyVoucher').onclick = () => copyText(encodeVoucher(voucher));
+    document.getElementById('btnSavePoster').onclick = async () => {
+      try {
+        await downloadReceipt({ room: { ...room, link: location.href }, voucher, reading, hostNote: '', anchor: anchorInfo, pro: false, variant: 'sitter' });
+        toast('凭证海报已生成');
+      } catch (e) { toast('生成失败：' + e.message); }
+    };
     document.getElementById('btnRedraw').onclick = () => {
       document.getElementById('drawArea').style.display = '';
       out.innerHTML = '';
@@ -350,14 +417,36 @@ function renderSitter(room) {
   });
 }
 
+/* ---------------- 回执海报演示页（?receipt=demo，用于截图/给客户看） ---------------- */
+function renderReceiptDemo() {
+  const room = makeRoom({ hostName: '阿岚', brand: '阿岚的牌室', tier: 'B', area: '情感' });
+  room.link = `${location.origin}${location.pathname}?room=${encodeURIComponent(room.code)}`;
+  const cards = [{ suit: '♥', rank: '9' }, { suit: '♣', rank: '8' }];
+  const voucher = makeVoucher(room.code, cards, '我要不要接这个新工作？');
+  const reading = buildReading(room, cards);
+  document.body.style.margin = '0';
+  document.body.style.background = '#efe9d8';
+  app.innerHTML = renderReceiptHTML({
+    room, voucher, reading,
+    hostNote: '体用相生，这局牌不是让你等，是让你先迈一步。你缺的不是机会，是把「准备好了」这四个字放下。',
+    anchor: { mode: 'server', id: 'ANCHOR-8F2A', anchored_at: Date.now() },
+    pro: false,
+    variant: 'host',
+  });
+}
+
 /* ---------------- 入口 ---------------- */
-const code = params.get('room');
-if (code) {
-  const room = decodeRoom(code);
-  if (room) renderSitter(room);
-  else {
-    app.innerHTML = `<div class="wrap section"><div class="panel"><h2>房间码无效</h2><p class="muted">请让占卜师重新发一条链接给你。</p><a class="btn" href="./dual.html">回到占卜师版</a></div></div>`;
-  }
+if (params.get('receipt') === 'demo') {
+  renderReceiptDemo();
 } else {
-  renderHost();
+  const code = params.get('room');
+  if (code) {
+    const room = decodeRoom(code);
+    if (room) renderSitter(room);
+    else {
+      app.innerHTML = `<div class="wrap section"><div class="panel"><h2>房间码无效</h2><p class="muted">请让占卜师重新发一条链接给你。</p><a class="btn" href="./dual.html">回到占卜师版</a></div></div>`;
+    }
+  } else {
+    renderHost();
+  }
 }
