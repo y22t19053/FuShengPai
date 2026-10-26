@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -104,7 +104,7 @@
     </div>
     <div class="static-panel" id="panelSettings" hidden>
       <h3>AI设置</h3>
-      <p class="hint">填入API Key后可使用AI深度解读。Key仅存本地。</p>
+      <p class="hint">填入API Key后可使用AI深度解读。Key仅存本地。<br />用本机 Ollama / LM Studio 可以不填 Key——打开本地服务，选下面「本机」那一栏就能用。</p>
       <div class="api-provider-grid" id="providerGrid">
         <button data-value="deepseek" class="selected">DeepSeek</button>
         <button data-value="qwen">千问</button>
@@ -113,10 +113,12 @@
         <button data-value="gemini">Gemini</button>
         <button data-value="kimi">Kimi</button>
         <button data-value="zhipu">智谱</button>
+        <button data-value="ollama">本机 Ollama</button>
+        <button data-value="lmstudio">LM Studio</button>
         <button data-value="custom">自定义</button>
       </div>
       <label>API Key</label>
-      <input type="password" id="apiKey" placeholder="API Key" />
+      <input type="password" id="apiKey" placeholder="API Key（本机服务可留空）" />
       <label>API地址</label>
       <input type="text" id="apiEndpoint" placeholder="API地址（自动填充，可自定义）" />
       <label>模型名称</label>
@@ -127,7 +129,9 @@
         <button class="small outline model-preset" data-model="gemini-2.0-flash-exp" data-provider="gemini">Gemini 2.0 Flash</button>
         <button class="small outline model-preset" data-model="gpt-4o-mini" data-provider="openai">GPT-4o-mini</button>
         <button class="small outline model-preset" data-model="claude-3-7-sonnet-20250219" data-provider="claude">Claude 3.7</button>
+        <button class="small outline model-preset" data-model="qwen3:8b" data-provider="ollama">本机 qwen3:8b</button>
       </div>
+      <div id="localModelRow" style="display:none;flex-wrap:wrap;gap:4px;margin:4px 0;justify-content:center;"></div>
       <label>解读风格</label>
       <select id="aiStyle">
         <option value="guide">温和引导者</option>
@@ -147,6 +151,7 @@
       <div class="btn-row">
         <button data-action="saveApiSettings" class="primary small">保存</button>
         <button data-action="testApiConnection" class="outline small">测试连接</button>
+        <button data-action="detectLocalModels" class="outline small">🔍 检测本机模型</button>
         <button data-action="clearApiSettings" class="outline small">清除</button>
       </div>
       <span id="apiStatus">未配置</span>

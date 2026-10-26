@@ -30,7 +30,7 @@ import {
   getStoredPeriodCards, saveStoredPeriodCard, addPeriodHistoryEntry,
   getHistory, getTimeline
 } from './storage.js';
-import { requestReading, requestFollowUp, testApiConnection } from './ai.js';
+import { requestReading, requestFollowUp, testApiConnection, hasApiConfig, listLocalModels, isLocalEndpoint } from './ai.js';
 import {
   createDeck, shuffle, drawTiYong, calcFullBaZi, calcDiff
 } from './engine.js';
@@ -700,7 +700,7 @@ export function openPeriodDetail(periodType, fortuneType = 'overall') {
 
   document.getElementById('periodAiBtn2')?.addEventListener('click', async function() {
     const settings = getApiSettings();
-    if (!settings || !settings.apiKey) { showAIGuideModal(); return; }
+    if (!hasApiConfig(settings, API_PROVIDERS)) { showAIGuideModal(); return; }
     this.disabled = true;
     this.textContent = '解读中...';
     const provider = settings.provider || 'deepseek';
@@ -1001,7 +1001,7 @@ export async function sendFollowUp() {
   if (!q) return;
   input.value = '';
   const settings = getApiSettings();
-  if (!settings || !settings.apiKey) { toast('未配置 API Key', 2200, 'warning'); return; }
+  if (!hasApiConfig(settings, API_PROVIDERS)) { toast('未配置 API Key', 2200, 'warning'); return; }
   const history = state.chatHistory;
   if (!history || history.length < 2) { toast('请先进行一次 AI 解读', 2200, 'warning'); return; }
   history.push({ role: 'user', content: q });
@@ -1050,7 +1050,7 @@ export async function handleTestApiConnection() {
     if (isNaN(maxTokens)) maxTokens = 4096;
     let topP = parseFloat(document.getElementById('aiTopP')?.value);
     if (isNaN(topP)) topP = 0.9;
-    if (!apiKey && provider !== 'custom') throw new Error('请先填写 API Key');
+    if (!hasApiConfig({ provider, apiKey, endpoint }, API_PROVIDERS)) throw new Error('请先填写 API Key');
     if (!endpoint && API_PROVIDERS[provider]) endpoint = API_PROVIDERS[provider].endpoint;
     if (endpoint.endsWith('/v1')) endpoint = endpoint.slice(0, -3);
     if (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
@@ -1060,6 +1060,51 @@ export async function handleTestApiConnection() {
     toast(`测试失败: ${e.message}`, 4000);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = UI_TEXTS.btnTestApi; }
+  }
+}
+
+// 检测本机模型：探一次地址，把服务里有的模型直接铺成可点的按钮
+export async function handleDetectLocalModels() {
+  const btn = document.querySelector('[data-action="detectLocalModels"]');
+  const row = document.getElementById('localModelRow');
+  if (btn) { btn.disabled = true; btn.textContent = '检测中...'; }
+  try {
+    const provider = state.selectedProvider || 'deepseek';
+    const epInput = document.getElementById('apiEndpoint');
+    let endpoint = epInput?.value?.trim() || '';
+    if (!endpoint) endpoint = API_PROVIDERS[provider]?.endpoint || API_PROVIDERS.ollama.endpoint;
+    const models = await listLocalModels(endpoint);
+    if (models === null) {
+      toast('没连上本机服务。确认 Ollama / LM Studio 已启动；地址可以填 http://127.0.0.1:11434/v1', 5000);
+      return;
+    }
+    if (!models.length) {
+      toast('服务是通的，但里面一个模型都没有。先跑一次 ollama pull qwen3:8b', 5000);
+      return;
+    }
+    const localProvider = endpoint.includes(':1234') ? 'lmstudio' : 'ollama';
+    const useLocal = isLocalEndpoint(endpoint) && API_PROVIDERS[localProvider];
+    if (useLocal) {
+      state.selectedProvider = localProvider;
+      document.querySelectorAll('#providerGrid button').forEach((b) => {
+        b.classList.toggle('selected', b.dataset.value === localProvider);
+      });
+      if (epInput && !epInput.value.trim()) epInput.value = API_PROVIDERS[localProvider].endpoint;
+    }
+    const modelInput = document.getElementById('apiModel');
+    if (modelInput && !modelInput.value.trim()) modelInput.value = models[0];
+    if (row) {
+      const targetProvider = useLocal ? localProvider : provider;
+      row.innerHTML = models
+        .map((m) => `<button class="small outline model-preset" data-model="${escapeForHTML(m)}" data-provider="${escapeForHTML(targetProvider)}">${escapeForHTML(m)}</button>`)
+        .join('');
+      row.style.display = 'flex';
+    }
+    toast(`找到 ${models.length} 个模型，点下面任意一个填入`, 3200);
+  } catch (e) {
+    toast(`检测失败: ${e.message}`, 4000);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔍 检测本机模型'; }
   }
 }
 
@@ -1171,6 +1216,7 @@ export function handleAction(action, dataset, el = null) {
       toast(UI_TEXTS.toastCleared);
       break;
     case 'testApiConnection': handleTestApiConnection(); break;
+    case 'detectLocalModels': handleDetectLocalModels(); break;
     case 'saveProfile': saveProfileFromForm(); break;
     case 'deleteHistoryItem':
       if (dataset.historyIndex !== undefined) {

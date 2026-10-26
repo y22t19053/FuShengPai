@@ -70,6 +70,7 @@ export function getDailyFortuneType(key) {
 }
 
 // ===== API 厂商配置（含推荐模型）=====
+// local: true ＝ 跑在自己机器上的服务，不需要 API Key
 export const API_PROVIDERS = {
   deepseek: { endpoint: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
   qwen: { endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
@@ -78,6 +79,8 @@ export const API_PROVIDERS = {
   gemini: { endpoint: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-1.5-flash' },
   kimi: { endpoint: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k' },
   zhipu: { endpoint: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4' },
+  ollama: { endpoint: 'http://127.0.0.1:11434/v1', model: 'qwen3:8b', local: true },
+  lmstudio: { endpoint: 'http://127.0.0.1:1234/v1', model: 'qwen2.5-7b-instruct', local: true },
   custom: { endpoint: '', model: '' },
 };
 
@@ -91,6 +94,8 @@ export const POPULAR_MODELS = [
   { provider: 'openai', label: 'GPT-4o', model: 'gpt-4o', desc: '旗舰·全能' },
   { provider: 'claude', label: 'Claude 3.7 Sonnet', model: 'claude-3-7-sonnet-20250219', desc: '最强推理' },
   { provider: 'qwen', label: '千问 2.5-72B', model: 'qwen-plus', desc: '国产·均衡' },
+  { provider: 'ollama', label: '本地 qwen3:8b', model: 'qwen3:8b', desc: '本机·免 Key' },
+  { provider: 'ollama', label: '本地 qwen2.5:7b', model: 'qwen2.5:7b', desc: '本机·免 Key' },
 ];
 
 // ===== 周期抽牌配置（公历自然周期） =====

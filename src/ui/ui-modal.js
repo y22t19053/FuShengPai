@@ -1,7 +1,7 @@
 // ===== src/ui/ui-modal.js · 弹窗、Toast、引导与分享（统一 Share 架构驱动） =====
 import { state } from '../state.js';
 import { API_PROVIDERS, getWuxing, getShengKe, DAILY_FORTUNE_TYPES, getDailyFortuneType, getCurrentPeriodKey } from '../data.js';
-import { requestReading, requestFollowUp } from '../ai.js';
+import { requestReading, requestFollowUp, hasApiConfig } from '../ai.js';
 import {
   getApiSettings, getProfile, getHistory, deleteHistoryItem,
   exportAllDataJson, importAllData, updateHistoryChatAt,
@@ -97,12 +97,12 @@ export function showAIGuideModal() {
     <div style="text-align:center;padding:8px;">
       <h3 style="color:var(--accent);">🤖 AI 深度解读</h3>
       <p style="margin:12px 0;color:var(--dim);font-size:0.85rem;line-height:1.8;">
-        需要自行配置 AI API Key（支持 DeepSeek、千问、OpenAI 等）。
+        两条路：填一个 AI API Key（DeepSeek、千问、OpenAI 等），或者用自己机器上的 Ollama / LM Studio——那条路不用 Key、不花钱，推理也不出本机。
         <br>
         <span style="font-size:0.75rem;color:#666;">Key 只存储在你的浏览器本地，不会上传到任何服务器。</span>
       </p>
       <div class="btn-row">
-        <button id="goToSettingsBtn" class="primary small">去配置 API Key</button>
+        <button id="goToSettingsBtn" class="primary small">去配置 AI</button>
         <button id="copyPromptBtn2" class="outline small">📋 复制提示词</button>
         <button data-action="closeModal" class="outline small">稍后再说</button>
       </div>
@@ -242,7 +242,7 @@ export function showHistoryDetail(index) {
     const q = input.value.trim();
     if (!q) return;
     const settings = getApiSettings();
-    if (!settings || !settings.apiKey) { toast('未配置 API Key，请先到「AI」设置', 2200, 'warning'); return; }
+    if (!hasApiConfig(settings, API_PROVIDERS)) { toast('未配置 API Key，请先到「AI」设置', 2200, 'warning'); return; }
     asking = true;
     sendBtn.disabled = true;
     status.style.display = 'block';

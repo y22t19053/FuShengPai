@@ -18,6 +18,7 @@ import { getClosingLine } from '../philosophy/covenant.js';
 import { playClosingSound } from '../utils/sound.js';
 import { UI_TEXTS, HISTORY_EMPTY, PHYSICAL_GUIDE, STATUS_POOL, REMINDER_POOL, ACTION_POOL } from '../texts/index.js';
 import { pick } from '../constants.js';
+import { hasApiConfig } from '../ai.js';
 import { calculateDurianIndex, getDurianColor } from '../durian.js';
 import { runEngine } from '../engines/index.js';
 import { toast } from './toast.js';
@@ -1183,6 +1184,7 @@ export function updateApiStatus() {
   const s = getApiSettings();
   const st = document.getElementById('apiStatus');
   if (!st) return;
-  st.textContent = s && s.apiKey ? UI_TEXTS.apiStatusConfigured : UI_TEXTS.apiStatusNotConfigured;
-  st.style.color = s && s.apiKey ? '#5a9a6a' : '';
+  const ready = hasApiConfig(s, API_PROVIDERS);
+  st.textContent = ready ? UI_TEXTS.apiStatusConfigured : UI_TEXTS.apiStatusNotConfigured;
+  st.style.color = ready ? '#5a9a6a' : '';
 }
