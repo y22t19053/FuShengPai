@@ -6,7 +6,7 @@ import {
   getCardId, PERIODS, getCurrentPeriodKey,
   getPeriodTitle, getPeriodDesc,
   getRecommendedGongForCategory,
-  DAILY_FORTUNE_TYPES, getDailyFortuneType
+  DAILY_FORTUNE_TYPES, getDailyFortuneType, API_PROVIDERS
 } from '../data.js';
 import { createDeck, shuffle, calcFullBaZi, calcDiff, getDiffLevel, getDiffValue } from '../engine.js';
 import { getApiSettings, getProfile, getHistory, getStoredPeriodCards, getDrawTimestamps, rawGet } from '../storage.js';

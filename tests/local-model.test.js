@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import {
-  isLocalEndpoint, needsApiKey, hasApiConfig, requestReading, stripLightMarkdown, listLocalModels
+  isLocalEndpoint, needsApiKey, hasApiConfig, requestReading, stripLightMarkdown, listLocalModels, pickChatModels
 } from '../src/ai.js';
 import { API_PROVIDERS } from '../src/data.js';
 
@@ -42,6 +42,12 @@ describe('本地模型：要不要 Key', () => {
 });
 
 describe('本地模型：配置是否可用', () => {
+  it('不传厂商表也能认出本机预设（默认回落到 data.js）', () => {
+    expect(hasApiConfig({ provider: 'ollama', apiKey: '', endpoint: '' })).toBe(true);
+    expect(hasApiConfig({ provider: 'lmstudio', apiKey: '' })).toBe(true);
+    expect(hasApiConfig({ provider: 'deepseek', apiKey: '' })).toBe(false);
+    expect(hasApiConfig({ provider: 'deepseek', apiKey: 'sk-x' })).toBe(true);
+  });
   it('ollama 没填 Key 也算配置好了（地址从厂商预设回落）', () => {
     expect(hasApiConfig({ provider: 'ollama', apiKey: '', endpoint: '' }, API_PROVIDERS)).toBe(true);
   });
@@ -138,6 +144,20 @@ describe('本地模型：请求体与推理模型恢复', () => {
       prompt: '测试'
     })).rejects.toThrow('未配置 API Key');
     expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe('挑出能聊天的模型（向量模型别让人选错）', () => {
+  it('滤掉 embedding / rerank', () => {
+    expect(pickChatModels(['qwen3-8b-q4:latest', 'bge-m3:latest', 'nomic-embed-text', 'qwen2.5:0.5b']))
+      .toEqual(['qwen3-8b-q4:latest', 'qwen2.5:0.5b']);
+    expect(pickChatModels(['e5-large', 'jina-reranker', 'gte-base'])).toEqual(['e5-large', 'jina-reranker', 'gte-base']);
+  });
+
+  it('一个能聊的都没有时，原样返回（别给空列表）', () => {
+    expect(pickChatModels(['bge-m3:latest'])).toEqual(['bge-m3:latest']);
+    expect(pickChatModels([])).toEqual([]);
+    expect(pickChatModels(null)).toEqual([]);
   });
 });
 

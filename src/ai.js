@@ -1,5 +1,6 @@
 // ===== src/ai.js · AI请求层（OpenAI兼容协议 + 高级参数透传） =====
 import { UI_TEXTS } from './texts/index.js';
+import { API_PROVIDERS } from './data.js';
 
 const DEFAULT_TIMEOUT_MS = 60000;
 const DEFAULT_RETRIES = 2;
@@ -34,10 +35,10 @@ export function needsApiKey(provider, endpoint) {
 }
 
 // 是否已经"能发请求"：云端要 Key，本机只要有地址
-export function hasApiConfig(settings, providers = {}) {
+export function hasApiConfig(settings, providers = API_PROVIDERS) {
   if (!settings || typeof settings !== 'object') return false;
   const provider = settings.provider || 'deepseek';
-  const endpoint = settings.endpoint || providers?.[provider]?.endpoint || '';
+  const endpoint = settings.endpoint || providers?.[provider]?.endpoint || API_PROVIDERS?.[provider]?.endpoint || '';
   return Boolean(settings.apiKey) || !needsApiKey(provider, endpoint);
 }
 
@@ -66,6 +67,15 @@ export async function listLocalModels(endpoint) {
     }
   }
   return null;
+}
+
+// 模型清单里挑出"能聊天"的：embedding / rerank 之类塞进来只会让人选错
+const NON_CHAT_MODEL_RE = /bge|embed|minilm|nomic|rerank|^e5|gte-|jina/i;
+
+export function pickChatModels(models) {
+  const list = Array.isArray(models) ? models.filter(Boolean) : [];
+  const chat = list.filter((name) => !NON_CHAT_MODEL_RE.test(String(name)));
+  return chat.length ? chat : list;
 }
 
 // AI 响应内容异常（空内容 / 截断），带 truncated 标记以便自动恢复

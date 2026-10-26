@@ -30,7 +30,7 @@ import {
   getStoredPeriodCards, saveStoredPeriodCard, addPeriodHistoryEntry,
   getHistory, getTimeline
 } from './storage.js';
-import { requestReading, requestFollowUp, testApiConnection, hasApiConfig, listLocalModels, isLocalEndpoint } from './ai.js';
+import { requestReading, requestFollowUp, testApiConnection, hasApiConfig, listLocalModels, isLocalEndpoint, pickChatModels } from './ai.js';
 import {
   createDeck, shuffle, drawTiYong, calcFullBaZi, calcDiff
 } from './engine.js';
@@ -1069,38 +1069,50 @@ export async function handleDetectLocalModels() {
   const row = document.getElementById('localModelRow');
   if (btn) { btn.disabled = true; btn.textContent = '检测中...'; }
   try {
-    const provider = state.selectedProvider || 'deepseek';
     const epInput = document.getElementById('apiEndpoint');
-    let endpoint = epInput?.value?.trim() || '';
-    if (!endpoint) endpoint = API_PROVIDERS[provider]?.endpoint || API_PROVIDERS.ollama.endpoint;
-    const models = await listLocalModels(endpoint);
-    if (models === null) {
-      toast('没连上本机服务。确认 Ollama / LM Studio 已启动；地址可以填 http://127.0.0.1:11434/v1', 5000);
-      return;
+    const cur = epInput?.value?.trim() || '';
+    // 只探本机地址：当前填的是本机就用它，否则把两个本机预设都试一遍
+    const candidates = cur && isLocalEndpoint(cur)
+      ? [cur]
+      : [API_PROVIDERS.ollama?.endpoint, API_PROVIDERS.lmstudio?.endpoint].filter(Boolean);
+    let endpoint = '';
+    let models = null;
+    const upButEmpty = [];
+    for (const candidate of candidates) {
+      const found = await listLocalModels(candidate);
+      if (found === null) continue;
+      if (!found.length) { upButEmpty.push(candidate); continue; }
+      endpoint = candidate;
+      models = found;
+      break;
     }
-    if (!models.length) {
-      toast('服务是通的，但里面一个模型都没有。先跑一次 ollama pull qwen3:8b', 5000);
+    if (!models) {
+      if (upButEmpty.length) {
+        toast('服务是通的，但里面一个模型都没有。先跑一次 ollama pull qwen3:8b', 5000);
+      } else {
+        toast('没找到本机服务。先启动 Ollama 或 LM Studio，再点一次这个按钮', 5000);
+      }
       return;
     }
     const localProvider = endpoint.includes(':1234') ? 'lmstudio' : 'ollama';
-    const useLocal = isLocalEndpoint(endpoint) && API_PROVIDERS[localProvider];
-    if (useLocal) {
+    const chatModels = pickChatModels(models);
+    if (API_PROVIDERS[localProvider]) {
       state.selectedProvider = localProvider;
       document.querySelectorAll('#providerGrid button').forEach((b) => {
         b.classList.toggle('selected', b.dataset.value === localProvider);
       });
-      if (epInput && !epInput.value.trim()) epInput.value = API_PROVIDERS[localProvider].endpoint;
+      if (epInput) epInput.value = API_PROVIDERS[localProvider].endpoint;
     }
     const modelInput = document.getElementById('apiModel');
-    if (modelInput && !modelInput.value.trim()) modelInput.value = models[0];
+    if (modelInput && !modelInput.value.trim()) modelInput.value = chatModels[0];
     if (row) {
-      const targetProvider = useLocal ? localProvider : provider;
-      row.innerHTML = models
-        .map((m) => `<button class="small outline model-preset" data-model="${escapeForHTML(m)}" data-provider="${escapeForHTML(targetProvider)}">${escapeForHTML(m)}</button>`)
+      row.innerHTML = chatModels
+        .map((m) => `<button class="small outline model-preset" data-model="${escapeForHTML(m)}" data-provider="${escapeForHTML(localProvider)}">${escapeForHTML(m)}</button>`)
         .join('');
       row.style.display = 'flex';
     }
-    toast(`找到 ${models.length} 个模型，点下面任意一个填入`, 3200);
+    const hidden = models.length - chatModels.length;
+    toast(`找到 ${chatModels.length} 个可对话模型${hidden > 0 ? `（另有 ${hidden} 个向量模型已隐藏）` : ''}，点一个填入，别忘了保存`, 3600);
   } catch (e) {
     toast(`检测失败: ${e.message}`, 4000);
   } finally {
