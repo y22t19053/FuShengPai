@@ -6,6 +6,11 @@ import { buildLocalReading } from './readings.js';
 import { getPokerPersona } from '../persona.js';
 import { getPaiGeQuestion, getFriendCircleHook } from '../texts/social.js';
 import { buildDailyOracle } from '../texts/daily-oracle.js';
+import { buildStandardsPrompt } from '../texts/standards.js';
+import { buildFramePrompt, normalizeField } from '../texts/reading-frame.js';
+import { getCardImage } from '../texts/card-images.js';
+import { readQuestion } from '../texts/texts-asking.js';
+import { matchRefusal } from '../texts/texts-reject.js';
 
 // ===== AI Prompt =====
 export async function buildAIPrompt(state) {
@@ -32,7 +37,19 @@ export async function buildAIPrompt(state) {
   if (domain.length) contextParts.push(`领域：${domain.join(' / ')}`);
   if (state.intent) contextParts.push(`问事意向：${state.intent}`);
   const contextPrefix = contextParts.length ? `【本次问占】${contextParts.join('；')}\n\n` : '';
-  const prompt = `${personalPrefix}${contextPrefix}请根据以下浮生牌局象进行详细解读。\n\n要求：\n1. 纯文本格式，严禁使用任何Markdown符号（包括#、*、-、数字编号）。\n2. 用自然语言分段，段落间用空行分隔。\n3. 围绕【本次问占】中的问题与领域展开，不要泛泛而谈。\n4. 从体用生克、旺相休囚、宫位差值、天机线、阴阳属性等方面展开。\n5. 结合求测人的八字五行背景，给出针对性建议。\n6. 使用含蓄、留有余地的语气，话不说死，尊重求测人的自主判断。\n${personaLine}以下是牌面信息：\n\n${text}\n\n规则：红桃火(阳) 方块金(阳) 梅花木(阴) 黑桃水(阴) JQK土 大王天(阳) 小王人(阴)。`;
+  // —— 问事自检：把「几条路一起问会得到平均数」的风险提前告诉模型（只提醒，不阻断）——
+  let askNote = '';
+  if (state.question) {
+    const refusal = matchRefusal(state.question);
+    const rq = readQuestion(state.question, { refusal: refusal.hit });
+    if (refusal.hit) {
+      askNote = `【问事自检】这个问题落在浮生牌不看的一类（不替人猜他人心思、不替代医疗、不看赌运等）。请先用一句话说明为什么不看，再给一条可以正面回答的替换问法；不要硬解。\n\n`;
+    } else if (rq.hints.length) {
+      askNote = `【问事自检】这个问题有几处会让答案打折：${rq.hints.map(h => `${h.label}——${h.text}`).join('；')}。请在开头用一句话点出来，把它收窄成一条具体的路径再解，不要把几条路混在一起算平均数。\n\n`;
+    }
+  }
+  const framePrefix = `${askNote}${buildStandardsPrompt()}\n\n${buildFramePrompt(`${state.category || ''} ${state.intent || ''} ${state.question || ''}`)}\n\n`;
+  const prompt = `${personalPrefix}${contextPrefix}${framePrefix}请根据以下浮生牌局象进行详细解读。\n\n要求：\n1. 纯文本格式，严禁使用任何Markdown符号（包括#、*、-、数字编号）。\n2. 用自然语言分段，段落间用空行分隔。\n3. 围绕【本次问占】中的问题与领域展开，不要泛泛而谈。\n4. 先从体用生克、旺相休囚、宫位差值、天机线、阴阳属性这些角度把象看清楚，但落到文字里一律翻成人话，不出现术语原词。\n5. 结合求测人的八字五行背景，给出针对性建议。\n6. 使用含蓄、留有余地的语气，话不说死，尊重求测人的自主判断。\n${personaLine}以下是牌面信息：\n\n${text}\n\n规则：红桃火(阳) 方块金(阳) 梅花木(阴) 黑桃水(阴) JQK土 大王天(阳) 小王人(阴)。`;
   return prompt;
 }
 
@@ -82,6 +99,7 @@ export function buildSingleCardPrompt(card, opts = {}) {
   const hookLine = hook
     ? `今日主题：${hook.title}\n今日一句：${hook.line}`
     : '';
+  const cardImage = getCardImage(card);
 
   return `${periodLabel}当前时间：${now}
 
@@ -100,6 +118,11 @@ ${almanacLine || '（今日历法不可用）'}
 
 【单牌意象】
 ${metaphor || '（无预设意象，请基于牌面五行与符号与用户对话）'}
+${cardImage ? `【这张牌的画面】\n${cardImage.image}\n今天能做的：${cardImage.action}\n（先把这个画面讲出来，再讲道理；画面就是结论的样子。）\n` : ''}
+【文案标准】
+${buildStandardsPrompt()}
+
+${buildFramePrompt(fortuneType)}
 
 【解读要求】
 请基于这张牌的五行能量、阴阳属性、牌灵人格与课题，结合今日历法气场，围绕「${fortuneTypeLabel}」这个主题，给出深度解读：

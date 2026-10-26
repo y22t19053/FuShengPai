@@ -27,6 +27,8 @@ import { escapeForHTML, setHTML } from '../utils/safe.js';
 import { syncQuestionFromInput } from '../utils/flow-helpers.js';
 import { getSystem, setSystem, openMahjongDaily, openMahjongDraw } from '../mahjong-ui.js';
 import { buildAIPrompt } from '../services/prompts.js';
+import { buildAskGuide, readQuestion } from '../texts/texts-asking.js';
+import { matchRefusal } from '../texts/texts-reject.js';
 import { copyTextWithFeedback } from '../utils/clipboard.js';
 
 // 配色单一运行时来源：palettes.js 每日确定性调色板写入 :root（季节 accent 已停用，
@@ -404,25 +406,48 @@ export function renderStep1() {
     e.preventDefault();
     const guide = document.getElementById('clarifyGuide');
     if (!guide) return;
-    guide.style.display = 'block';
-    guide.innerHTML = `
-      <div style="color:var(--accent);font-weight:bold;margin-bottom:8px;">🤔 理清问题</div>
-      <h4 style="color:var(--text);">5W2H</h4>
-      <p><strong>What</strong> 你要问的事是什么？</p>
-      <p><strong>Why</strong> 为什么现在问？</p>
-      <p><strong>Who</strong> 这事涉及谁？</p>
-      <p><strong>When</strong> 什么时候发生/需要决定？</p>
-      <p><strong>Where</strong> 在什么场景下？</p>
-      <p><strong>How</strong> 如果做，打算怎么做？</p>
-      <p><strong>How much</strong> 你愿意付出多少？</p>
-      <h4 style="color:var(--text);margin-top:12px;">SWOT 自检</h4>
-      <p><strong>S</strong> 优势：你手里有什么牌？</p>
-      <p><strong>W</strong> 劣势：你怕什么？</p>
-      <p><strong>O</strong> 机会：什么可能帮你？</p>
-      <p><strong>T</strong> 威胁：最坏可能是什么？</p>
-      <button data-action="closeClarify" class="small outline">收起</button>
-    `;
+    const isOpen = guide.style.display === 'block';
+    guide.style.display = isOpen ? 'none' : 'block';
+    if (isOpen) return;
+    guide.innerHTML = renderAskGuideHTML(state.question);
+    guide.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   });
+}
+
+/**
+ * 「感觉自己没问清楚？」面板：内容全部来自 texts-asking.js（问事校准），
+ * 这里只负责排版；当前输入框里的问题会先被粗读一遍，命中打折点就先提示。
+ */
+function renderAskGuideHTML(currentQuestion = '') {
+  const g = buildAskGuide();
+  const rq = readQuestion(currentQuestion, { refusal: matchRefusal(currentQuestion).hit });
+  const hints = rq.hints.length
+    ? `<div style="margin:10px 0;padding:10px;border-left:3px solid var(--accent);background:rgba(var(--accent-rgb),0.06);">
+         <div style="color:var(--accent);font-weight:bold;margin-bottom:4px;">你刚写的这句，可能会被打折</div>
+         ${rq.hints.map(h => `<p style="margin:4px 0;"><strong>${escapeForHTML(h.label)}</strong>：${escapeForHTML(h.text)}</p>`).join('')}
+       </div>`
+    : '';
+  const rules = g.rules
+    .map(r => `<p style="margin:4px 0;"><strong>${escapeForHTML(r.label)}</strong>：${escapeForHTML(r.text)}</p>`)
+    .join('');
+  const steps = g.steps.map(s => `<li style="margin:3px 0;">${escapeForHTML(s)}</li>`).join('');
+  const samples = g.samples
+    .map(s => `<p style="margin:8px 0;"><span style="opacity:.65;">${escapeForHTML(s.bad)}</span><br>
+      <span style="color:var(--text);">→ ${escapeForHTML(s.better)}</span><br>
+      <span style="opacity:.6;font-size:0.75em;">${escapeForHTML(s.why)}</span></p>`)
+    .join('');
+  return `
+    <div style="color:var(--accent);font-weight:bold;margin-bottom:8px;">🤔 先把问题问对</div>
+    <p style="margin:0 0 8px;color:var(--text);">${escapeForHTML(g.principle)}</p>
+    ${hints}
+    <h4 style="color:var(--text);margin:10px 0 4px;">好问题的四个要素</h4>
+    ${rules}
+    <h4 style="color:var(--text);margin:12px 0 4px;">改写五步</h4>
+    <ol style="margin:0;padding-left:1.2em;">${steps}</ol>
+    <h4 style="color:var(--text);margin:12px 0 4px;">三个例子</h4>
+    ${samples}
+    <button data-action="closeClarify" class="small outline" style="margin-top:8px;">收起</button>
+  `;
 }
 
 // ===== 局部更新（占卜台不再整页重渲：分类选择/咨询模式只更新对应区域） =====

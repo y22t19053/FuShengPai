@@ -5,6 +5,10 @@ import { HOUR_POOL } from '../src/texts/hour-pools.js';
 import { MOOD_BY_WX, JIANGCHU, CHONG, COMBO } from '../src/texts/daily-oracle.js';
 import { STATUS_POOL, REMINDER_POOL, ACTION_POOL } from '../src/texts/index.js';
 import { DAILY_MIRROR_LINES } from '../src/texts/mirror-pools.js';
+import { CARD_IMAGE_POOL } from '../src/texts/card-images.js';
+import { allAskTexts } from '../src/texts/texts-asking.js';
+import { allFrameTexts, CLOSING_BY_FIELD, SMALL_ACTIONS } from '../src/texts/reading-frame.js';
+import { allRefusalTexts } from '../src/texts/texts-reject.js';
 
 describe('standards 文案标准', () => {
   it('四组禁用词表非空', () => {
@@ -46,6 +50,13 @@ describe('全库文案审查（BANNED 词表扫描）', () => {
     ...REMINDER_POOL.map((t) => ({ src: 'REMINDER_POOL', text: t })),
     ...ACTION_POOL.map((t) => ({ src: 'ACTION_POOL', text: t })),
     ...DAILY_MIRROR_LINES.map((t) => ({ src: 'DAILY_MIRROR_LINES', text: t })),
+    ...CARD_IMAGE_POOL.flatMap((c) => [
+      { src: 'CARD_IMAGE.image', text: c.image },
+      { src: 'CARD_IMAGE.action', text: c.action },
+    ]),
+    ...allAskTexts().map((t) => ({ src: 'TEXTS_ASKING', text: t })),
+    ...allFrameTexts().map((t) => ({ src: 'READING_FRAME', text: t })),
+    ...allRefusalTexts().map((t) => ({ src: 'TEXTS_REJECT', text: t })),
   ];
 
   it('全部文案池零禁用词命中', () => {
@@ -61,5 +72,11 @@ describe('全库文案审查（BANNED 词表扫描）', () => {
     expect(REMINDER_POOL.length).toBeGreaterThanOrEqual(20);
     expect(ACTION_POOL.length).toBeGreaterThanOrEqual(20);
     expect(DAILY_MIRROR_LINES.length).toBeGreaterThanOrEqual(30);
+    // 经验注入新增池（2026-10）
+    expect(CARD_IMAGE_POOL.length).toBe(54);
+    expect(SMALL_ACTIONS.length).toBeGreaterThanOrEqual(12);
+    for (const [field, pool] of Object.entries(CLOSING_BY_FIELD)) {
+      expect(pool.length, field).toBeGreaterThanOrEqual(3);
+    }
   });
 });

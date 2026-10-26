@@ -10,6 +10,7 @@ import { getProfile } from '../storage.js';
 import { detectIntent, extractKeywords } from './intent.js';
 import { getBaziFromProfile } from './profile.js';
 import { buildSummary } from './summary.js';
+import { pickSmallAction } from '../texts/reading-frame.js';
 
 // ===== 差值三种情况解析 =====
 export function getDiffAnalysisText(diffType, gong, card) {
@@ -165,6 +166,9 @@ export async function buildLocalReading(state) {
     state.durianIndex = durian;
     result += `张力指数：${durian.score}/10（${durian.level}）\n${durian.description}\n`;
   }
+
+  // 经验注入：离线/本地引擎也收在「今天能做的一步」上，而不是停在张力指数（同一天同一问题恒定）
+  result += `\n今天能做的一步：${pickSmallAction(`${state.question || ''}|${state.category || ''}|${durian ? durian.score : ''}`)}\n`;
 
   result = applyCovenant(result);
   const summary = buildSummary(state);

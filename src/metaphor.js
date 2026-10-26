@@ -3,6 +3,8 @@
 
 import { GONG_NAMES, GONG_WUXING } from './data.js';
 import { WUXING_FORTUNE_POOLS } from './texts/fortune-pools.js';
+import { getCardImage } from './texts/card-images.js';
+import { pickSmallAction } from './texts/reading-frame.js';
 
 const TIYONG_METAPHORS = {
   '生我': ['有一条河在推着你往前走，你不需要用力。', '你背后有一阵风，方向刚好是你想去的方向。', '有人默默把门给你推开了。'],
@@ -99,7 +101,12 @@ export function generateSingleCardMetaphor(card, wx, periodLabel, fortuneType = 
     overall: '综合', wealth: '财运', love: '桃花', noble: '贵人', career: '事业', health: '健康', study: '学业'
   };
 
-  return `【${periodLabel} · ${typeLabelMap[fortuneType] || '综合'} · ${label} · ${wx}】\n${base}`;
+  // 经验注入：判词之后给一个画面 + 一个今天能做的小动作（离线也有落点，不必等 AI）
+  const img = getCardImage(card);
+  const action = pickSmallAction(`${label}|${periodLabel || ''}|${dateStr || todayDate()}`);
+  const closing = img ? `\n\n${img.image}\n今天能做的一步：${action}` : '';
+
+  return `【${periodLabel} · ${typeLabelMap[fortuneType] || '综合'} · ${label} · ${wx}】\n${base}${closing}`;
 }
 
 /** 今天日期（YYYY-MM-DD，与 social.js todaySeed 同源语义） */
