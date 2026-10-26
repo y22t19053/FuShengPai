@@ -63,6 +63,7 @@ import { copyTextWithFeedback } from './utils/clipboard.js';
 import { chaosShuffleDeck } from './services/deck.js';
 import { buildSummary } from './services/summary.js';
 import { buildLocalReading } from './services/readings.js';
+import { offlineFollowUpText, withOfflineNote } from './services/offline-answer.js';
 import { computeThreeDurian, buildThreeSpreadText } from './services/three-spread.js';
 import { buildSingleCardPrompt, buildAIPrompt as buildAIPromptSvc } from './services/prompts.js';
 import { generateFullPeriodLocal } from './services/periods.js';
@@ -689,18 +690,20 @@ export function openPeriodDetail(periodType, fortuneType = 'overall') {
   state.periodFortune = metaphor;
   state.fortuneType = fortuneType;
 
-  document.getElementById('periodLocalBtn2')?.addEventListener('click', () => {
+  const renderPeriodLocal = () => {
     const fullText = generateFullPeriodLocal(card, wx, typeLabel, metaphor, fortuneType);
     const el = document.getElementById('periodAiResult2');
     if (el) {
       el.style.display = 'block';
-      setHTML(el, `<div style="color:var(--accent);font-size:0.8rem;margin-bottom:4px;">💡 本地规则推导</div>${escapeForHTML(fullText).replace(/\n/g, '<br>')}`);
+      setHTML(el, `<div style="color:var(--accent);font-size:0.8rem;margin-bottom:4px;">💡 本地规则推导${hasApiConfig(getApiSettings(), API_PROVIDERS) ? '' : '（没连 AI 也能用）'}</div>${escapeForHTML(fullText).replace(/\n/g, '<br>')}`);
     }
-  });
+  };
+
+  document.getElementById('periodLocalBtn2')?.addEventListener('click', renderPeriodLocal);
 
   document.getElementById('periodAiBtn2')?.addEventListener('click', async function() {
     const settings = getApiSettings();
-    if (!hasApiConfig(settings, API_PROVIDERS)) { showAIGuideModal(); return; }
+    if (!hasApiConfig(settings, API_PROVIDERS)) { renderPeriodLocal(); return; }
     this.disabled = true;
     this.textContent = '解读中...';
     const provider = settings.provider || 'deepseek';
@@ -948,11 +951,34 @@ export function saveProfileFromForm() {
 }
 
 // ===== AI 深度解读（透传高级参数） =====
+// 没接 AI 时不能把人挡在设置页：直接用本地规则出一份完整解读，这条路在任何机器上都能走。
+async function renderOfflineDeepRead() {
+  const btn = document.getElementById('aiReadBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '推演中...'; }
+  try {
+    const { text, summary } = await localInterpretation();
+    state.pendingFullReport = text;
+    updateStep(3);
+    renderFullReport(withOfflineNote(text), null, summary);
+    const container = document.getElementById('aiResultContainer');
+    const content = document.getElementById('aiResultContent');
+    if (container && content) {
+      container.style.display = 'block';
+      setHTML(content, `<div style="font-size:0.85rem;line-height:1.7;">上面这份是按牌面规则推的，没连 AI——不配任何东西也能一直用完。<br>同一个牌局想让模型说得更细，就去接一个（云端填 Key，本机装 Ollama 可以免 Key）。</div><button data-action="openAiGuide" class="outline small" style="margin-top:8px;">怎么接？</button>`);
+    }
+    toast('没接 AI 也能看：这是按牌面规则推的', 3000);
+  } catch (e) {
+    toast(e.message || '推演失败', 3000, 'warning');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '✨ AI 深度解读'; }
+  }
+}
+
 export async function triggerAI() {
   const btn = document.getElementById('aiReadBtn');
   if (!btn) return;
   const settings = getApiSettings();
-  if (!settings || !settings.apiKey) { showAIGuideModal(); return; }
+  if (!hasApiConfig(settings, API_PROVIDERS)) { await renderOfflineDeepRead(); return; }
   btn.disabled = true; btn.textContent = '思考中...';
   const provider = settings.provider || 'deepseek';
   let endpoint = settings.endpoint || API_PROVIDERS[provider]?.endpoint || '';
@@ -1001,7 +1027,16 @@ export async function sendFollowUp() {
   if (!q) return;
   input.value = '';
   const settings = getApiSettings();
-  if (!hasApiConfig(settings, API_PROVIDERS)) { toast('未配置 API Key', 2200, 'warning'); return; }
+  if (!hasApiConfig(settings, API_PROVIDERS)) {
+    // 没接 AI 也不能不回话：用规则能站得住的部分答，并说清这是离线
+    const reply = offlineFollowUpText(q, { field: state.category, seed: state.question });
+    const block = document.getElementById('chatHistoryBlock');
+    if (block) {
+      block.innerHTML += `<div class="chat-msg user">${escapeForHTML(q)}</div><div class="chat-msg ai">${escapeForHTML(reply).replace(/\n/g, '<br>')}</div>`;
+      block.scrollTop = block.scrollHeight;
+    }
+    return;
+  }
   const history = state.chatHistory;
   if (!history || history.length < 2) { toast('请先进行一次 AI 解读', 2200, 'warning'); return; }
   history.push({ role: 'user', content: q });
@@ -1229,6 +1264,7 @@ export function handleAction(action, dataset, el = null) {
       break;
     case 'testApiConnection': handleTestApiConnection(); break;
     case 'detectLocalModels': handleDetectLocalModels(); break;
+    case 'openAiGuide': showAIGuideModal(); break;
     case 'saveProfile': saveProfileFromForm(); break;
     case 'deleteHistoryItem':
       if (dataset.historyIndex !== undefined) {

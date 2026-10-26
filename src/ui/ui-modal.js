@@ -16,6 +16,7 @@ import { buildAIPrompt } from '../services/prompts.js';
 import { escapeForHTML, setHTML } from '../utils/safe.js';
 import { loadQRImage } from '../utils/qr.js';
 import { copyTextWithFeedback } from '../utils/clipboard.js';
+import { offlineFollowUpText } from '../services/offline-answer.js';
 import { resolveApiModel } from '../utils/api-config.js';
 
 // ===== Share 架构导入（share2 新一代渲染引擎） =====
@@ -242,7 +243,27 @@ export function showHistoryDetail(index) {
     const q = input.value.trim();
     if (!q) return;
     const settings = getApiSettings();
-    if (!hasApiConfig(settings, API_PROVIDERS)) { toast('未配置 API Key，请先到「AI」设置', 2200, 'warning'); return; }
+    if (!hasApiConfig(settings, API_PROVIDERS)) {
+      // 没接 AI 也别让人卡住：用规则能站得住的部分回一句，并说清这是离线
+      const reply = offlineFollowUpText(q, { field: r.category, seed: r.question });
+      chat.push({ role: 'user', content: q });
+      chat.push({ role: 'assistant', content: reply });
+      input.value = '';
+      let block = document.getElementById('historyChatBlock');
+      if (!block) {
+        const h4 = [...content.querySelectorAll('h4')].find((h) => (h.textContent || '').includes('AI 对话'));
+        block = document.createElement('div');
+        block.id = 'historyChatBlock';
+        block.className = 'result-block';
+        block.style.cssText = 'max-height:150px;margin-top:10px;font-size:0.85rem;overflow-y:auto;';
+        if (h4) h4.after(block); else content.appendChild(block);
+      }
+      block.innerHTML = chat
+        .map((m) => `<div class="chat-msg ${m.role === 'user' ? 'user' : 'ai'}">${escapeForHTML(m.content).replace(/\n/g, '<br>')}</div>`)
+        .join('');
+      block.scrollTop = block.scrollHeight;
+      return;
+    }
     asking = true;
     sendBtn.disabled = true;
     status.style.display = 'block';
