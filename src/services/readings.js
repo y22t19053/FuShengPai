@@ -15,7 +15,7 @@ import { getBaziFromProfile } from './profile.js';
 import { buildSummary } from './summary.js';
 import { pickSmallAction, pickHandback } from '../texts/reading-frame.js';
 import { getCardImage } from '../texts/card-images.js';
-import { composeCardParts } from '../texts/texts-readings.js';
+import { composeCardParts, pickDeeper } from '../texts/texts-readings.js';
 import { recordAsk, repeatPreamble } from './repeat-ask.js';
 
 // ===== 差值三种情况解析（保留导出：设置面板与分享文案仍会用） =====
@@ -137,14 +137,22 @@ export async function buildLocalReading(state) {
       const img = getCardImage(s.card);
       const head = img ? img.image : s.parts.lead;
       const tail = s.parts.hidden ? `${s.parts.trait || ''}${s.parts.trait ? ' ' : ''}${s.parts.hidden}` : s.parts.trait;
-      result += `· ${s.label}${img ? `（${img.domain}）` : ''}：${head}\n`;
+      const metaBits = [img ? img.domain : '', `差值${s.absDiff}`].filter(Boolean).join('｜');
+      result += `· ${s.label}（${metaBits}）：${head}\n`;
       if (tail) result += `  ${tail}\n`;
       if (s.parts.shadow) result += `  ${s.parts.shadow}\n`;
     }
     result += '\n';
   }
 
-  // ---------- 4. 旁枝（没进天机线的宫，一句带过） ----------
+  // ---------- 4. 再看一层（只对主线头一张牌，不逐宫铺） ----------
+  const deeperSlot = slots.find(s => s.linePos === 0) || slots[0];
+  if (deeperSlot) {
+    const deeper = pickDeeper(deeperSlot.g, `${state.question || ''}|${deeperSlot.label}`);
+    if (deeper) result += `【再看一层】\n${deeper}\n\n`;
+  }
+
+  // ---------- 5. 旁枝（没进天机线的宫，一句带过） ----------
   const sideSlots = slots.filter(s => s.linePos < 0);
   if (sideSlots.length) {
     const names = [...new Set(sideSlots.map(s => GONG_NAMES[s.g] + '宫'))].join('、');

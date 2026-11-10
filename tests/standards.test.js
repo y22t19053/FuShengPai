@@ -9,6 +9,7 @@ import { CARD_IMAGE_POOL } from '../src/texts/card-images.js';
 import { allAskTexts } from '../src/texts/texts-asking.js';
 import { allFrameTexts, CLOSING_BY_FIELD, SMALL_ACTIONS } from '../src/texts/reading-frame.js';
 import { allRefusalTexts } from '../src/texts/texts-reject.js';
+import { DEEPER_LAYER } from '../src/texts/texts-readings.js';
 
 describe('standards 文案标准', () => {
   it('四组禁用词表非空', () => {
@@ -57,6 +58,7 @@ describe('全库文案审查（BANNED 词表扫描）', () => {
     ...allAskTexts().map((t) => ({ src: 'TEXTS_ASKING', text: t })),
     ...allFrameTexts().map((t) => ({ src: 'READING_FRAME', text: t })),
     ...allRefusalTexts().map((t) => ({ src: 'TEXTS_REJECT', text: t })),
+    ...Object.values(DEEPER_LAYER).flat().map((t) => ({ src: 'DEEPER_LAYER', text: t })),
   ];
 
   it('全部文案池零禁用词命中', () => {
