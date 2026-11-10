@@ -140,12 +140,6 @@ textarea { resize: vertical; min-height: 78px; }
 .fact { background: rgba(255, 255, 255, 0.45); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
 .fact b { display: block; font-size: 0.7rem; color: var(--dim); font-weight: 600; margin-bottom: 4px; letter-spacing: 0.6px; }
 .fact span { font-size: 0.95rem; font-weight: 700; }
-.pricing { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
-.price-card { position: relative; display: flex; flex-direction: column; gap: 10px; }
-.price-card.featured { border: 1.5px solid var(--accent); box-shadow: 0 14px 34px rgba(77, 143, 126, 0.18); }
-.price { font-size: 1.9rem; font-weight: 900; letter-spacing: 1px; }
-.price small { font-size: 0.78rem; font-weight: 500; color: var(--dim); }
-.price-card ul { margin: 0; padding: 0 0 0 18px; color: var(--dim); font-size: 0.82rem; line-height: 1.9; }
 details.faq { background: rgba(248, 242, 228, 0.7); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; margin-bottom: 10px; }
 details.faq summary { cursor: pointer; font-weight: 700; font-size: 0.9rem; }
 details.faq p { color: var(--dim); font-size: 0.85rem; line-height: 1.8; margin: 10px 0 0; }

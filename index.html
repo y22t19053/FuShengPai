@@ -59,22 +59,26 @@
     <header class="header">
       <div class="logo">浮生牌</div>
       <nav class="top-btns">
-        <button data-action="togglePanel" data-panel="teaching">📖 教程</button>
-        <button data-action="togglePanel" data-panel="history">历史</button>
-        <button data-action="togglePanel" data-panel="settings">AI</button>
-        <button data-action="showDataMigration" title="导出/导入全部数据 · 换设备或备份时使用">备份</button>
-        <button data-action="resetAll" class="danger" title="清空当前牌局，重新起念">↺ 重开</button>
-        <a href="./dual.html" style="padding:8px 14px;border:1px solid var(--border,#aa9d80);border-radius:999px;color:var(--gold-mute,#4d8f7e);font-size:0.78rem;text-decoration:none;font-weight:600;white-space:nowrap;">🔮 占卜师版</a>
+        <button data-action="togglePanel" data-panel="teaching" class="opt">📖 教程</button>
+        <button data-action="togglePanel" data-panel="history" class="opt">历史</button>
+        <button data-action="togglePanel" data-panel="settings" class="opt">AI</button>
+        <button data-action="showDataMigration" class="opt" title="导出/导入全部数据 · 换设备或备份时使用">备份</button>
+        <button data-action="resetAll" class="danger opt" title="清空当前牌局，重新起念">↺ 重开</button>
+        <a href="./dual.html" class="dual-link">🔮 占卜师版</a>
         <button data-action="toggleMoreMenu" class="more-btn" title="更多功能">···</button>
       </nav>
       <nav class="more-menu" id="moreMenu" hidden>
+        <button data-action="togglePanel" data-panel="teaching">📖 教程</button>
+        <button data-action="togglePanel" data-panel="history">历史</button>
+        <button data-action="togglePanel" data-panel="settings">AI 设置</button>
+        <button data-action="showDataMigration">备份 / 换设备</button>
         <button data-action="togglePanel" data-panel="rules">规则</button>
         <button data-action="togglePanel" data-panel="profile">个人</button>
         <button data-action="reports">报告</button>
         <button data-action="installPWA" title="把浮生牌添加到主屏幕，像 App 一样全屏使用">📲 安装到桌面</button>
         <button data-action="hardRefresh" title="清除 PWA 缓存并重新加载，解决浏览器缓存旧版">🔄 强制刷新</button>
         <button data-action="openRepo">开源</button>
-        <button data-action="showReward">赞赏</button>
+        <button data-action="resetAll" class="danger" title="清空当前牌局，重新起念">↺ 重新起念</button>
       </nav>
     </header>
 

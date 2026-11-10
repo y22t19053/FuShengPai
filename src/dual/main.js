@@ -6,20 +6,13 @@ import {
   buildReceiptText, cardName, todayStr,
 } from './room.js';
 import { drawTarot } from './tarot.js';
-import { CONFIG } from './config.js';
 import { downloadReceipt } from './receipt-download.js';
 import { renderReceiptHTML } from './receipt-html.js';
-import { verifyLicenseCode, saveLicense, getLicense, isPro, planLabel } from './license.js';
 import { anchorVoucher } from './anchor.js';
 
 const app = document.getElementById('dualApp');
 const params = new URLSearchParams(location.search);
 const ROOM_KEY = 'fsp_dual_rooms';
-
-if (typeof window !== 'undefined') {
-  window.__fspVerifyLicense = verifyLicenseCode;
-  window.__fspConfig = CONFIG;
-}
 
 /* ---------------- 基础工具 ---------------- */
 function toast(msg) {
@@ -129,7 +122,6 @@ function stepsBar(active) {
 /* ---------------- 占卜师端 ---------------- */
 function renderHost() {
   const saved = loadRooms();
-  const plan = planLabel();
   app.innerHTML = `
   <header class="site-header">
     <div class="logo">浮生牌 <em>· 对读</em></div>
@@ -137,7 +129,7 @@ function renderHost() {
       <a href="./index.html">牌桌</a>
       <a href="#builder">建房</a>
       <a href="#verify">复现</a>
-      <a href="#pricing">开通</a>
+      <a href="#free">免费</a>
       <a href="https://github.com/y22t19053/FuShengPai" target="_blank" rel="noopener">开源</a>
     </nav>
   </header>
@@ -224,40 +216,15 @@ function renderHost() {
       </div>
     </section>
 
-    <section class="section" id="pricing">
-      <h2>怎么收费</h2>
-      <p class="sub">现在是内测。不用注册，不用绑手机，卡密开通。</p>
-      <div class="pricing">
-        <div class="card price-card">
-          <div class="pill">免费用</div>
-          <div class="price">¥0</div>
-          <ul><li>建房间、客户自助抽牌</li><li>复现牌局、复制回执</li><li>回执海报带浮生牌落款</li></ul>
-          <a class="btn ghost" href="#builder">直接建</a>
-        </div>
-        <div class="card price-card featured">
-          <div class="pill" style="background:var(--accent);color:#fffdf6;border-color:transparent">内测价</div>
-          <div class="price">¥99 <small>/年</small></div>
-          <ul><li>回执海报去掉浮生牌落款（换你的名字）</li><li>房间记录长期保存</li><li>前 5 位锁价，不想用随时退</li></ul>
-          <button class="btn primary" id="btnBuy">${CONFIG.buyUrl && !CONFIG.buyUrl.includes('your-name') ? '去爱发电买卡密' : '加我微信开通'}</button>
-        </div>
-        <div class="card price-card">
-          <div class="pill">白标</div>
-          <div class="price">¥499 <small>一次性</small></div>
-          <ul><li>换成你的名字、配色、二维码</li><li>页面底部不再出现浮生牌</li><li>适合有自己的工作室/账号</li></ul>
-          <button class="btn ghost" id="btnWhite">问白标</button>
-        </div>
+    <section class="section" id="free">
+      <h2>完全免费</h2>
+      <p class="sub">没有卡密，没有会员，没有付费档位。下面这些全部可用。</p>
+      <div class="grid-3">
+        <div class="card"><h3>不用注册</h3><p>不需要账号、手机号、邮箱。打开就能建房间，牌局只存在你自己的浏览器里。</p></div>
+        <div class="card"><h3>全部功能都开着</h3><p>建房间、客户自助抽牌、复现牌局、复制回执、下载回执海报，包括把落款换成你自己的名字。</p></div>
+        <div class="card"><h3>想自己部署也行</h3><p>项目按 AGPL-3.0 开源。fork 下来换配色、换名字，或者只把规则页拿去用，都随你。</p></div>
       </div>
-      <div class="panel" style="margin-top:16px">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-          <h3 style="margin:0">买过卡密？</h3>
-          <span class="pill" id="planBadge">现在：${plan}</span>
-        </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
-          <input id="licenseIn" placeholder="把卡密粘在这里" style="flex:1;min-width:220px" />
-          <button class="btn primary" id="btnLicense">验证</button>
-        </div>
-        <p class="hint" style="margin-top:10px">卡密是离线验证的，不联网，也不会把卡密发到任何地方。</p>
-      </div>
+      <p class="hint" style="margin-top:14px">如果这东西对你有用，把它发给一个同行，比给钱有用。</p>
     </section>
 
     <section class="section">
@@ -347,28 +314,12 @@ function renderHost() {
     };
     document.getElementById('btnReceiptPoster').onclick = async () => {
       try {
-        await downloadReceipt({ room, voucher, reading, hostNote: document.getElementById('hostNote').value.trim(), anchor: anchorInfo, pro: isPro(), variant: 'host' });
+        await downloadReceipt({ room, voucher, reading, hostNote: document.getElementById('hostNote').value.trim(), anchor: anchorInfo, pro: true, variant: 'host' });
         toast('海报下载好了');
       } catch (e) { toast('出图失败：' + e.message); }
     };
     toast('牌局对上了');
   });
-
-  document.getElementById('btnBuy').onclick = () => {
-    if (CONFIG.buyUrl && !CONFIG.buyUrl.includes('your-name')) window.open(CONFIG.buyUrl, '_blank', 'noopener');
-    else copyText(CONFIG.contact || 'wx: your-wechat');
-    toast('买完把卡密粘到下面输入框');
-  };
-  document.getElementById('btnWhite').onclick = () => copyText(CONFIG.contact || 'wx: your-wechat');
-  document.getElementById('btnLicense').onclick = async () => {
-    const code = document.getElementById('licenseIn').value.trim();
-    if (!code) { toast('先粘卡密'); return; }
-    const result = await verifyLicenseCode(code);
-    if (!result.ok) { toast(result.error || '卡密不对'); return; }
-    saveLicense(result.license);
-    document.getElementById('planBadge').textContent = `现在：${planLabel()}`;
-    toast(`开通了：${result.license.plan === 'white' ? '白标版' : '占卜师版'}，到 ${result.license.exp}`);
-  };
 
   if (params.get('demo') === '1') setTimeout(() => document.getElementById('btnBuild')?.click(), 50);
 }
@@ -431,7 +382,7 @@ function renderSitter(room) {
     document.getElementById('btnCopyVoucher').onclick = () => copyText(encodeVoucher(voucher));
     document.getElementById('btnSavePoster').onclick = async () => {
       try {
-        await downloadReceipt({ room: { ...room, link: location.href }, voucher, reading, hostNote: '', anchor: anchorInfo, pro: false, variant: 'sitter' });
+        await downloadReceipt({ room: { ...room, link: location.href }, voucher, reading, hostNote: '', anchor: anchorInfo, pro: true, variant: 'sitter' });
         toast('凭证下载好了');
       } catch (e) { toast('出图失败：' + e.message); }
     };

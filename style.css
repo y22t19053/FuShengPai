@@ -303,6 +303,20 @@ select:focus-visible {
   content: none;
 }
 
+/* 首页（起念）：hero 本身就是主卡片，外面那层 panel 不再重复描边，
+   否则会出现「一条空纸条 + 双边框」的观感 */
+#dynamicPanels.step-home .core-panel {
+  background: none;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+}
+
+#dynamicPanels.step-home .core-panel::before,
+#dynamicPanels.step-home .core-panel::after {
+  content: none;
+}
+
 .tiyong-panel {
   order: 1;
 }
@@ -494,10 +508,35 @@ select:focus-visible {
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
   padding-bottom: 2px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .top-btns::-webkit-scrollbar {
   display: none;
+}
+
+/* 占卜师版入口（链接，与按钮同一套手绘纸片外观） */
+.top-btns .dual-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border: 2px solid var(--border);
+  border-radius: var(--r-hand-btn);
+  background: rgba(var(--white-rgb), 0.6);
+  color: var(--gold-mute);
+  font-size: clamp(0.6rem, 1.5vw, 0.8rem);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: var(--cut-sm), inset 0 1px 0 rgba(var(--white-rgb), 0.8);
+  transition: border-color 0.25s var(--ease), color 0.25s var(--ease), background 0.25s var(--ease);
+}
+
+.top-btns .dual-link:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--accent-soft);
 }
 
 .top-btns button {
@@ -1904,6 +1943,20 @@ input[type='time']::-webkit-calendar-picker-indicator {
 }
 
 /* ===== 响应式微调 ===== */
+@media (max-width: 640px) {
+  /* 窄屏：顶部只留品牌 + 占卜师版 + 更多，其余动作收进「···」菜单，
+     否则横向溢出把最右边的按钮挤出屏幕 */
+  .top-btns .opt {
+    display: none;
+  }
+
+  .top-btns button,
+  .top-btns .dual-link {
+    font-size: 0.72rem;
+    padding: 6px 12px;
+  }
+}
+
 @media (max-width: 480px) {
   body {
     padding: 4px;
@@ -1916,6 +1969,10 @@ input[type='time']::-webkit-calendar-picker-indicator {
 
   .panel {
     padding: 12px;
+  }
+
+  .hero {
+    padding: 26px 16px 22px;
   }
 
   .btn-row {
@@ -2217,14 +2274,7 @@ body.dragging-card .card-face-small {
 }
 
 .hero::after {
-  content: '🍦';
-  position: absolute;
-  bottom: 10px;
-  right: 14px;
-  font-size: 1.5rem;
-  opacity: 0.55;
-  transform: rotate(14deg);
-  pointer-events: none;
+  content: none;
 }
 
 .hero-eyebrow {
@@ -2252,6 +2302,117 @@ body.dragging-card .card-face-small {
   gap: 12px;
   justify-content: center;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+/* 两个入口按钮尺寸对齐：同一行时等宽，窄屏时整宽堆叠 */
+.hero-actions .btn-hero {
+  flex: 0 1 auto;
+  min-width: 150px;
+  max-width: 240px;
+}
+
+/* 窄屏：两个入口改成整宽上下排（覆盖上面的行内等宽设定） */
+@media (max-width: 480px) {
+  .hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .hero-actions .btn-hero {
+    flex: none;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    padding: 15px 20px;
+  }
+}
+
+/* 体用条为空时不占位（首屏少一条空白纸片） */
+.tiyong-panel:has(.tiyong-bar:empty) {
+  display: none;
+}
+
+/* 结果区还没内容时不占位 */
+#resultArea:empty {
+  display: none;
+}
+
+/* 首屏两条快捷横条（牌灵 / 今日日运）：未抽时的轻引导，成对出现、同一套尺寸与按钮 */
+.shortcut-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 1 1 300px;
+  min-width: 260px;
+  padding: 13px 16px;
+  border-radius: var(--r-hand-md);
+  border: 1px dashed rgba(var(--accent-rgb), 0.42);
+  background: linear-gradient(135deg, var(--hero-bg0), var(--hero-bg1));
+  box-shadow: var(--cut-sm), inset 0 1px 0 rgba(var(--white-rgb), 0.8);
+}
+
+.shortcut-card.is-cinnabar {
+  border-color: rgba(var(--cinnabar-rgb), 0.42);
+  background: rgba(var(--white-rgb), 0.7);
+}
+
+.shortcut-text {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  font-size: 0.78rem;
+  color: var(--ink-ghost);
+}
+
+.shortcut-label {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.shortcut-card.is-sage .shortcut-label {
+  color: var(--accent);
+}
+
+.shortcut-card.is-cinnabar .shortcut-label {
+  color: var(--cinnabar-text);
+}
+
+.shortcut-sub {
+  font-size: 0.72rem;
+  opacity: 0.8;
+  white-space: nowrap;
+}
+
+.shortcut-btn {
+  padding: 7px 18px;
+  border-radius: var(--r-hand-btn);
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  transition: transform 0.15s var(--ease), filter 0.2s var(--ease);
+}
+
+.shortcut-card.is-cinnabar .shortcut-btn {
+  background: rgba(var(--cinnabar-rgb), 0.12);
+  color: var(--cinnabar-text);
+  border-color: rgba(var(--cinnabar-rgb), 0.5);
+}
+
+.shortcut-btn:hover {
+  filter: brightness(1.05);
+}
+
+.shortcut-btn:active {
+  transform: translateY(1px);
 }
 
 .btn-hero {
@@ -2284,12 +2445,18 @@ body.dragging-card .card-face-small {
     inset 0 1px 0 rgba(var(--white-rgb), 0.7);
 }
 
-/* 次 CTA：雾紫奶玻璃（手绘点缀） */
+/* 次 CTA：奶白纸片 + 鼠尾草描边（与主按钮同一族色，不抢视线） */
 .btn-hero-cinnabar {
-  background: linear-gradient(135deg, rgba(var(--candy-lav-rgb), 0.3) 0%, rgba(var(--candy-lav-rgb), 0.14) 100%);
-  color: var(--lav-text);
-  border-color: rgba(var(--candy-lav-rgb), 0.6);
-  box-shadow: var(--cut-sm), inset 0 1px 0 rgba(var(--white-rgb), 0.6);
+  background: rgba(var(--white-rgb), 0.82);
+  color: var(--gold-mute);
+  border-color: rgba(var(--accent-rgb), 0.55);
+  box-shadow: var(--cut-sm), inset 0 1px 0 rgba(var(--white-rgb), 0.8);
+}
+
+.btn-hero-cinnabar:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .hero-link-row {

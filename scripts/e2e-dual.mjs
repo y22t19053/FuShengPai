@@ -1,4 +1,4 @@
-// 对读模式端到端测试：建房 → 客户抽牌 → 凭证 → 复现 → 下载回执 PNG
+﻿// 对读模式端到端测试：建房 → 客户抽牌 → 凭证 → 复现 → 下载回执 PNG
 // 用法：node e2e_dual.mjs http://127.0.0.1:4319
 import fs from 'node:fs';
 import path from 'node:path';
@@ -118,12 +118,6 @@ try {
     const size = fs.statSync(path.join(DOWNLOADS, png)).size;
     check('下载：PNG 体积正常（>200KB）', size > 200 * 1024, `${Math.round(size / 1024)}KB`);
   }
-
-  // 5. 卡密验证（Edge WebCrypto Ed25519）
-  const lic = 'FSP1.eyJ2IjoxLCJwbGFuIjoicHJvIiwibmFtZSI6IuWGhea1i-WRmCIsImlhdCI6IjIwMjYtMTAtMTgiLCJleHAiOiIyMDI3LTEwLTE4In0.PdkTDp-T6aXLIktODWnYqPcrWq0cYhIWwH9d2HniAz48Ca5uuBZidCTnlfuZCudFFzS0HpzRBe6fVjHlhc-sBg';
-  const verify = await evalJs(`window.__fspVerifyLicense(${JSON.stringify(lic)}).then(r => JSON.stringify(r))`);
-  const ok = (() => { try { return JSON.parse(verify).ok === true; } catch { return false; } })();
-  check('卡密：Ed25519 离线验证通过', ok, verify);
 } catch (e) {
   console.error('E2E 异常：', e.message);
   results.push({ name: 'E2E 异常', ok: false, detail: e.message });

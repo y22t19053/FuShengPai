@@ -556,12 +556,12 @@ export function renderTodayFortuneStrip() {
 
   if (!paigeBanner) {
     paigeBanner = `
-      <div style="flex:1 1 300px;min-width:280px;background:linear-gradient(135deg,var(--hero-bg0),var(--hero-bg1));border:1px dashed rgba(var(--accent-rgb),0.4);border-radius:var(--r-hand-md);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-        <div style="font-size:0.78rem;color:var(--ink-ghost);">
-          <span style="color:var(--accent);font-weight:700;">🃏 我的牌灵</span>
-          <span style="opacity:0.85;"> · 只存本机</span>
+      <div class="shortcut-card is-sage">
+        <div class="shortcut-text">
+          <span class="shortcut-label">🃏 我的牌灵</span>
+          <span class="shortcut-sub">只存本机</span>
         </div>
-        <button id="drawPaigeBannerBtn" style="background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);padding:7px 18px;border-radius:18px;font-size:0.8rem;font-weight:700;cursor:pointer;">抽一张</button>
+        <button id="drawPaigeBannerBtn" class="shortcut-btn">抽一张</button>
       </div>
     `;
   }
@@ -602,12 +602,12 @@ export function renderTodayFortuneStrip() {
 
   if (!dailyBanner) {
     dailyBanner = `
-      <div style="flex:1 1 300px;min-width:280px;background:rgba(255,255,255,0.7);border:1px dashed rgba(var(--cinnabar-rgb),0.53);border-radius:var(--r-hand-md);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;backdrop-filter:blur(4px);">
-        <div style="font-size:0.78rem;color:var(--ink-ghost);">
-          <span style="color:var(--cinnabar-text);font-weight:700;">🌤 今日日运</span>
-          <span style="opacity:0.85;"> · 每天一签</span>
+      <div class="shortcut-card is-cinnabar">
+        <div class="shortcut-text">
+          <span class="shortcut-label">🌤 今日日运</span>
+          <span class="shortcut-sub">每天一签</span>
         </div>
-        <button id="drawDailyBannerBtn" style="background:var(--cinnabar);color:#f6efdd;border:none;padding:7px 18px;border-radius:18px;font-size:0.8rem;font-weight:700;cursor:pointer;">抽一张</button>
+        <button id="drawDailyBannerBtn" class="shortcut-btn">抽一张</button>
       </div>
     `;
   }

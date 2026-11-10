@@ -14,7 +14,7 @@ import {
   renderPeriodReportInto, replayTimelineEntry,
   togglePanel, showHistoryDetail, generateShareCode,
   importShareCode, generateShareImage, saveShareImage, copyShareImage, showAIGuideModal,
-  showDataMigrationModal, showDailyFortunePicker, showRewardModal, renderMonthlyTensionInto
+  showDataMigrationModal, showDailyFortunePicker, renderMonthlyTensionInto
 } from './ui/ui-modal.js';
 import { toast } from './ui/toast.js';
 import { registerUIActions } from './ui/actions.js';
@@ -1305,10 +1305,6 @@ export function handleAction(action, dataset, el = null) {
       if (dataset.time !== undefined) replayTimelineEntry(Number(dataset.time));
       break;
     case 'openRepo': window.open('https://github.com/y22t19053/FuShengPai', '_blank'); break;
-    case 'showReward': {
-      showRewardModal();
-      break;
-    }
     case 'showDataMigration': {
       showDataMigrationModal();
       break;
@@ -1384,6 +1380,12 @@ function bindAllEvents() {
     // 1. 按钮上的 action 优先
     const btn = e.target.closest('button');
     if (btn && btn.dataset.action) {
+      // 点「···」菜单里的条目：先收起菜单，否则手机上菜单盖住刚打开的
+      const inMenu = btn.closest('#moreMenu');
+      if (inMenu) {
+        const menu = document.getElementById('moreMenu');
+        if (menu) menu.hidden = true;
+      }
       handleAction(btn.dataset.action, btn.dataset, btn);
       return;
     }

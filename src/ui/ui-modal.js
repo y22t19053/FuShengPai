@@ -14,7 +14,6 @@ import { renderTeachingPanel, renderHistoryPanel, initSettingsPanel, initProfile
 import { toast } from './toast.js';
 import { buildAIPrompt } from '../services/prompts.js';
 import { escapeForHTML, setHTML } from '../utils/safe.js';
-import { loadQRImage } from '../utils/qr.js';
 import { copyTextWithFeedback } from '../utils/clipboard.js';
 import { offlineFollowUpText } from '../services/offline-answer.js';
 import { resolveApiModel } from '../utils/api-config.js';
@@ -640,37 +639,6 @@ export function showDurianReport() {
   modal.removeAttribute('hidden');
 }
 
-// ===== 赞赏支持 =====
-export async function showRewardModal() {
-  const modal = document.getElementById('modal');
-  const content = document.getElementById('modalContent');
-  if (!modal || !content) return;
-  const imgBase = import.meta.env.BASE_URL || '/';
-  const rewardUrl = import.meta.env.VITE_REWARD_URL || '';
-
-  let qrImg = null;
-  if (rewardUrl) {
-    try { qrImg = await loadQRImage(rewardUrl, 200); } catch (e) { qrImg = null; }
-  }
-
-  const html = `
-    <div style="text-align:center;">
-      <h3 style="color:var(--accent);">☕ 赞赏支持</h3>
-      <p style="color:var(--dim);font-size:0.85rem;">如果浮生牌对你有帮助，可以请我喝杯咖啡~</p>
-      ${qrImg
-        ? `<img src="${qrImg.src}" alt="赞赏码" style="max-width:200px;border-radius:var(--r-hand-sm);margin:12px 0;">`
-        : `<img src="${imgBase}reward.png" alt="赞赏码" style="max-width:200px;border-radius:var(--r-hand-sm);margin:12px 0;"
-             onerror="this.style.display='none';document.getElementById('rewardFallback').style.display='block'">
-           <p id="rewardFallback" style="display:none;font-size:0.8rem;color:var(--dim);">
-             ${rewardUrl ? '未找到赞赏码图片，请将图片放到项目根目录 public/reward.png' : '未配置赞赏链接，请设置 VITE_REWARD_URL 或放置 public/reward.png'}
-           </p>`}
-      <p style="font-size:0.7rem;color:var(--dim);">微信/支付宝扫码赞赏</p>
-      <div class="btn-row"><button data-action="closeModal" class="small">关闭</button></div>
-    </div>
-  `;
-  setHTML(content, html);
-  modal.removeAttribute('hidden');
-}
 // ============================================================
 // ========== 分享图统一绘制（新版 Share 架构驱动） ==========
 // ============================================================
