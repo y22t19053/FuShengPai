@@ -1,4 +1,7 @@
 // ===== src/services/readings.js · 本地解读（九宫全息阵纯逻辑） =====
+// 写法：先说结论 → 讲来路 → 逐牌两句 → 旁枝一句 → 收在动作。
+// 旧版把「差值 / 旺衰 / 天机线 / 大环境」逐宫各列一遍，同一件事在一页里说四次，
+// 读起来像数据库导出；这里只在需要的地方说一次，细节交给牌面那几行。
 import {
   getShengKe, getShengKeLabel, getRelationPlain, getWangState, getWangStatePlain,
   getWuxing, getCardValue, GONG_NAMES, GONG_WUXING, getGongEnvironment
@@ -10,9 +13,12 @@ import { getProfile } from '../storage.js';
 import { detectIntent, extractKeywords } from './intent.js';
 import { getBaziFromProfile } from './profile.js';
 import { buildSummary } from './summary.js';
-import { pickSmallAction } from '../texts/reading-frame.js';
+import { pickSmallAction, pickHandback } from '../texts/reading-frame.js';
+import { getCardImage } from '../texts/card-images.js';
+import { composeCardParts } from '../texts/texts-readings.js';
+import { recordAsk, repeatPreamble } from './repeat-ask.js';
 
-// ===== 差值三种情况解析 =====
+// ===== 差值三种情况解析（保留导出：设置面板与分享文案仍会用） =====
 export function getDiffAnalysisText(diffType, gong, card) {
   const gongName = GONG_NAMES[gong] + '宫';
   const rank = card.isJoker ? card.type : card.rank + (card.suit || '');
@@ -35,46 +41,29 @@ export function getDiffAnalysisText(diffType, gong, card) {
  * @returns {Promise<{text: string, modules: any[], summary: object}>}
  */
 export async function buildLocalReading(state) {
-  const readings = await import('../texts/texts-readings.js');
   const tiWx = getWuxing(state.ti), yongWx = getWuxing(state.yong);
   const relation = getShengKe(tiWx, yongWx);
+  const relationPlain = getRelationPlain(relation || '同我');
   const intent = detectIntent(state.question, state.category, state.subCategory);
   state.intent = intent;
 
-  let result = '';
-
-  const savedProfile = getProfile();
-  if (savedProfile && (savedProfile.name || savedProfile.gender || savedProfile.birthPlace || savedProfile.currentPlace)) {
-    let parts = [];
-    if (savedProfile.name) parts.push(`姓名：${savedProfile.name}`);
-    if (savedProfile.gender) parts.push(`性别：${savedProfile.gender}`);
-    if (savedProfile.birthPlace) parts.push(`出生地：${savedProfile.birthPlace}`);
-    if (savedProfile.currentPlace) parts.push(`现居地：${savedProfile.currentPlace}`);
-    if (parts.length) result += `【求测人】${parts.join('，')}\n\n`;
-  }
-  if (state.category) result += `【领域：${state.category}${state.subCategory ? '/' + state.subCategory : ''}】\n\n`;
-  const bazi = getBaziFromProfile();
-  if (bazi) result += `【生辰】${bazi.fullText}\n\n`;
-  result += `你为${tiWx}，所问之事为${yongWx}。\n`;
-  if (relation) result += `（${getRelationPlain(relation)} · ${getShengKeLabel(relation)}）\n\n`;
-  if (state.line) result += `天机线：${state.line.map(g => GONG_NAMES[g] + '宫').join(' → ')}\n\n`;
-
   const allGongs = state.gongOrder.length ? state.gongOrder : Object.keys(state.grid).map(Number);
-  let coreText = '';
+  const lineGongs = Array.isArray(state.line) ? state.line : [];
 
+  // ---------- 先把每宫的料一次性算好，后面按叙事顺序取用 ----------
+  const slots = [];
+  let envTotal = 0, envCount = 0, strongCount = 0, weakCount = 0;
   for (const g of allGongs) {
     const cards = state.grid[g] || [];
-    if (!cards.length) continue;
-    cards.forEach(card => {
+    for (const card of cards) {
       const diff = calcDiff(g, card);
       const absDiff = Math.abs(diff);
       const diffType = diff > 0 ? '大于' : diff < 0 ? '小于' : '等于';
-      const diffAnalysis = getDiffAnalysisText(diffType, g, card);
       const wang = getWangState(getWuxing(card), GONG_WUXING[g]);
       const relToTi = getShengKe(tiWx, getWuxing(card));
-      const linePos = state.line ? state.line.indexOf(g) : -1;
+      const linePos = lineGongs.indexOf(g);
       const linePosition = linePos === 0 ? 'start' : linePos === 1 ? 'middle' : linePos === 2 ? 'end' : 'offline';
-      const ctx = {
+      const parts = composeCardParts({
         gong: { id: g, name: GONG_NAMES[g], element: GONG_WUXING[g] },
         card: { element: getWuxing(card), value: getCardValue(card), suit: card.suit },
         tiYongRelation: relToTi || '同我',
@@ -83,94 +72,112 @@ export async function buildLocalReading(state) {
         diff: absDiff,
         diffType,
         intent
-      };
-      const readingResult = readings.generateFullReading(ctx);
-      const label = state.lineOrder[g] || GONG_NAMES[g] + '宫';
-      coreText += `【${label}】差值 ${absDiff}（${diffType}）\n${diffAnalysis}\n${readingResult.light}\n\n---\n${readingResult.shadow}\n\n`;
-    });
-  }
-  if (coreText) result += `【牌面解读】\n${coreText}\n\n`;
-
-  if (tiWx && yongWx) {
-    result += `【你与所问之事】\n你为${tiWx}，所问之事为${yongWx}。关系：${getRelationPlain(relation || '同我')}（${relation || '同我'}）。\n\n`;
-  }
-  let diffText = '';
-  for (const g of allGongs) {
-    const cards = state.grid[g] || [];
-    if (!cards.length) continue;
-    cards.forEach(card => {
-      const diff = calcDiff(g, card);
-      const absDiff = Math.abs(diff);
-      const diffType = diff > 0 ? '大于' : diff < 0 ? '小于' : '等于';
-      const diffAnalysis = getDiffAnalysisText(diffType, g, card);
-      diffText += `${GONG_NAMES[g]}宫差值${absDiff}（${diffType}）\n${diffAnalysis}\n`;
-    });
-  }
-  if (diffText) result += `【宫位细看】\n${diffText}\n\n`;
-
-  let wangText = '';
-  for (const g of allGongs) {
-    const cards = state.grid[g] || [];
-    if (!cards.length) continue;
-    cards.forEach(card => {
-      const wang = getWangState(getWuxing(card), GONG_WUXING[g]);
-      wangText += `${GONG_NAMES[g]}宫：${getWangStatePlain(wang)}\n`;
-    });
-  }
-  if (wangText) result += `【宫位能量】\n${wangText}\n\n`;
-
-  // ===== 宫位大环境分析 =====
-  let envText = '';
-  let envTotal = 0, envCount = 0;
-  for (const g of allGongs) {
-    const cards = state.grid[g] || [];
-    if (!cards.length) continue;
-    cards.forEach(card => {
-      const gongWx = GONG_WUXING[g];
-      const cardWx = getWuxing(card);
-      const env = getGongEnvironment(gongWx, cardWx);
-      if (!env) return;
-      const rank = card.isJoker ? card.type : card.rank + (card.suit || '');
-      envText += `· ${GONG_NAMES[g]}宫（${gongWx}）落 ${rank}（${cardWx}）：${env.plain || env.label} —— ${env.desc}\n`;
-      envTotal += env.score;
-      envCount++;
-    });
-  }
-  if (envCount > 0) {
-    const avgScore = (envTotal / envCount).toFixed(1);
-    const envJudge =
-      avgScore >= 2.5 ? '整体环境滋养，局势对你有利。'
-      : avgScore >= 1 ? '整体环境偏助力，顺势可成。'
-      : avgScore > -1 ? '整体环境中性，吉凶取决于你的选择。'
-      : avgScore > -2.5 ? '整体环境偏压制，宜谨慎守势。'
-      : '整体环境明显不利，暂避锋芒为佳。';
-    result += `【宫位大环境】\n${envText}\n综合评估：${envJudge}（环境均分 ${avgScore}）\n\n`;
+      });
+      const env = getGongEnvironment(GONG_WUXING[g], getWuxing(card));
+      if (env) { envTotal += env.score; envCount++; }
+      if (wang === '旺' || wang === '相') strongCount++;
+      if (wang === '囚' || wang === '死') weakCount++;
+      slots.push({ g, card, absDiff, diffType, wang, linePos, parts, env,
+        label: state.lineOrder[g] || GONG_NAMES[g] + '宫' });
+    }
   }
 
-  if (state.line) {
-    const tlText = state.line.map(g => `${state.lineOrder[g] || GONG_NAMES[g] + '宫'}：${GONG_NAMES[g]}宫`).join('\n');
-    result += `【天机线】\n${tlText}\n\n`;
+  const envAvg = envCount ? envTotal / envCount : 0;
+  const envJudge =
+    envAvg >= 2.5 ? '局面本身是养人的，顺着走比硬顶省力'
+    : envAvg >= 1 ? '局面偏帮你这边，顺势推一把能成'
+    : envAvg > -1 ? '局面不偏不倚，成败多半落在你怎么选'
+    : envAvg > -2.5 ? '局面偏拧，能守就别拿去赌'
+    : '局面明显不利，这会儿硬来只会更费劲';
+
+  let result = '';
+
+  // ---------- 0. 同一件事刚问过：先提醒，再照常给（不替人做决定，也不装作没看见） ----------
+  const repeatNote = state.question ? repeatPreamble(state.question) : '';
+  if (repeatNote) result += `${repeatNote}\n\n`;
+
+  // ---------- 1. 先说结论（先给判断，再讲来路） ----------
+  result += '【先说结论】\n';
+  const relationClause = relation === '克我'
+    ? `不过你和这件事的关系是${relationPlain}`
+    : `你与这件事的关系是${relationPlain}`;
+  result += `${envJudge}。${relationClause}。`;
+  if (lineGongs.length >= 3) {
+    result += strongCount > weakCount
+      ? '牌面上它已经连成一条线，这条线现在是有力气的。\n\n'
+      : weakCount > strongCount
+        ? '牌面上它已经连成一条线，只是眼下没什么力气。\n\n'
+        : '牌面上它连成了一条线，力道不强也不弱。\n\n';
   } else {
-    result += `【天机线】\n未连成天机线，当前局势仍在变化中。\n\n`;
+    result += '牌还没连成一条线，说明现在还没定型，别急着给自己下结论。\n\n';
   }
 
-  if (bazi) result += `【四柱八字】\n${bazi.fullText}\n生肖：${bazi.yearPillar.shengXiao}\n\n`;
-
-  if (state.question) {
-    const keywords = extractKeywords(state.question);
-    if (keywords.length) result += `【意图关键词】\n${keywords.join('、')}\n\n`;
+  // ---------- 2. 事情的来路（只讲天机线那三宫） ----------
+  if (lineGongs.length) {
+    result += '【事情的来路】\n';
+    const lineSlots = slots.filter(s => s.linePos >= 0 && s.linePos < 3)
+      .sort((a, b) => a.linePos - b.linePos);
+    const segName = ['起因', '经过', '结果'];
+    for (const s of lineSlots) {
+      const seg = s.parts.line
+        ? s.parts.line.replace(/^此宫位于天机线「[^」]*」段，/, '')
+        : s.parts.lead;
+      const head = /^(事情的)?(起因|经过|结果)$/.test(s.label) || segName.includes(s.label)
+        ? segName[s.linePos]
+        : s.label;
+      result += `${head}：${seg}\n`;
+    }
+    result += '\n';
   }
 
+  // ---------- 3. 牌面（每张牌两句，不再把差值/旺衰/体用复述一遍） ----------
+  if (slots.length) {
+    result += '【牌面】\n';
+    for (const s of slots) {
+      const img = getCardImage(s.card);
+      const head = img ? img.image : s.parts.lead;
+      const tail = s.parts.hidden ? `${s.parts.trait || ''}${s.parts.trait ? ' ' : ''}${s.parts.hidden}` : s.parts.trait;
+      result += `· ${s.label}${img ? `（${img.domain}）` : ''}：${head}\n`;
+      if (tail) result += `  ${tail}\n`;
+      if (s.parts.shadow) result += `  ${s.parts.shadow}\n`;
+    }
+    result += '\n';
+  }
+
+  // ---------- 4. 旁枝（没进天机线的宫，一句带过） ----------
+  const sideSlots = slots.filter(s => s.linePos < 0);
+  if (sideSlots.length) {
+    const names = [...new Set(sideSlots.map(s => GONG_NAMES[s.g] + '宫'))].join('、');
+    result += `【还有几处】\n${names} 上还落着${sideSlots.length}张牌，不在主线上。`
+      + '多半是旁枝：可能有人插手，也可能是你自己的一部分心思，先放一放。\n\n';
+  }
+
+  // ---------- 5. 你与所问之事（只出现一次） ----------
+  if (tiWx && yongWx) {
+    result += `【你与所问之事】\n你为${tiWx}，所问之事为${yongWx}`
+      + `${relation ? `，${getShengKeLabel(relation)}` : ''}。\n\n`;
+  }
+
+  // ---------- 6. 底牌（八字 / 关键词 / 张力，压成一小段） ----------
+  const bazi = getBaziFromProfile();
+  const keywords = state.question ? extractKeywords(state.question) : [];
   const durian = calculateDurianIndex(state);
-  if (durian) {
-    state.durianIndex = durian;
-    result += `张力指数：${durian.score}/10（${durian.level}）\n${durian.description}\n`;
-  }
+  if (durian) state.durianIndex = durian;
+  let meta = '';
+  if (bazi) meta += `生辰：${bazi.fullText}\n`;
+  if (keywords.length) meta += `你说的关键词：${keywords.join('、')}\n`;
+  if (durian) meta += `张力指数：${durian.score}/10（${durian.level}）——${durian.description}\n`;
+  if (envCount) meta += `环境均分：${envAvg.toFixed(1)}`;
+  if (meta) result += `【底牌】\n${meta.replace(/\n$/, '')}\n\n`;
 
-  // 经验注入：离线/本地引擎也收在「今天能做的一步」上，而不是停在张力指数（同一天同一问题恒定）
-  result += `\n今天能做的一步：${pickSmallAction(`${state.question || ''}|${state.category || ''}|${durian ? durian.score : ''}`)}\n`;
+  // ---------- 7. 收在动作与决定权 ----------
+  const seed = `${state.question || ''}|${state.category || ''}|${durian ? durian.score : ''}`;
+  result += `今天能做的一步：${pickSmallAction(seed)}\n`;
+  result += `${pickHandback(seed)}\n`;
 
   result = applyCovenant(result);
+  // 记下这次问的是什么（下一次同一件事进来时才拦得住）
+  if (state.question) recordAsk(state.question);
   const summary = buildSummary(state);
   return { text: result.trim(), modules: [], summary };
 }

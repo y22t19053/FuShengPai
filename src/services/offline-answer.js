@@ -5,6 +5,7 @@
 
 import { readQuestion } from '../texts/texts-asking.js';
 import { pickClosing, normalizeField } from '../texts/reading-frame.js';
+import { isTimingQuestion, answerTimingQuestion } from './repeat-ask.js';
 
 // 离线模式的统一说明（放在解读末尾，别放在开头抢戏）
 export const OFFLINE_NOTE = '（这段是按牌面规则推的，没连 AI。想看更细的，可以到「AI」里接一个模型：云端填 Key，本机装 Ollama 可以免 Key。）';
@@ -14,6 +15,11 @@ export function offlineFollowUpText(question, opts = {}) {
   const q = String(question || '').trim();
   const field = normalizeField(opts.field || opts.category || '');
   const lines = [];
+
+  // 「过段时间再问 / 还能再问吗」——这类问题规则里答得了，不必往牌上推
+  if (isTimingQuestion(q)) {
+    return `${answerTimingQuestion(opts.origin || q)}\n${OFFLINE_NOTE}`;
+  }
 
   const rq = readQuestion(q);
   const hints = Array.isArray(rq.hints) ? rq.hints.slice(0, 2) : [];

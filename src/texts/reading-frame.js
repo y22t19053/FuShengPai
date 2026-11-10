@@ -78,6 +78,15 @@ export const SMALL_ACTIONS = [
   '少喝一杯，早点躺下。',
 ];
 
+/** 中性收尾：九宫整篇最后一句用这个——不预设你要做的事，只把决定权放回去 */
+export const HANDOFF_LINES = [
+  '牌只说了这里有什么坑。走哪条路，还是你定。',
+  '这些是眼下的局面，不是判决。怎么用它，你说了算。',
+  '看完了，别忘了你随时可以改主意。',
+  '要说的大概就这些。剩下的，你自己心里比牌清楚。',
+  '我这边看到的是这些。要不要照着走，你定。',
+];
+
 /** 字段归一：把 UI 的类别/意图映射到收尾池 */
 export function normalizeField(input) {
   const s = String(input || '');
@@ -104,6 +113,11 @@ export function pickClosing(field, seedText = '') {
   const key = normalizeField(field);
   const pool = CLOSING_BY_FIELD[key] || CLOSING_BY_FIELD.self;
   return pool[hashText(seedText || key) % pool.length];
+}
+
+/** 确定性取一句中性收尾（不预设领域，同 seed 恒定） */
+export function pickHandback(seedText = '') {
+  return HANDOFF_LINES[hashText(seedText || 'handback') % HANDOFF_LINES.length];
 }
 
 /** 确定性取一个小动作（同 seed 恒定） */

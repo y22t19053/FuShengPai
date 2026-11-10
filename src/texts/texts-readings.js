@@ -227,61 +227,80 @@ export function generateDiffText(context) {
 // 已删除"其牌面属X"冗余描述
 // ════════════════════════════════════════════════════════════════
 
-export function generateFullReading(context) {
+/**
+ * 把一张牌的解读拆成可单独取用的几段。
+ * 目的：单牌长文需要「一口气说完」，而九宫全篇需要的是「每宫两句」，两边共用同一套语料，
+ * 免得同一句话在一个页面里出现两次。generateFullReading 仍走这里，输出不变。
+ * @returns {{lead:string, diff:string, line:string, tiYong:string, wang:string, trait:string, hidden:string, shadow:string}}
+ */
+export function composeCardParts(context) {
   const gongId = context.gong?.id;
   const intent = context.intent || 'default';
   const gongSet = gongPhrases[gongId];
-  if (!gongSet) return { light: '宫位信息缺失', shadow: '' };
+  if (!gongSet) {
+    return { lead: '宫位信息缺失', diff: '', line: '', tiYong: '', wang: '', trait: '', hidden: '', shadow: '' };
+  }
 
-  const lead = pickGongPhrase(gongSet, 'lead', intent);
-  const trait = pickGongPhrase(gongSet, 'trait', intent);
-  const hidden = pickGongPhrase(gongSet, 'hidden', intent);
-
-  let result = lead;
-
-  // 差值
+  let diff = '';
   if (context.diff !== undefined && context.diff !== null) {
     const level = getIntensityLevel(context.diff);
     const effect = pick(intensityMap[level]?.effect || []);
-    if (effect) result = appendPhrase(result, `差值等于${context.diff}，表示着${effect}`);
+    if (effect) diff = `差值等于${context.diff}，表示着${effect}`;
   }
 
-  // 天机线位置
+  let line = '';
   if (context.linePosition && context.linePosition !== 'offline') {
     const lineKey = LINE_KEY_MAP[context.linePosition] || context.linePosition;
     const lineText = pick(getPhraseSet(linePhrases, lineKey, intent) || []);
-    if (lineText) result = appendPhrase(result, `此宫位于天机线「${lineKey}」段，${lineText}`);
+    if (lineText) line = `此宫位于天机线「${lineKey}」段，${lineText}`;
   }
 
-  // 体用关系
+  let tiYong = '';
   if (context.tiYongRelation) {
     const relText = pick(getPhraseSet(tiYongPhrases, context.tiYongRelation, intent) || []);
-    if (relText) result = appendPhrase(result, `你与所问之事的关系是「${getRelationPlain(context.tiYongRelation)}」，${relText}`);
+    if (relText) tiYong = `你与所问之事的关系是「${getRelationPlain(context.tiYongRelation)}」，${relText}`;
   }
 
-  // 旺衰状态
+  let wang = '';
   if (context.wangState) {
     const wangText = pick(getPhraseSet(wangPhrases, context.wangState, intent) || []);
-    if (wangText) result = appendPhrase(result, `当前状态是「${getWangStatePlain(context.wangState)}」，${wangText}`);
+    if (wangText) wang = `当前状态是「${getWangStatePlain(context.wangState)}」，${wangText}`;
   }
 
-  // ✂️ 已删除：context.card?.element 的"其牌面属X"冗余描述
-
-  // 宫位显象（直接接白话，避免"显象"术语）
-  if (trait) result = appendPhrase(result, trait);
-
-  // 深层注意
-  if (hidden) result = appendPhrase(result, `。另外，${hidden}`);
-
-  // 阴暗面提示
   let shadow = '';
   if (context.wangState === '死' && Math.abs(context.diff) > 5) {
     shadow = '这件事现在卡得比较死，硬推可能伤到自己，先缓一缓，守住再找转机。';
   } else if (Math.abs(context.diff) > 8) {
     shadow = '你往前的方向和实际情况差得有点远，早点察觉，能避开大消耗。';
-  } else {
-    shadow = '';
   }
 
-  return { light: result, shadow: shadow };
+  return {
+    lead: pickGongPhrase(gongSet, 'lead', intent),
+    diff,
+    line,
+    tiYong,
+    wang,
+    trait: pickGongPhrase(gongSet, 'trait', intent),
+    hidden: pickGongPhrase(gongSet, 'hidden', intent),
+    shadow,
+  };
+}
+
+export function generateFullReading(context) {
+  const parts = composeCardParts(context);
+  if (parts.lead === '宫位信息缺失') return { light: parts.lead, shadow: '' };
+
+  let result = parts.lead;
+  for (const seg of [parts.diff, parts.line, parts.tiYong, parts.wang]) {
+    if (seg) result = appendPhrase(result, seg);
+  }
+  // ✂️ 已删除：context.card?.element 的"其牌面属X"冗余描述
+
+  // 宫位显象（直接接白话，避免"显象"术语）
+  if (parts.trait) result = appendPhrase(result, parts.trait);
+
+  // 深层注意
+  if (parts.hidden) result = appendPhrase(result, `。另外，${parts.hidden}`);
+
+  return { light: result, shadow: parts.shadow };
 }
