@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>浮生牌 · 封面</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1200px; height: 900px; overflow: hidden; }
+  body {
+    font-family: "Source Han Serif SC", "Songti SC", "SimSun", "Microsoft YaHei", serif;
+    background:
+      radial-gradient(1100px 700px at 78% 16%, #dcece4 0%, rgba(220,236,228,0) 64%),
+      radial-gradient(900px 620px at 10% 90%, #f4e6d4 0%, rgba(244,230,212,0) 62%),
+      linear-gradient(150deg, #f2ecdd 0%, #eae3d1 55%, #e5deca 100%);
+    color: #3a3425; position: relative;
+  }
+  body::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background-image: repeating-linear-gradient(0deg, rgba(120,105,70,.05) 0 1px, transparent 1px 7px);
+    opacity: .5;
+  }
+  .wrap { position: relative; height: 100%; padding: 76px 78px; display: flex; gap: 40px; align-items: center; }
+  .left { width: 540px; flex: 0 0 auto; }
+  .kicker {
+    display: inline-block; font-size: 15px; letter-spacing: .34em; color: #6f8a7d;
+    border: 1px solid rgba(111,138,125,.35); border-radius: 999px; padding: 7px 18px 7px 22px;
+    background: rgba(255,255,255,.45); margin-bottom: 30px;
+  }
+  h1 { font-size: 110px; line-height: 1.02; letter-spacing: .1em; color: #4d8f7e; text-shadow: 4px 5px 0 rgba(77,143,126,.14); }
+  h1 small { display: block; font-size: 26px; letter-spacing: .26em; color: #8a9a8f; margin-top: 18px; text-shadow: none; }
+  .rule { width: 74px; height: 3px; background: #c2a86a; border-radius: 3px; margin: 30px 0 26px; opacity: .85; }
+  .lede { font-size: 25px; line-height: 1.74; color: #4a4233; }
+  .lede b { color: #4d8f7e; font-weight: 700; }
+  .facts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 34px; }
+  .facts span {
+    font-size: 16px; color: #5c5342; background: rgba(255,255,255,.68);
+    border: 1px solid rgba(120,105,70,.16); border-radius: 999px; padding: 8px 16px;
+    box-shadow: 2px 3px 0 rgba(77,143,126,.08);
+  }
+  .foot { position: absolute; left: 78px; bottom: 60px; font-size: 15px; color: #8b8068; letter-spacing: .12em; }
+
+  /* 右侧：两张牌 */
+  .stack { position: relative; flex: 1 1 auto; height: 620px; display: flex; align-items: center; justify-content: center; }
+  .card-back {
+    position: absolute; width: 322px; height: 452px; border-radius: 22px;
+    background: linear-gradient(158deg, #7fb3a1, #5f9a88);
+    border: 1px solid rgba(60,90,80,.35);
+    box-shadow: 10px 14px 34px rgba(92,138,122,.26);
+    transform: rotate(-9deg) translate(-96px, 8px);
+  }
+  .card-back::after {
+    content: '◆'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 66px; color: rgba(255,255,255,.28);
+  }
+  .card {
+    position: relative; width: 340px; height: 476px; border-radius: 24px; padding: 26px 26px 24px;
+    background: linear-gradient(160deg, #fffbef, #f6efdd);
+    border: 1px solid rgba(120,105,70,.22);
+    box-shadow: 18px 22px 50px rgba(92,138,122,.24), 0 0 0 9px rgba(255,255,255,.5);
+    transform: rotate(3.4deg); display: flex; flex-direction: column;
+  }
+  .card .corner { font-size: 30px; color: #4d8f7e; letter-spacing: .06em; line-height: 1; }
+  .card .corner.bottom { margin-top: auto; text-align: right; }
+  .card .suite { font-size: 128px; color: #3f7f6f; text-align: center; margin: 6px 0 10px; line-height: 1; }
+  .card .label { text-align: center; font-size: 15px; letter-spacing: .3em; color: #9a8f78; }
+  .card .reading {
+    margin-top: 18px; padding-top: 16px; border-top: 1px dashed rgba(120,105,70,.3);
+    font-size: 19px; line-height: 1.72; color: #4a4233;
+  }
+  .card .reading em { font-style: normal; color: #4d8f7e; font-weight: 700; }
+  .sticker {
+    position: absolute; right: 6px; top: 18px; transform: rotate(7deg);
+    background: #c45d5d; color: #fff6ee; font-size: 17px; letter-spacing: .16em;
+    padding: 10px 18px; border-radius: 14px 20px 12px 18px;
+    box-shadow: 4px 5px 0 rgba(150,70,70,.25);
+  }
+  .hint { position: absolute; bottom: 26px; right: 16px; font-size: 16px; color: #8b8068; letter-spacing: .08em; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="left">
+      <div class="kicker">观测者的镜子</div>
+      <h1>浮生牌<small>抽一张，看看今天怎么过</small></h1>
+      <div class="rule"></div>
+      <p class="lede">
+        不预测命运，只把牌翻成<b>你认得的样子</b>。<br>
+        默念一个问题，抽一张牌，<br>
+        三十秒看完，不用记任何术语。
+      </p>
+      <div class="facts">
+        <span>扑克 54 张</span><span>麻将 136 张</span><span>完全免费</span><span>断网也能用</span>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="card-back"></div>
+      <div class="card">
+        <div class="corner">7 ♠</div>
+        <div class="suite">♠</div>
+        <div class="label">暗 处</div>
+        <div class="reading">有些局面不用你推，<em>风本来就在往那边吹</em>。你要做的只是别站在原地等它停。</div>
+        <div class="corner bottom">♠ 7</div>
+      </div>
+      <div class="sticker">不用注册</div>
+      <div class="hint">抽一张 · 三十秒</div>
+    </div>
+  </div>
+  <div class="foot">浮生牌 · 观测者的镜子 · 开源</div>
+</body>
+</html>

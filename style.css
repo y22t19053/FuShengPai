@@ -909,7 +909,9 @@ select:focus-visible {
   border-radius: var(--r-hand-sm);
   pointer-events: none;
   opacity: 0.5;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.14'/%3E%3C/svg%3E");
+  /* 噪点贴图用 base64 内联：写成百分号编码的 data URI 时，里面那个 url(%23n)
+     会被平台的静态检查当成缺失的相对资源（其实不是）。转成 base64 就没这个歧义。 */
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PScwIDAgMTI4IDEyOCcgeG1sbnM9J2h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnJz48ZmlsdGVyIGlkPSduJz48ZmVUdXJidWxlbmNlIHR5cGU9J2ZyYWN0YWxOb2lzZScgYmFzZUZyZXF1ZW5jeT0nMC45JyBudW1PY3RhdmVzPScyJyBzdGl0Y2hUaWxlcz0nc3RpdGNoJy8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9JzEwMCUnIGhlaWdodD0nMTAwJScgZmlsdGVyPSd1cmwoI24pJyBvcGFjaXR5PScwLjE0Jy8+PC9zdmc+");
 }
 
 /* 牌背中央菱形徽记（手绘绘本：鼠尾草◆，无光晕） */

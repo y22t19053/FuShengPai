@@ -2,8 +2,14 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+
+// FSP_TARGET=toy：为 B 站 Toy 平台（/toy/<slug>/ 子路径、审核沙箱）出的构建。
+// 与网页版唯一的区别是关掉 PWA(Service Worker/manifest) 和 CSP meta：
+// 前者在第三方域名下缓存页面反而添乱，后者的 script-src 可能挡掉宿主页面自己的脚本。
+const IS_TOY = process.env.FSP_TARGET === 'toy';
 
 // 内容安全策略：只允许同源脚本；样式允许内联（现有大量 style=）；
 // 连接允许 https/http（用户可填任意 AI 端点）；图片/媒体允许 data:、blob: 供分享图使用。
@@ -27,6 +33,11 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version)
   },
+  // Toy 构建关掉了 vite-plugin-pwa，src/pwa.js 里 import 的虚拟模块就没人提供了，
+  // 用一个空壳顶替：能正常打包，注册逻辑变成空函数（平台上本来也没法"添加到主屏幕"）。
+  resolve: IS_TOY
+    ? { alias: { 'virtual:pwa-register': fileURLToPath(new URL('./src/pwa-register-stub.js', import.meta.url)) } }
+    : {},
   server: {
     host: true,
     port: 5173,
@@ -36,7 +47,7 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: 'dist',
+    outDir: IS_TOY ? 'dist-toy' : 'dist',
     assetsInlineLimit: 0,
     rollupOptions: {
       input: { main: 'index.html', dual: 'dual.html' },
@@ -49,7 +60,7 @@ export default defineConfig({
       }
     }
   },
-  plugins: [
+  plugins: IS_TOY ? [] : [
     {
       // 只在构建产物里注入 CSP，避免影响 vite dev 的 HMR 内联脚本
       name: 'fsp-inject-csp',
