@@ -210,6 +210,14 @@ PWA：手机浏览器可安装到主屏；访问过的页面/资源可离线（�
 
 🚀 快速开始
 
+在线打开
+
+什么都不用装，点开就能用：
+
+GitHub Pages：https://y22t19053.github.io/FuShengPai/
+
+B 站 Toy：https://www.bilibili.com/toy/fushengpai/index.html
+
 本地运行
 
 Bash
@@ -225,6 +233,18 @@ Bash
 npm run build
 
 npm run preview
+
+给 B 站 Toy 打包
+
+Bash
+
+npm run build:toy
+
+产物在 `dist-toy/`，是只给玩家看的版本（不含对读模式那条入口），且不压缩代码——平台的包体安全检查对整行几百 KB 的压缩产物比较敏感。上传用官方 CLI：
+
+Bash
+
+toy create dist-toy --title "浮生牌 · 观牌知势" --category INTERACTIVE_PLAY --visibility public
 
 接入 AI
 
@@ -333,8 +353,11 @@ AGPL-3.0
 剩下的，你自己决定。
 
 ☕ 支持
-如果你觉得浮生牌对你有帮助，可以请我喝杯咖啡——
 
-或者来 GitHub Issues 聊聊你的想法。
+不用打钱。
+
+觉得有用就把它转给一个人——你的客户、你的朋友、你那个天天纠结要不要辞职的同事。
+
+想聊想法、报问题，来 GitHub Issues。
 
 📱 扫码，抽你的牌灵。
