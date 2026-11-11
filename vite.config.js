@@ -49,6 +49,9 @@ export default defineConfig({
   build: {
     outDir: IS_TOY ? 'dist-toy' : 'dist',
     assetsInlineLimit: 0,
+    // Toy 包不做压缩：平台的「包体安全检查」对整行几百 KB 的压缩产物比较敏感
+    // （看起来像混淆代码），保留可读的换行与标识符更容易过机审，也方便人工复核。
+    minify: IS_TOY ? false : 'esbuild',
     rollupOptions: {
       input: { main: 'index.html', dual: 'dual.html' },
       output: {

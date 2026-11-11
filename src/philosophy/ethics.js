@@ -30,7 +30,7 @@ export function interceptQuestion(question) {
   }
 
   // 窥探他人隐私 → 引导反思
-  const privacyKeywords = ['他是不是', '她出轨', '别人在想什么', '内裤颜色', '手机密码'];
+  const privacyKeywords = ['他是不是', '她出轨', '别人在想什么', '他昨晚在哪', '手机密码'];
   for (const keyword of privacyKeywords) {
     if (q.includes(keyword)) {
       return {
